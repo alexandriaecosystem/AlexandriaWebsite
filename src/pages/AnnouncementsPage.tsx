@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { approveAnnouncement, createAnnouncement } from '../services/admin';
 import { getSupabaseClient } from '../services/supabase';
 import type { MessagingPlatform } from '../types/contracts';
@@ -19,8 +19,7 @@ export function AnnouncementsPage() {
       : [...selected, platform]);
   }
 
-  async function submit(event: FormEvent, approve: boolean) {
-    event.preventDefault();
+  async function submit(approve: boolean) {
     if (busy || !content.trim() || !platforms.length) return;
     setBusy(true);
     setError('');
@@ -57,7 +56,7 @@ export function AnnouncementsPage() {
 
       <div className="composer-layout">
         <section className="panel announcement-form">
-          <form>
+          <form onSubmit={(event) => event.preventDefault()}>
             <label>
               Message
               <textarea required maxLength={4000} value={content} onChange={(event) => setContent(event.target.value)} placeholder="Write the announcement…" />
@@ -84,8 +83,8 @@ export function AnnouncementsPage() {
             {message && <p className="form-success" role="status">{message}</p>}
 
             <div className="decision-actions">
-              <button type="button" disabled={busy || !ready} onClick={(event) => submit(event, false)}>Save draft</button>
-              <button type="button" className="primary" disabled={busy || !ready} onClick={(event) => submit(event, true)}>{busy ? 'Working…' : 'Approve & queue'}</button>
+              <button type="button" disabled={busy || !ready} onClick={() => void submit(false)}>Save draft</button>
+              <button type="button" className="primary" disabled={busy || !ready} onClick={() => void submit(true)}>{busy ? 'Working…' : 'Approve & queue'}</button>
             </div>
           </form>
         </section>
