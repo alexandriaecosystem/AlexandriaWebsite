@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ConflictState, LoadingState, RetryableErrorState } from '../components/AsyncState';
 import { decideApplication, getApplicationAudit, getReviewDetail } from '../services/admin';
@@ -40,8 +40,7 @@ export function ReviewDetailPage() {
       .catch(() => setError(true));
   }, [applicationId, reload]);
 
-  async function decide(event: FormEvent, decision: 'APPROVE' | 'REJECT') {
-    event.preventDefault();
+  async function decide(decision: 'APPROVE' | 'REJECT') {
     if (reason.trim().length < 8 || busy) return;
     setBusy(true);
     try {
@@ -133,15 +132,15 @@ export function ReviewDetailPage() {
           <p className="muted">The rationale is stored with the administrator decision and audit history. AI scoring remains advisory.</p>
           <div className="decision-warning">This action changes the application state. Review the evidence before continuing.</div>
         </div>
-        <form>
+        <form onSubmit={(event) => event.preventDefault()}>
           <label>
             Decision rationale
             <textarea minLength={8} required value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Record a clear reason for this decision…" />
             <small className={rationaleReady ? 'helper success-text' : 'helper'}>{rationaleReady ? 'Rationale ready' : 'Enter at least 8 characters'}</small>
           </label>
           <div className="decision-actions">
-            <button type="button" className="danger" disabled={busy || !rationaleReady} onClick={(event) => decide(event, 'REJECT')}>Reject</button>
-            <button type="button" className="primary" disabled={busy || !rationaleReady} onClick={(event) => decide(event, 'APPROVE')}>{busy ? 'Saving…' : 'Approve & queue access'}</button>
+            <button type="button" className="danger" disabled={busy || !rationaleReady} onClick={() => void decide('REJECT')}>Reject</button>
+            <button type="button" className="primary" disabled={busy || !rationaleReady} onClick={() => void decide('APPROVE')}>{busy ? 'Saving…' : 'Approve & queue access'}</button>
           </div>
         </form>
       </section>
