@@ -126,6 +126,115 @@ export interface ReviewCounts {
   failedOperations: number;
 }
 
+export interface DashboardMetrics {
+  totalUsers: number;
+  activeUsers: number;
+  approvedUsers: number;
+  pendingReviews: number;
+  blockedUsers: number;
+  totalMessages: number;
+  messagesToday: number;
+  messagesLast7Days: number;
+  messagesLast30Days: number;
+  aiResponses: number;
+  cachedResponses: number;
+  cacheHitRate: number;
+  inputTokens: number;
+  outputTokens: number;
+  aiCostTotal: number;
+  aiCostToday: number;
+  aiCost7Days: number;
+  aiCost30Days: number;
+  failedOperations: number;
+}
+
+export interface AiUsageSummary {
+  days: number;
+  totalCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
+  cacheHitCount: number;
+  cacheHitRate: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  avgCostPerCall: number;
+  byPurpose: Record<string, {
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    costUsd: number;
+    cacheHitCount: number;
+  }>;
+}
+
+export interface AiUsageSeriesPoint {
+  bucketDate: string;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  cacheHitCount: number;
+  failedCount: number;
+}
+
+export interface PlatformStat {
+  platform: string;
+  messages: number;
+  aiResponses: number;
+  cachedResponses: number;
+  aiCostUsd: number;
+  totalTokens: number;
+  activeMembers: number;
+}
+
+export interface ModelUsageStat {
+  provider: string;
+  model: string;
+  calls: number;
+  successfulCalls: number;
+  failedCalls: number;
+  cacheHitCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  avgCostPerCall: number;
+  successRate: number;
+}
+
+export type KnowledgeProcessingStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | string;
+
+export interface KnowledgeDocumentSummary {
+  id: string;
+  title: string;
+  category: string;
+  language: string;
+  isApproved: boolean;
+  processingStatus: KnowledgeProcessingStatus;
+  processingError: string | null;
+  version: number;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  chunkCount: number;
+}
+
+export interface KnowledgeChunk {
+  id: string;
+  chunkIndex: number;
+  content: string;
+  version: number;
+}
+
+export interface KnowledgeDocumentDetail extends KnowledgeDocumentSummary {
+  chunks: KnowledgeChunk[];
+}
+
 export interface ReviewListItem {
   applicationId: string;
   userId: string;

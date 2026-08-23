@@ -1,0 +1,32 @@
+.language-toggle{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:24px 6px 0;padding:4px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.025)}
+.language-toggle.compact{width:max-content;min-width:150px;margin:0}
+.language-toggle button{min-height:34px;padding:7px 10px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:.72rem;font-weight:800;cursor:pointer}
+.language-toggle button:hover{color:#fff;background:rgba(255,255,255,.04)}
+.language-toggle button.active{background:var(--accent-soft);color:#d8d3ff;box-shadow:inset 0 0 0 1px rgba(128,108,255,.24)}
+.login-language{position:fixed;top:22px;right:22px;z-index:20}
+
+html[dir='rtl'] body{font-family:'Segoe UI',Tahoma,Arial,sans-serif}
+html[dir='rtl'] h1,html[dir='rtl'] h2,html[dir='rtl'] h3,html[dir='rtl'] strong,html[dir='rtl'] .brand{font-family:'Segoe UI',Tahoma,Arial,sans-serif}
+html[dir='rtl'] .eyebrow,html[dir='rtl'] th,html[dir='rtl'] .sidebar-section-label{letter-spacing:0;text-transform:none}
+html[dir='rtl'] .text-button{text-align:right}
+html[dir='rtl'] table{text-align:right}
+html[dir='rtl'] .table-action{text-align:left}
+html[dir='rtl'] .search-icon{left:auto;right:13px}
+html[dir='rtl'] .search-field input{padding-left:12px;padding-right:38px}
+html[dir='rtl'] .signal-list,html[dir='rtl'] .evidence-list{padding-left:0;padding-right:22px}
+html[dir='rtl'] .quick-actions b{transform:rotate(180deg)}
+html[dir='rtl'] .inline-link,html[dir='rtl'] .row-link{unicode-bidi:plaintext}
+html[dir='rtl'] .login-language{right:auto;left:22px}
+html[dir='rtl'] .composer-summary dd{text-transform:none}
+
+@media(min-width:901px){
+  html[dir='rtl'] .app-shell{grid-template-columns:minmax(0,1fr) 264px}
+  html[dir='rtl'] .sidebar{grid-column:2;grid-row:1;border-right:0;border-left:1px solid var(--border)}
+  html[dir='rtl'] .content{grid-column:1;grid-row:1}
+}
+
+@media(max-width:650px){
+  .login-language{top:14px;right:14px}
+  html[dir='rtl'] .login-language{left:14px}
+  .language-toggle.compact{min-width:132px}
+}
