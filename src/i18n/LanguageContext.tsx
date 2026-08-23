@@ -37,19 +37,19 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
-export function useLanguage() {
+export function useLanguage(): LanguageContextValue {
   const value = useContext(LanguageContext);
   if (!value) throw new Error('useLanguage must be used inside LanguageProvider');
   return value;
 }
 
-export function useOptionalLanguage() {
+export function useOptionalLanguage(): LanguageContextValue {
   const value = useContext(LanguageContext);
   return value ?? {
-    language: 'en' as const,
+    language: 'en',
     isArabic: false,
-    setLanguage: () => undefined,
+    setLanguage: (_language: AppLanguage) => undefined,
     toggleLanguage: () => undefined,
-    tr: (english: string) => english,
+    tr: (english: string, _arabic: string) => english,
   };
 }
