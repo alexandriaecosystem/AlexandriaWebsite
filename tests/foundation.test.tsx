@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminGuard } from '../src/app/AdminGuard';
 import { ConflictState, RetryableErrorState } from '../src/components/AsyncState';
+import { LanguageProvider } from '../src/i18n/LanguageContext';
+import { LanguageToggle } from '../src/i18n/LanguageToggle';
 import { readPublicFrontendConfig } from '../src/services/supabase';
 
 describe('browser configuration boundary', () => {
@@ -45,4 +47,17 @@ it('exposes conflict and retry actions', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   expect(reload).toHaveBeenCalledOnce();
   expect(retry).toHaveBeenCalledOnce();
+});
+
+it('switches between English and Arabic and persists RTL direction', () => {
+  window.localStorage.removeItem('alexandria-admin-language');
+  render(<LanguageProvider><LanguageToggle /></LanguageProvider>);
+  fireEvent.click(screen.getByRole('button', { name: 'العربية' }));
+  expect(document.documentElement.lang).toBe('ar');
+  expect(document.documentElement.dir).toBe('rtl');
+  expect(window.localStorage.getItem('alexandria-admin-language')).toBe('ar');
+  fireEvent.click(screen.getByRole('button', { name: 'EN' }));
+  expect(document.documentElement.lang).toBe('en');
+  expect(document.documentElement.dir).toBe('ltr');
+  window.localStorage.removeItem('alexandria-admin-language');
 });
