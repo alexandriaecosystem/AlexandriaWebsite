@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
+import { LanguageToggle } from '../i18n/LanguageToggle';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export function LoginPage() {
   const client = getSupabaseClient();
   const navigate = useNavigate();
+  const { tr } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -24,7 +27,7 @@ export function LoginPage() {
       }
       navigate('/', { replace: true });
     } catch {
-      setError('Unable to reach the authentication service. Please try again.');
+      setError(tr('Unable to reach the authentication service. Please try again.', 'تعذر الاتصال بخدمة المصادقة. حاول مرة أخرى.'));
     } finally {
       setBusy(false);
     }
@@ -32,28 +35,29 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
+      <div className="login-language"><LanguageToggle compact /></div>
       <section className="login-card">
         <div className="brand login-brand">
           <span className="brand-mark" aria-hidden="true">A</span>
-          <div><strong>Alexandria</strong><small>Secure administration</small></div>
+          <div><strong>Alexandria</strong><small>{tr('Secure administration', 'إدارة آمنة')}</small></div>
         </div>
-        <p className="eyebrow">Admin portal</p>
-        <h1>Welcome back</h1>
-        <p className="muted">Sign in with an authorized administrator account to continue.</p>
+        <p className="eyebrow">{tr('Admin portal', 'بوابة الإدارة')}</p>
+        <h1>{tr('Welcome back', 'مرحباً بعودتك')}</h1>
+        <p className="muted">{tr('Sign in with an authorized administrator account to continue.', 'سجّل الدخول بحساب مسؤول مخوّل للمتابعة.')}</p>
 
         <form onSubmit={submit}>
           <label>
-            Email
-            <input type="email" autoComplete="email" inputMode="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" />
+            {tr('Email', 'البريد الإلكتروني')}
+            <input type="email" autoComplete="email" inputMode="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" dir="ltr" />
           </label>
           <label>
-            Password
-            <input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" />
+            {tr('Password', 'كلمة المرور')}
+            <input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" dir="ltr" />
           </label>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="primary" disabled={busy || !email.trim() || !password}>{busy ? 'Signing in…' : 'Sign in'}</button>
+          <button className="primary" disabled={busy || !email.trim() || !password}>{busy ? tr('Signing in…', 'جارٍ تسجيل الدخول…') : tr('Sign in', 'تسجيل الدخول')}</button>
         </form>
-        <p className="login-footnote">Access is checked again against the server-side administrator session after sign-in.</p>
+        <p className="login-footnote">{tr('Access is checked again against the server-side administrator session after sign-in.', 'يتم التحقق من صلاحية المسؤول مرة أخرى على الخادم بعد تسجيل الدخول.')}</p>
       </section>
     </main>
   );
