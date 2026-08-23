@@ -9,9 +9,10 @@ import { AnnouncementsPage } from '../pages/AnnouncementsPage';
 import { DeadLetterPage } from '../pages/DeadLetterPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
+import { LanguageProvider } from '../i18n/LanguageContext';
 
 export function App() {
-  return <BrowserRouter><Routes>
+  return <LanguageProvider><BrowserRouter><Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route element={<AdminGuard />}>
       <Route element={<AppShell />}>
@@ -25,5 +26,5 @@ export function App() {
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
-  </Routes></BrowserRouter>;
+  </Routes></BrowserRouter></LanguageProvider>;
 }
