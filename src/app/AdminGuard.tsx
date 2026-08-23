@@ -17,18 +17,24 @@ export function AdminGuard({ client = getSupabaseClient(), children }: AdminGuar
 
   useEffect(() => {
     let current = true;
+
     async function verify() {
       setState('loading');
       const { data: sessionData, error: sessionError } = await client.auth.getSession();
       if (!current) return;
       if (sessionError) return setState('error');
       if (!sessionData.session) return setState('anonymous');
+
       const { data, error } = await client.rpc('admin_get_session');
       if (!current) return;
       if (error) return setState(error.code === '42501' ? 'forbidden' : 'error');
+
       const record = Array.isArray(data) ? data[0] : data;
-      setState(record?.is_active === true || record?.is_admin === true ? 'allowed' : 'forbidden');
+      const isAdmin = record?.is_admin === true;
+      const isActive = record?.is_active !== false;
+      setState(isAdmin && isActive ? 'allowed' : 'forbidden');
     }
+
     void verify();
     return () => {
       current = false;
