@@ -1,78 +1,62 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
-import { getReviewCounts } from '../services/admin';
-import type { ReviewCounts } from '../types/contracts';
+import { getDashboardMetrics } from '../services/admin';
+import type { DashboardMetrics } from '../types/contracts';
 import { LoadingState, RetryableErrorState } from '../components/AsyncState';
 
+const money = (value: number) => `$${value.toFixed(value < 1 ? 4 : 2)}`;
+const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+
 export function DashboardPage() {
-  const [counts, setCounts] = useState<ReviewCounts>();
+  const [metrics, setMetrics] = useState<DashboardMetrics>();
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
     setError(false);
-    getReviewCounts(getSupabaseClient()).then(setCounts).catch(() => setError(true));
+    getDashboardMetrics(getSupabaseClient()).then(setMetrics).catch(() => setError(true));
   }, [reload]);
 
   return (
     <>
       <header className="page-header hero-header">
         <div>
-          <p className="eyebrow">Operations</p>
+          <p className="eyebrow">Operations & analytics</p>
           <h1>Community overview</h1>
-          <p className="muted page-subtitle">Review applicants, monitor delivery failures, and keep community access under human control.</p>
+          <p className="muted page-subtitle">Live membership, messaging, AI usage, review, and delivery health from Supabase.</p>
         </div>
-        <div className="header-status-group">
-          <span className="status-pill healthy"><span className="pill-dot" /> Admin verified</span>
-        </div>
+        <span className="status-pill healthy"><span className="pill-dot" /> Admin verified</span>
       </header>
 
-      {error ? (
-        <RetryableErrorState onRetry={() => { setError(false); setReload((n) => n + 1); }} />
-      ) : !counts ? (
-        <LoadingState label="Loading operational overview" />
+      {error ? <RetryableErrorState onRetry={() => { setError(false); setReload((n) => n + 1); }} /> : !metrics ? (
+        <LoadingState label="Loading community metrics" />
       ) : (
         <>
-          <section className="stats-grid" aria-label="Operational summary">
-            <Link className="stat-card stat-card-primary" to="/reviews">
-              <div className="stat-card-top"><span>Pending reviews</span><span className="stat-icon" aria-hidden="true">◎</span></div>
-              <strong>{counts.pendingReviews}</strong>
-              <small>{counts.pendingReviews === 1 ? '1 application needs a decision' : `${counts.pendingReviews} applications need decisions`}</small>
-              <span className="card-link">Open queue <span aria-hidden="true">→</span></span>
-            </Link>
-
-            <Link className={`stat-card ${counts.failedOperations ? 'danger-card' : ''}`} to="/dead-letter">
-              <div className="stat-card-top"><span>Dead-letter operations</span><span className="stat-icon" aria-hidden="true">!</span></div>
-              <strong>{counts.failedOperations}</strong>
-              <small>{counts.failedOperations ? 'Terminal failures need manual attention' : 'No terminal delivery failures'}</small>
-              <span className="card-link">Inspect operations <span aria-hidden="true">→</span></span>
-            </Link>
-
-            <article className="stat-card">
-              <div className="stat-card-top"><span>Access policy</span><span className="stat-icon" aria-hidden="true">✓</span></div>
-              <strong className="stat-word">Human</strong>
-              <small>AI evaluation remains advisory and cannot grant membership.</small>
-              <span className="card-link muted">Manual approval enforced</span>
-            </article>
+          <section className="metric-grid" aria-label="Community metrics">
+            <article className="metric-card"><span>Total users</span><strong>{metrics.totalUsers.toLocaleString()}</strong><small>{metrics.activeUsers.toLocaleString()} active · {metrics.approvedUsers.toLocaleString()} approved</small></article>
+            <article className="metric-card"><span>Total messages</span><strong>{metrics.totalMessages.toLocaleString()}</strong><small>{metrics.messagesToday.toLocaleString()} today · {metrics.messagesLast7Days.toLocaleString()} last 7 days</small></article>
+            <Link className="metric-card metric-link" to="/analytics"><span>AI cost</span><strong>{money(metrics.aiCostTotal)}</strong><small>{money(metrics.aiCostToday)} today · {money(metrics.aiCost30Days)} last 30 days</small></Link>
+            <Link className="metric-card metric-link" to="/reviews"><span>Pending reviews</span><strong>{metrics.pendingReviews.toLocaleString()}</strong><small>{metrics.pendingReviews ? 'Human decisions required' : 'Queue is clear'}</small></Link>
+            <article className="metric-card"><span>AI responses</span><strong>{metrics.aiResponses.toLocaleString()}</strong><small>{metrics.cachedResponses.toLocaleString()} cached · {percent(metrics.cacheHitRate)} cache rate</small></article>
+            <Link className={`metric-card metric-link ${metrics.failedOperations ? 'metric-danger' : ''}`} to="/dead-letter"><span>Failed operations</span><strong>{metrics.failedOperations.toLocaleString()}</strong><small>{metrics.failedOperations ? 'Needs manual attention' : 'No dead-letter work'}</small></Link>
           </section>
 
           <section className="dashboard-grid">
-            <article className="panel safety-panel">
-              <div className="panel-icon safe" aria-hidden="true">✓</div>
-              <div>
-                <p className="eyebrow">Safety invariant</p>
-                <h2>Membership is never granted by an AI score</h2>
-                <p className="muted">Evidence creates an advisory evaluation. Every applicant stays pending until an administrator explicitly approves or rejects the request.</p>
-              </div>
+            <article className="panel">
+              <div className="section-heading"><div><p className="eyebrow">30-day activity</p><h2>Messaging footprint</h2></div></div>
+              <div className="mini-stat-row"><span>Messages, 30 days</span><strong>{metrics.messagesLast30Days.toLocaleString()}</strong></div>
+              <div className="mini-stat-row"><span>Input tokens</span><strong>{metrics.inputTokens.toLocaleString()}</strong></div>
+              <div className="mini-stat-row"><span>Output tokens</span><strong>{metrics.outputTokens.toLocaleString()}</strong></div>
+              <div className="mini-stat-row"><span>Blocked users</span><strong>{metrics.blockedUsers.toLocaleString()}</strong></div>
+              <Link className="inline-link" to="/analytics">Open AI usage analytics →</Link>
             </article>
 
             <article className="panel quick-actions-panel">
-              <div className="section-heading">
-                <div><p className="eyebrow">Shortcuts</p><h2>Common actions</h2></div>
-              </div>
+              <div className="section-heading"><div><p className="eyebrow">Shortcuts</p><h2>Common actions</h2></div></div>
               <div className="quick-actions">
                 <Link to="/reviews"><span>Review applicants</span><small>Process the pending queue</small><b aria-hidden="true">→</b></Link>
+                <Link to="/knowledge"><span>Manage knowledge base</span><small>Upload and approve project sources</small><b aria-hidden="true">→</b></Link>
                 <Link to="/announcements"><span>Create announcement</span><small>Draft or approve a broadcast</small><b aria-hidden="true">→</b></Link>
                 <Link to="/dead-letter"><span>Check failed operations</span><small>Retry terminal outbox events</small><b aria-hidden="true">→</b></Link>
               </div>
