@@ -5,7 +5,7 @@ Production Vite/React admin interface for the existing Supabase backend.
 ## Included
 
 - Supabase email/password login and active-admin authorization guard
-- English / Arabic language switch with persistent preference and RTL layout
+- English / Arabic language switch across the admin interface, with persistent preference and full RTL layout
 - Live dashboard for users, messages, review queue, dead-letter operations, AI cost, tokens, and cache activity
 - AI usage analytics by time, purpose, platform, and model
 - Private evaluation detail, category signals, evidence, concerns, and access state
