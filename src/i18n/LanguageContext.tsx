@@ -42,3 +42,14 @@ export function useLanguage() {
   if (!value) throw new Error('useLanguage must be used inside LanguageProvider');
   return value;
 }
+
+export function useOptionalLanguage() {
+  const value = useContext(LanguageContext);
+  return value ?? {
+    language: 'en' as const,
+    isArabic: false,
+    setLanguage: () => undefined,
+    toggleLanguage: () => undefined,
+    tr: (english: string) => english,
+  };
+}
