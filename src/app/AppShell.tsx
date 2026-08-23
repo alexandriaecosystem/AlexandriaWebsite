@@ -3,7 +3,9 @@ import { getSupabaseClient } from '../services/supabase';
 
 const navigation = [
   { to: '/', label: 'Overview', icon: '⌂', end: true },
+  { to: '/analytics', label: 'AI usage', icon: '◫' },
   { to: '/reviews', label: 'Review queue', icon: '◎' },
+  { to: '/knowledge', label: 'Knowledge base', icon: '◇' },
   { to: '/announcements', label: 'Announcements', icon: '↗' },
   { to: '/dead-letter', label: 'Dead-letter', icon: '!' },
 ];
