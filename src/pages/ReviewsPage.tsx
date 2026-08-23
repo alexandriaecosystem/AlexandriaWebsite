@@ -4,12 +4,7 @@ import { EmptyState, LoadingState, RetryableErrorState } from '../components/Asy
 import { listPendingReviews } from '../services/admin';
 import { getSupabaseClient } from '../services/supabase';
 import type { MessagingPlatform, ReviewListItem } from '../types/contracts';
-
-const formatDate = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Unknown date';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-};
+import { useLanguage } from '../i18n/LanguageContext';
 
 function recommendationTone(value: string) {
   if (value === 'HIGHLY_RECOMMENDED' || value === 'RECOMMENDED') return 'positive';
@@ -18,6 +13,7 @@ function recommendationTone(value: string) {
 }
 
 export function ReviewsPage() {
+  const { tr, isArabic } = useLanguage();
   const [items, setItems] = useState<ReviewListItem[]>();
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
@@ -39,35 +35,48 @@ export function ReviewsPage() {
     });
   }, [items, platform, query]);
 
+  const formatDate = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return tr('Unknown date', 'تاريخ غير معروف');
+    return new Intl.DateTimeFormat(isArabic ? 'ar-LB' : undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  };
+
+  const recommendationLabel = (value: string) => ({
+    HIGHLY_RECOMMENDED: tr('Highly recommended', 'موصى به بشدة'),
+    RECOMMENDED: tr('Recommended', 'موصى به'),
+    MANUAL_REVIEW: tr('Manual review', 'مراجعة يدوية'),
+    NOT_RECOMMENDED: tr('Not recommended', 'غير موصى به'),
+  }[value] ?? value.replaceAll('_', ' '));
+
   return (
     <>
       <header className="page-header">
         <div>
-          <p className="eyebrow">Qualification</p>
-          <h1>Review queue</h1>
-          <p className="muted page-subtitle">Inspect advisory evaluation evidence and make the final human decision.</p>
+          <p className="eyebrow">{tr('Qualification', 'التقييم')}</p>
+          <h1>{tr('Review queue', 'قائمة المراجعة')}</h1>
+          <p className="muted page-subtitle">{tr('Inspect advisory evaluation evidence and make the final human decision.', 'راجع أدلة التقييم الاستشاري واتخذ القرار النهائي يدوياً.')}</p>
         </div>
-        {items && <span className="queue-count">{items.length} pending</span>}
+        {items && <span className="queue-count">{items.length} {tr('pending', 'معلّق')}</span>}
       </header>
 
       {error ? (
         <RetryableErrorState onRetry={() => { setError(false); setReload((n) => n + 1); }} />
       ) : !items ? (
-        <LoadingState label="Loading review queue" />
+        <LoadingState label={tr('Loading review queue', 'جارٍ تحميل قائمة المراجعة')} />
       ) : !items.length ? (
-        <EmptyState title="Queue clear" message="There are no applications waiting for review." />
+        <EmptyState title={tr('Queue clear', 'قائمة الانتظار فارغة')} message={tr('There are no applications waiting for review.', 'لا توجد طلبات بانتظار المراجعة.')} />
       ) : (
         <>
-          <section className="toolbar" aria-label="Review filters">
+          <section className="toolbar" aria-label={tr('Review filters', 'مرشحات المراجعة')}>
             <label className="search-field">
-              <span className="sr-only">Search applications</span>
+              <span className="sr-only">{tr('Search applications', 'البحث في الطلبات')}</span>
               <span className="search-icon" aria-hidden="true">⌕</span>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search user or application ID" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr('Search user or application ID', 'ابحث بمعرّف المستخدم أو الطلب')} dir="ltr" />
             </label>
             <label className="select-field">
-              <span className="sr-only">Filter by platform</span>
+              <span className="sr-only">{tr('Filter by platform', 'تصفية حسب المنصة')}</span>
               <select value={platform} onChange={(event) => setPlatform(event.target.value as 'all' | MessagingPlatform)}>
-                <option value="all">All platforms</option>
+                <option value="all">{tr('All platforms', 'كل المنصات')}</option>
                 <option value="telegram">Telegram</option>
                 <option value="discord">Discord</option>
                 <option value="whatsapp">WhatsApp</option>
@@ -76,21 +85,21 @@ export function ReviewsPage() {
           </section>
 
           {!filteredItems.length ? (
-            <EmptyState title="No matching applications" message="Try a different search term or platform filter." />
+            <EmptyState title={tr('No matching applications', 'لا توجد طلبات مطابقة')} message={tr('Try a different search term or platform filter.', 'جرّب عبارة بحث أو منصة مختلفة.')} />
           ) : (
             <section className="table-card">
               <div className="table-scroll">
                 <table>
-                  <thead><tr><th>Applicant</th><th>Platform</th><th>Submitted</th><th>Advisory score</th><th>Recommendation</th><th><span className="sr-only">Action</span></th></tr></thead>
+                  <thead><tr><th>{tr('Applicant', 'المتقدم')}</th><th>{tr('Platform', 'المنصة')}</th><th>{tr('Submitted', 'تاريخ التقديم')}</th><th>{tr('Advisory score', 'النتيجة الاستشارية')}</th><th>{tr('Recommendation', 'التوصية')}</th><th><span className="sr-only">{tr('Action', 'الإجراء')}</span></th></tr></thead>
                   <tbody>
                     {filteredItems.map((item) => (
                       <tr key={item.applicationId}>
-                        <td><div className="identity-cell"><span className="avatar" aria-hidden="true">{item.userId.slice(0, 2).toUpperCase()}</span><span><strong className="mono short-id">{item.userId.slice(0, 12)}</strong><small className="muted mono">{item.applicationId.slice(0, 8)}</small></span></div></td>
-                        <td><span className={`platform ${item.platform}`}>{item.platform}</span></td>
+                        <td><div className="identity-cell"><span className="avatar" aria-hidden="true">{item.userId.slice(0, 2).toUpperCase()}</span><span><strong className="mono short-id" dir="ltr">{item.userId.slice(0, 12)}</strong><small className="muted mono" dir="ltr">{item.applicationId.slice(0, 8)}</small></span></div></td>
+                        <td><span className={`platform ${item.platform}`} dir="ltr">{item.platform}</span></td>
                         <td>{formatDate(item.submittedAt)}</td>
                         <td><div className="score-cell"><strong>{Math.round(item.score)}</strong><span className="muted">/100</span></div></td>
-                        <td><span className={`status-pill ${recommendationTone(item.recommendation)}`}>{item.recommendation.replaceAll('_', ' ')}</span></td>
-                        <td className="table-action"><Link className="row-link" to={`/reviews/${item.applicationId}`}>Review <span aria-hidden="true">→</span></Link></td>
+                        <td><span className={`status-pill ${recommendationTone(item.recommendation)}`}>{recommendationLabel(item.recommendation)}</span></td>
+                        <td className="table-action"><Link className="row-link" to={`/reviews/${item.applicationId}`}>{tr('Review', 'مراجعة')} <span aria-hidden="true">→</span></Link></td>
                       </tr>
                     ))}
                   </tbody>
