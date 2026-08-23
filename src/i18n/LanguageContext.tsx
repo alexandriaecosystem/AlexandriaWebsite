@@ -48,8 +48,8 @@ export function useOptionalLanguage(): LanguageContextValue {
   return value ?? {
     language: 'en',
     isArabic: false,
-    setLanguage: (_language: AppLanguage) => undefined,
+    setLanguage: () => undefined,
     toggleLanguage: () => undefined,
-    tr: (english: string, _arabic: string) => english,
+    tr: (english: string) => english,
   };
 }
