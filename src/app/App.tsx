@@ -6,7 +6,6 @@ import { DashboardPage } from '../pages/DashboardPage';
 import { ReviewsPage } from '../pages/ReviewsPage';
 import { ReviewDetailPage } from '../pages/ReviewDetailPage';
 import { AnnouncementsPage } from '../pages/AnnouncementsPage';
-import { DeadLetterPage } from '../pages/DeadLetterPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
 import { LanguageProvider } from '../i18n/LanguageContext';
@@ -17,12 +16,11 @@ export function App() {
     <Route element={<AdminGuard />}>
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="reviews" element={<ReviewsPage />} />
         <Route path="reviews/:applicationId" element={<ReviewDetailPage />} />
         <Route path="knowledge" element={<KnowledgeBasePage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
-        <Route path="dead-letter" element={<DeadLetterPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
