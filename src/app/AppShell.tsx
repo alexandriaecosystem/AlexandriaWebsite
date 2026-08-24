@@ -3,14 +3,53 @@ import { getSupabaseClient } from '../services/supabase';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import { useLanguage } from '../i18n/LanguageContext';
 
-const navigation = [
-  { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: '⌂', end: true },
-  { to: '/reviews', en: 'Member reviews', ar: 'مراجعة الأعضاء', icon: '◎' },
-  { to: '/users', en: 'Users', ar: 'المستخدمون', icon: '◉' },
-  { to: '/messages', en: 'Messages', ar: 'الرسائل', icon: '✉' },
-  { to: '/knowledge', en: 'Knowledge', ar: 'المعرفة', icon: '◇' },
-  { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: '↗' },
-  { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: '◫' },
+type NavItem = { to: string; en: string; ar: string; icon: string; end?: boolean };
+type NavGroup = { en: string; ar: string; items: NavItem[] };
+
+const navigation: NavGroup[] = [
+  {
+    en: 'Overview', ar: 'نظرة عامة', items: [
+      { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: '⌂', end: true },
+    ],
+  },
+  {
+    en: 'Community', ar: 'المجتمع', items: [
+      { to: '/users', en: 'Users', ar: 'المستخدمون', icon: '◉' },
+      { to: '/messages', en: 'Messages', ar: 'الرسائل', icon: '✉' },
+      { to: '/reviews', en: 'Member reviews', ar: 'مراجعة الأعضاء', icon: '◎' },
+      { to: '/community', en: 'Approved community', ar: 'المجتمع المعتمد', icon: '✓' },
+    ],
+  },
+  {
+    en: 'Knowledge', ar: 'المعرفة', items: [
+      { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: '◇' },
+      { to: '/knowledge-gaps', en: 'Knowledge gaps', ar: 'فجوات المعرفة', icon: '?' },
+    ],
+  },
+  {
+    en: 'Communication', ar: 'التواصل', items: [
+      { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: '↗' },
+    ],
+  },
+  {
+    en: 'Intelligence', ar: 'الذكاء', items: [
+      { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: '◫' },
+      { to: '/ai-performance', en: 'AI performance', ar: 'أداء الذكاء الاصطناعي', icon: '▥' },
+    ],
+  },
+  {
+    en: 'Operations', ar: 'العمليات', items: [
+      { to: '/system-health', en: 'System health', ar: 'صحة النظام', icon: '●' },
+      { to: '/failed-operations', en: 'Failed operations', ar: 'العمليات الفاشلة', icon: '!' },
+      { to: '/activity', en: 'Activity log', ar: 'سجل النشاط', icon: '≡' },
+    ],
+  },
+  {
+    en: 'Admin', ar: 'الإدارة', items: [
+      { to: '/settings', en: 'Settings', ar: 'الإعدادات', icon: '⚙' },
+      { to: '/admin-users', en: 'Admin users', ar: 'المشرفون', icon: '♙' },
+    ],
+  },
 ];
 
 export function AppShell() {
@@ -35,13 +74,17 @@ export function AppShell() {
 
         <LanguageToggle />
 
-        <div className="sidebar-section-label">{tr('Menu', 'القائمة')}</div>
         <nav aria-label={tr('Main menu', 'القائمة الرئيسية')}>
-          {navigation.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end}>
-              <span className="nav-icon" aria-hidden="true">{item.icon}</span>
-              <span>{tr(item.en, item.ar)}</span>
-            </NavLink>
+          {navigation.map((group) => (
+            <div className="sidebar-nav-group" key={group.en}>
+              <div className="sidebar-section-label">{tr(group.en, group.ar)}</div>
+              {group.items.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.end}>
+                  <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                  <span>{tr(item.en, item.ar)}</span>
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
