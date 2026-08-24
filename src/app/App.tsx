@@ -10,6 +10,7 @@ import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
 import { UsersPage } from '../pages/UsersPage';
 import { UserConversationPage } from '../pages/UserConversationPage';
+import { MessagesPage } from '../pages/MessagesPage';
 import { LanguageProvider } from '../i18n/LanguageContext';
 
 export function App() {
@@ -22,6 +23,7 @@ export function App() {
         <Route path="reviews/:applicationId" element={<ReviewDetailPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="users/:userId" element={<UserConversationPage />} />
+        <Route path="messages" element={<MessagesPage />} />
         <Route path="knowledge" element={<KnowledgeBasePage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
