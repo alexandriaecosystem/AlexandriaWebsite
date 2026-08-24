@@ -25,6 +25,9 @@ const navigation: NavGroup[] = [
     { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: '◫' },
     { to: '/token-monitor', en: 'Token activity', ar: 'نشاط التوكن', icon: '◈' },
   ] },
+  { en: 'Admin', ar: 'الإدارة', items: [
+    { to: '/settings', en: 'Settings', ar: 'الإعدادات', icon: '⚙' },
+  ] },
 ];
 
 export function AppShell() {

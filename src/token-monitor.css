@@ -7,6 +7,7 @@
 .token-transfer-chart { height:200px; display:grid; grid-template-columns:repeat(20,minmax(6px,1fr)); gap:6px; align-items:end; padding:22px 4px 4px; margin-top:8px; border-bottom:1px solid var(--border); background:linear-gradient(to top,rgba(37,99,235,.04),transparent 70%); }
 .token-transfer-bar-column { height:100%; display:flex; align-items:flex-end; min-width:0; text-decoration:none; }
 .token-transfer-bar { display:block; width:100%; min-height:4px; border-radius:6px 6px 2px 2px; background:linear-gradient(180deg,#60a5fa,#2563eb); opacity:.9; transition:transform .16s ease,opacity .16s ease; }
+.token-transfer-bar.large { background:linear-gradient(180deg,#fbbf24,#d97706); }
 .token-transfer-bar.risk { background:linear-gradient(180deg,#fb7185,#dc2626); }
 .token-transfer-bar-column:hover .token-transfer-bar { transform:translateY(-3px); opacity:1; }
 .token-chart-note { margin:12px 0 0; font-size:.78rem; }
@@ -15,7 +16,9 @@
 .token-table-heading { padding:22px 22px 8px; }
 .token-address-link { color:var(--accent); text-decoration:none; font-weight:700; }
 .token-address-link:hover { text-decoration:underline; }
-.token-risk-pill { margin-inline-start:6px; }
+.token-risk-pill,.token-large-pill { margin-inline-start:6px; }
+.token-large-transfer-row { background:rgba(217,119,6,.045); }
+.token-large-transfer-row:hover { background:rgba(217,119,6,.075); }
 .token-config-panel { max-width:760px; }
 .token-empty { color:var(--muted); padding:60px 0; text-align:center; }
 
