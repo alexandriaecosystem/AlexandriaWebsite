@@ -7,12 +7,13 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 const allPlatforms: MessagingPlatform[] = ['telegram', 'discord', 'whatsapp'];
 type AnnouncementAudience = 'GENERAL' | 'APPROVED' | 'BOTH';
+type SelectableAudience = Exclude<AnnouncementAudience, 'BOTH'>;
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleString() : '—';
 
 export function AnnouncementsPage() {
   const { tr } = useLanguage();
   const [content, setContent] = useState('');
-  const [destination, setDestination] = useState<AnnouncementAudience>('GENERAL');
+  const [audiences, setAudiences] = useState<SelectableAudience[]>(['GENERAL']);
   const [platforms, setPlatforms] = useState<MessagingPlatform[]>(['telegram']);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -22,18 +23,25 @@ export function AnnouncementsPage() {
 
   useEffect(() => { void listAnnouncementHistory(getSupabaseClient()).then(setHistory).catch(() => undefined); }, [reload]);
 
-  function toggle(platform: MessagingPlatform) {
+  function togglePlatform(platform: MessagingPlatform) {
     setPlatforms((selected) => selected.includes(platform) ? selected.filter((item) => item !== platform) : [...selected, platform]);
   }
 
-  const audienceLabel = destination === 'GENERAL'
-    ? tr('General community', 'المجتمع العام')
-    : destination === 'APPROVED'
-      ? tr('Approved members', 'الأعضاء المقبولون')
-      : tr('General community + Approved members', 'المجتمع العام + الأعضاء المقبولون');
+  function toggleAudience(audience: SelectableAudience) {
+    setAudiences((selected) => selected.includes(audience) ? selected.filter((item) => item !== audience) : [...selected, audience]);
+  }
+
+  const destination: AnnouncementAudience = audiences.length === 2 ? 'BOTH' : audiences[0] ?? 'GENERAL';
+  const audienceLabel = audiences.length === 0
+    ? tr('None selected', 'لا شيء محدد')
+    : audiences.length === 2
+      ? tr('General community + Approved members', 'المجتمع العام + الأعضاء المقبولون')
+      : audiences[0] === 'GENERAL'
+        ? tr('General community', 'المجتمع العام')
+        : tr('Approved members', 'الأعضاء المقبولون');
 
   async function submit(approve: boolean) {
-    if (busy || !content.trim() || !platforms.length) return;
+    if (busy || !content.trim() || !audiences.length || !platforms.length) return;
     setBusy(true); setError(''); setMessage('');
     try {
       const id = await createAnnouncement(getSupabaseClient(), { content: content.trim(), destination, platforms });
@@ -47,7 +55,7 @@ export function AnnouncementsPage() {
   }
 
   function confirmAndQueue() {
-    if (!content.trim() || !platforms.length || busy) return;
+    if (!content.trim() || !audiences.length || !platforms.length || busy) return;
     const confirmed = window.confirm([
       tr('Queue this announcement for delivery?', 'هل تريد وضع هذا الإعلان في قائمة الإرسال؟'),
       '',
@@ -59,7 +67,7 @@ export function AnnouncementsPage() {
     if (confirmed) void submit(true);
   }
 
-  const ready = Boolean(content.trim() && platforms.length);
+  const ready = Boolean(content.trim() && audiences.length && platforms.length);
 
   return (
     <>
@@ -70,8 +78,8 @@ export function AnnouncementsPage() {
           <form onSubmit={(event) => event.preventDefault()}>
             <p className="eyebrow">{tr('New message', 'رسالة جديدة')}</p><h2>{tr('Compose announcement', 'إنشاء إعلان')}</h2>
             <label>{tr('Message', 'الرسالة')}<textarea required maxLength={4000} value={content} onChange={(event) => setContent(event.target.value)} placeholder={tr('Write the announcement…', 'اكتب الإعلان…')} /><small className="helper">{content.length.toLocaleString()} / 4,000 {tr('characters', 'حرف')}</small></label>
-            <fieldset><legend>{tr('Audience', 'الجمهور')}</legend><label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'GENERAL'} onChange={() => setDestination('GENERAL')} /> {tr('General community', 'المجتمع العام')}</label><label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'APPROVED'} onChange={() => setDestination('APPROVED')} /> {tr('Approved members', 'الأعضاء المقبولون')}</label><label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'BOTH'} onChange={() => setDestination('BOTH')} /> {tr('Both groups', 'المجموعتان')}</label></fieldset>
-            <fieldset><legend>{tr('Platforms', 'المنصات')}</legend>{allPlatforms.map((platform) => <label className="choice" key={platform}><input type="checkbox" checked={platforms.includes(platform)} onChange={() => toggle(platform)} /><span className={`platform ${platform}`} dir="ltr">{platform}</span></label>)}</fieldset>
+            <fieldset><legend>{tr('Audience', 'الجمهور')}</legend><label className="choice"><input type="checkbox" checked={audiences.includes('GENERAL')} onChange={() => toggleAudience('GENERAL')} /> {tr('General community', 'المجتمع العام')}</label><label className="choice"><input type="checkbox" checked={audiences.includes('APPROVED')} onChange={() => toggleAudience('APPROVED')} /> {tr('Approved members', 'الأعضاء المقبولون')}</label></fieldset>
+            <fieldset><legend>{tr('Platforms', 'المنصات')}</legend>{allPlatforms.map((platform) => <label className="choice" key={platform}><input type="checkbox" checked={platforms.includes(platform)} onChange={() => togglePlatform(platform)} /><span className={`platform ${platform}`} dir="ltr">{platform}</span></label>)}</fieldset>
             {error && <p className="form-error" role="alert">{error}</p>}{message && <p className="form-success" role="status">{message}</p>}
             <div className="decision-actions"><button type="button" disabled={busy || !ready} onClick={() => void submit(false)}>{tr('Save draft', 'حفظ كمسودة')}</button><button type="button" className="primary" disabled={busy || !ready} onClick={confirmAndQueue}>{busy ? tr('Working…', 'جارٍ التنفيذ…') : tr('Review & queue', 'مراجعة وإرسال')}</button></div>
           </form>
