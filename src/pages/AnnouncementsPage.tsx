@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { approveAnnouncement, createAnnouncement } from '../services/admin';
 import { listAnnouncementHistory, type AnnouncementHistoryItem } from '../services/admin-operations';
-import { getAdminUiSettings, type AnnouncementAudience } from '../services/admin-settings';
 import { getSupabaseClient } from '../services/supabase';
 import type { MessagingPlatform } from '../types/contracts';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const allPlatforms: MessagingPlatform[] = ['telegram', 'discord', 'whatsapp'];
+type AnnouncementAudience = 'GENERAL' | 'APPROVED' | 'BOTH';
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleString() : '—';
 
 export function AnnouncementsPage() {
@@ -19,13 +19,6 @@ export function AnnouncementsPage() {
   const [error, setError] = useState('');
   const [history, setHistory] = useState<AnnouncementHistoryItem[]>([]);
   const [reload, setReload] = useState(0);
-
-  useEffect(() => {
-    void getAdminUiSettings(getSupabaseClient()).then((settings) => {
-      setDestination(settings.announcementDefaultAudience);
-      setPlatforms(settings.announcementDefaultPlatforms);
-    }).catch(() => undefined);
-  }, []);
 
   useEffect(() => {
     void listAnnouncementHistory(getSupabaseClient()).then(setHistory).catch(() => undefined);
