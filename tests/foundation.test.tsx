@@ -1,11 +1,13 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AdminGuard } from '../src/app/AdminGuard';
 import { ConflictState, RetryableErrorState } from '../src/components/AsyncState';
 import { LanguageProvider } from '../src/i18n/LanguageContext';
 import { LanguageToggle } from '../src/i18n/LanguageToggle';
 import { readPublicFrontendConfig } from '../src/services/supabase';
+
+afterEach(() => cleanup());
 
 function authenticatedClient(admin: boolean, aal: { currentLevel: 'aal1' | 'aal2'; nextLevel: 'aal1' | 'aal2' } = { currentLevel: 'aal1', nextLevel: 'aal1' }) {
   return {
