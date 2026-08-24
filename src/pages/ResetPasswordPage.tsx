@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import { useLanguage } from '../i18n/LanguageContext';
+import alexandriaLogo from '../assets/alexandria-logo.svg';
 
 const MIN_PASSWORD_LENGTH = 10;
 
@@ -44,7 +45,7 @@ export function ResetPasswordPage() {
   return <main className="login-page">
     <div className="login-language"><LanguageToggle compact /></div>
     <section className="login-card">
-      <div className="brand login-brand"><span className="brand-mark" aria-hidden="true">A</span><div><strong>Alexandria</strong><small>{tr('Secure administration', 'إدارة آمنة')}</small></div></div>
+      <div className="brand login-brand"><img className="brand-logo" src={alexandriaLogo} alt="" aria-hidden="true" /><div><strong>Alexandria</strong><small>{tr('Secure administration', 'إدارة آمنة')}</small></div></div>
       <p className="eyebrow">{tr('Password recovery', 'استعادة كلمة المرور')}</p>
       <h1>{tr('Choose a new password', 'اختر كلمة مرور جديدة')}</h1>
       <p className="muted">{tr('The reset link must be opened from the recovery email sent by Supabase Auth.', 'يجب فتح رابط إعادة التعيين من رسالة الاستعادة المرسلة بواسطة Supabase Auth.')}</p>
