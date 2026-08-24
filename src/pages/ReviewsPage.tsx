@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EmptyState, LoadingState, RetryableErrorState } from '../components/AsyncState';
+import { EmptyState, RetryableErrorState, TableSkeleton } from '../components/AsyncState';
 import { listPendingReviews } from '../services/admin';
 import { getSupabaseClient } from '../services/supabase';
 import type { MessagingPlatform, ReviewListItem } from '../types/contracts';
@@ -12,6 +12,8 @@ function recommendationTone(value: string) {
   return 'neutral';
 }
 
+type ReviewSort = 'oldest' | 'newest' | 'score-high' | 'score-low';
+
 export function ReviewsPage() {
   const { tr, isArabic } = useLanguage();
   const [items, setItems] = useState<ReviewListItem[]>();
@@ -19,6 +21,7 @@ export function ReviewsPage() {
   const [reload, setReload] = useState(0);
   const [query, setQuery] = useState('');
   const [platform, setPlatform] = useState<'all' | MessagingPlatform>('all');
+  const [sort, setSort] = useState<ReviewSort>('oldest');
 
   useEffect(() => {
     setError(false);
@@ -28,12 +31,20 @@ export function ReviewsPage() {
   const filteredItems = useMemo(() => {
     if (!items) return [];
     const normalizedQuery = query.trim().toLowerCase();
-    return items.filter((item) => {
-      const matchesPlatform = platform === 'all' || item.platform === platform;
-      const matchesQuery = !normalizedQuery || item.userId.toLowerCase().includes(normalizedQuery) || item.applicationId.toLowerCase().includes(normalizedQuery);
-      return matchesPlatform && matchesQuery;
-    });
-  }, [items, platform, query]);
+    return items
+      .filter((item) => {
+        const matchesPlatform = platform === 'all' || item.platform === platform;
+        const matchesQuery = !normalizedQuery || item.userId.toLowerCase().includes(normalizedQuery) || item.applicationId.toLowerCase().includes(normalizedQuery);
+        return matchesPlatform && matchesQuery;
+      })
+      .sort((a, b) => {
+        if (sort === 'score-high') return b.score - a.score;
+        if (sort === 'score-low') return a.score - b.score;
+        const aTime = new Date(a.submittedAt).getTime();
+        const bTime = new Date(b.submittedAt).getTime();
+        return sort === 'newest' ? bTime - aTime : aTime - bTime;
+      });
+  }, [items, platform, query, sort]);
 
   const formatDate = (value: string) => {
     const date = new Date(value);
@@ -62,7 +73,7 @@ export function ReviewsPage() {
       {error ? (
         <RetryableErrorState onRetry={() => { setError(false); setReload((n) => n + 1); }} />
       ) : !items ? (
-        <LoadingState label={tr('Loading review queue', 'جارٍ تحميل قائمة المراجعة')} />
+        <TableSkeleton columns={6} rows={6} />
       ) : !items.length ? (
         <EmptyState title={tr('Queue clear', 'قائمة الانتظار فارغة')} message={tr('There are no applications waiting for review.', 'لا توجد طلبات بانتظار المراجعة.')} />
       ) : (
@@ -73,33 +84,44 @@ export function ReviewsPage() {
               <span className="search-icon" aria-hidden="true">⌕</span>
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr('Search user or application ID', 'ابحث بمعرّف المستخدم أو الطلب')} dir="ltr" />
             </label>
-            <label className="select-field">
-              <span className="sr-only">{tr('Filter by platform', 'تصفية حسب المنصة')}</span>
-              <select value={platform} onChange={(event) => setPlatform(event.target.value as 'all' | MessagingPlatform)}>
-                <option value="all">{tr('All platforms', 'كل المنصات')}</option>
-                <option value="telegram">Telegram</option>
-                <option value="discord">Discord</option>
-                <option value="whatsapp">WhatsApp</option>
-              </select>
-            </label>
+            <div className="table-tools">
+              <label className="select-field">
+                <span className="sr-only">{tr('Filter by platform', 'تصفية حسب المنصة')}</span>
+                <select value={platform} onChange={(event) => setPlatform(event.target.value as 'all' | MessagingPlatform)}>
+                  <option value="all">{tr('All platforms', 'كل المنصات')}</option>
+                  <option value="telegram">Telegram</option>
+                  <option value="discord">Discord</option>
+                  <option value="whatsapp">WhatsApp</option>
+                </select>
+              </label>
+              <label className="select-field">
+                <span className="sr-only">{tr('Sort review queue', 'ترتيب قائمة المراجعة')}</span>
+                <select value={sort} onChange={(event) => setSort(event.target.value as ReviewSort)}>
+                  <option value="oldest">{tr('Oldest first', 'الأقدم أولاً')}</option>
+                  <option value="newest">{tr('Newest first', 'الأحدث أولاً')}</option>
+                  <option value="score-high">{tr('Highest score', 'أعلى نتيجة')}</option>
+                  <option value="score-low">{tr('Lowest score', 'أقل نتيجة')}</option>
+                </select>
+              </label>
+            </div>
           </section>
 
           {!filteredItems.length ? (
             <EmptyState title={tr('No matching applications', 'لا توجد طلبات مطابقة')} message={tr('Try a different search term or platform filter.', 'جرّب عبارة بحث أو منصة مختلفة.')} />
           ) : (
-            <section className="table-card">
+            <section className="table-card mobile-card-table">
               <div className="table-scroll">
-                <table>
+                <table className="responsive-table">
                   <thead><tr><th>{tr('Applicant', 'المتقدم')}</th><th>{tr('Platform', 'المنصة')}</th><th>{tr('Submitted', 'تاريخ التقديم')}</th><th>{tr('Advisory score', 'النتيجة الاستشارية')}</th><th>{tr('Recommendation', 'التوصية')}</th><th><span className="sr-only">{tr('Action', 'الإجراء')}</span></th></tr></thead>
                   <tbody>
                     {filteredItems.map((item) => (
                       <tr key={item.applicationId}>
-                        <td><div className="identity-cell"><span className="avatar" aria-hidden="true">{item.userId.slice(0, 2).toUpperCase()}</span><span><strong className="mono short-id" dir="ltr">{item.userId.slice(0, 12)}</strong><small className="muted mono" dir="ltr">{item.applicationId.slice(0, 8)}</small></span></div></td>
-                        <td><span className={`platform ${item.platform}`} dir="ltr">{item.platform}</span></td>
-                        <td>{formatDate(item.submittedAt)}</td>
-                        <td><div className="score-cell"><strong>{Math.round(item.score)}</strong><span className="muted">/100</span></div></td>
-                        <td><span className={`status-pill ${recommendationTone(item.recommendation)}`}>{recommendationLabel(item.recommendation)}</span></td>
-                        <td className="table-action"><Link className="row-link" to={`/reviews/${item.applicationId}`}>{tr('Review', 'مراجعة')} <span aria-hidden="true">→</span></Link></td>
+                        <td data-label={tr('Applicant', 'المتقدم')}><div className="identity-cell"><span className="avatar" aria-hidden="true">{item.userId.slice(0, 2).toUpperCase()}</span><span><strong className="mono short-id" dir="ltr">{item.userId.slice(0, 12)}</strong><small className="muted mono" dir="ltr">{item.applicationId.slice(0, 8)}</small></span></div></td>
+                        <td data-label={tr('Platform', 'المنصة')}><span className={`platform ${item.platform}`} dir="ltr">{item.platform}</span></td>
+                        <td data-label={tr('Submitted', 'تاريخ التقديم')}>{formatDate(item.submittedAt)}</td>
+                        <td data-label={tr('Advisory score', 'النتيجة الاستشارية')}><div className="score-cell"><strong>{Math.round(item.score)}</strong><span className="muted">/100</span></div></td>
+                        <td data-label={tr('Recommendation', 'التوصية')}><span className={`status-pill ${recommendationTone(item.recommendation)}`}>{recommendationLabel(item.recommendation)}</span></td>
+                        <td data-label="" className="table-action"><Link className="row-link" to={`/reviews/${item.applicationId}`}>{tr('Review', 'مراجعة')} <span aria-hidden="true">→</span></Link></td>
                       </tr>
                     ))}
                   </tbody>
