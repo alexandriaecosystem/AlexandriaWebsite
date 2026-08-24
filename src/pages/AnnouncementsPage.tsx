@@ -5,11 +5,12 @@ import type { MessagingPlatform } from '../types/contracts';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const allPlatforms: MessagingPlatform[] = ['telegram', 'discord', 'whatsapp'];
+type AnnouncementAudience = 'GENERAL' | 'APPROVED' | 'BOTH';
 
 export function AnnouncementsPage() {
   const { tr } = useLanguage();
   const [content, setContent] = useState('');
-  const [destination, setDestination] = useState<'GENERAL' | 'APPROVED'>('GENERAL');
+  const [destination, setDestination] = useState<AnnouncementAudience>('GENERAL');
   const [platforms, setPlatforms] = useState<MessagingPlatform[]>(['telegram']);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -44,6 +45,11 @@ export function AnnouncementsPage() {
   }
 
   const ready = Boolean(content.trim() && platforms.length);
+  const audienceLabel = destination === 'GENERAL'
+    ? tr('General community', 'المجتمع العام')
+    : destination === 'APPROVED'
+      ? tr('Approved members', 'الأعضاء المقبولون')
+      : tr('General community + Approved members', 'المجتمع العام + الأعضاء المقبولون');
 
   return (
     <>
@@ -67,8 +73,9 @@ export function AnnouncementsPage() {
 
             <fieldset>
               <legend>{tr('Audience', 'الجمهور')}</legend>
-              <label className="choice"><input type="radio" checked={destination === 'GENERAL'} onChange={() => setDestination('GENERAL')} /> {tr('General community', 'المجتمع العام')}</label>
-              <label className="choice"><input type="radio" checked={destination === 'APPROVED'} onChange={() => setDestination('APPROVED')} /> {tr('Approved members', 'الأعضاء المقبولون')}</label>
+              <label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'GENERAL'} onChange={() => setDestination('GENERAL')} /> {tr('General community', 'المجتمع العام')}</label>
+              <label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'APPROVED'} onChange={() => setDestination('APPROVED')} /> {tr('Approved members', 'الأعضاء المقبولون')}</label>
+              <label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'BOTH'} onChange={() => setDestination('BOTH')} /> {tr('Both groups', 'المجموعتان')}</label>
             </fieldset>
 
             <fieldset>
@@ -95,7 +102,7 @@ export function AnnouncementsPage() {
           <p className="eyebrow">{tr('Delivery summary', 'ملخص الإرسال')}</p>
           <h2>{tr('Before you queue', 'قبل الإرسال')}</h2>
           <dl>
-            <div><dt>{tr('Audience', 'الجمهور')}</dt><dd>{destination === 'GENERAL' ? tr('General community', 'المجتمع العام') : tr('Approved members', 'الأعضاء المقبولون')}</dd></div>
+            <div><dt>{tr('Audience', 'الجمهور')}</dt><dd>{audienceLabel}</dd></div>
             <div><dt>{tr('Platforms', 'المنصات')}</dt><dd dir="ltr">{platforms.length ? platforms.join(', ') : tr('None selected', 'لا شيء محدد')}</dd></div>
             <div><dt>{tr('Status', 'الحالة')}</dt><dd>{ready ? tr('Ready for action', 'جاهز للتنفيذ') : tr('Incomplete', 'غير مكتمل')}</dd></div>
           </dl>
