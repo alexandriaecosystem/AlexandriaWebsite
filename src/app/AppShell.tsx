@@ -6,6 +6,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 const navigation = [
   { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: '⌂', end: true },
   { to: '/reviews', en: 'Member reviews', ar: 'مراجعة الأعضاء', icon: '◎' },
+  { to: '/users', en: 'Users', ar: 'المستخدمون', icon: '◉' },
   { to: '/knowledge', en: 'Knowledge', ar: 'المعرفة', icon: '◇' },
   { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: '↗' },
   { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: '◫' },
