@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getSupabaseClient } from '../services/supabase';
 import { getTokenMonitorData, type TokenMonitorData, type TokenTransfer } from '../services/token-monitor';
-import { getAdminUiSettings, type AdminUiSettings } from '../services/admin-settings';
 import { LoadingState } from '../components/AsyncState';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../token-monitor.css';
@@ -9,6 +8,8 @@ import '../token-monitor.css';
 const compact = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
 const money = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 4 });
+const LARGE_TRANSFER_THRESHOLD = 100000;
+const AUTO_REFRESH_SECONDS = 60;
 
 function shortAddress(value: string) {
   return value.length > 14 ? `${value.slice(0, 7)}…${value.slice(-6)}` : value;
@@ -26,7 +27,7 @@ function addressUrl(address: string) {
   return `https://tronscan.org/#/address/${encodeURIComponent(address)}`;
 }
 
-function TransferChart({ transfers, symbol, largeThreshold }: { transfers: TokenTransfer[]; symbol: string; largeThreshold: number }) {
+function TransferChart({ transfers, symbol }: { transfers: TokenTransfer[]; symbol: string }) {
   const rows = transfers.slice(0, 20).reverse();
   const max = Math.max(...rows.map((item) => item.amount), 1);
   if (!rows.length) return <p className="token-empty">No transfer data returned.</p>;
@@ -34,7 +35,7 @@ function TransferChart({ transfers, symbol, largeThreshold }: { transfers: Token
     <div className="token-transfer-chart" aria-label="Recent transfer size chart">
       {rows.map((item) => {
         const height = Math.max(4, (item.amount / max) * 100);
-        const isLarge = largeThreshold > 0 && item.amount >= largeThreshold;
+        const isLarge = item.amount >= LARGE_TRANSFER_THRESHOLD;
         const barClass = item.riskTransaction ? 'token-transfer-bar risk' : isLarge ? 'token-transfer-bar large' : 'token-transfer-bar';
         return (
           <a
@@ -58,15 +59,6 @@ export function TokenMonitorPage() {
   const [data, setData] = useState<TokenMonitorData>();
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
-  const [largeThreshold, setLargeThreshold] = useState(100000);
-  const [refreshSeconds, setRefreshSeconds] = useState<AdminUiSettings['tokenAutoRefreshSeconds']>(60);
-
-  useEffect(() => {
-    void getAdminUiSettings(getSupabaseClient()).then((settings) => {
-      setLargeThreshold(settings.tokenLargeTransferThreshold);
-      setRefreshSeconds(settings.tokenAutoRefreshSeconds);
-    }).catch(() => undefined);
-  }, []);
 
   useEffect(() => {
     setError('');
@@ -76,13 +68,12 @@ export function TokenMonitorPage() {
   }, [reload, tr]);
 
   useEffect(() => {
-    if (!refreshSeconds) return;
-    const timer = window.setInterval(() => setReload((value) => value + 1), refreshSeconds * 1000);
+    const timer = window.setInterval(() => setReload((value) => value + 1), AUTO_REFRESH_SECONDS * 1000);
     return () => window.clearInterval(timer);
-  }, [refreshSeconds]);
+  }, []);
 
   const latest = useMemo(() => data?.transfers.slice(0, 25) ?? [], [data]);
-  const largeTransferCount = useMemo(() => data?.transfers.filter((item) => largeThreshold > 0 && item.amount >= largeThreshold).length ?? 0, [data, largeThreshold]);
+  const largeTransferCount = useMemo(() => data?.transfers.filter((item) => item.amount >= LARGE_TRANSFER_THRESHOLD).length ?? 0, [data]);
 
   if (error && !data) {
     return <>
@@ -127,8 +118,8 @@ export function TokenMonitorPage() {
     <section className="token-monitor-grid">
       <article className="panel token-chart-panel">
         <div className="section-heading"><div><p className="eyebrow">{tr('Recent transfers', 'التحويلات الأخيرة')}</p><h2>{tr('Transfer size', 'حجم التحويل')}</h2></div><span className="status-pill neutral">{data.summary.fetchedTransfers} {tr('fetched', 'تم جلبها')}</span></div>
-        <TransferChart transfers={data.transfers} symbol={token.symbol} largeThreshold={largeThreshold} />
-        <p className="muted token-chart-note">{tr('Taller bars represent larger transfers. Highlighted bars meet the large-transfer threshold configured in Admin Settings.', 'تمثل الأعمدة الأطول تحويلات أكبر، ويتم تمييز التحويلات التي تتجاوز الحد المحدد في إعدادات الإدارة.')}</p>
+        <TransferChart transfers={data.transfers} symbol={token.symbol} />
+        <p className="muted token-chart-note">{tr('Taller bars represent larger transfers. Transfers of 100,000 tokens or more are highlighted.', 'تمثل الأعمدة الأطول تحويلات أكبر، ويتم تمييز التحويلات التي تبلغ 100,000 توكن أو أكثر.')}</p>
       </article>
 
       <article className="panel token-watch-panel">
@@ -136,11 +127,11 @@ export function TokenMonitorPage() {
         <div className="settings-list">
           <div><span>{tr('Largest transfer', 'أكبر تحويل')}</span><strong>{largest ? `${number.format(largest.amount)} ${token.symbol}` : '—'}</strong></div>
           <div><span>{tr('Large transfers', 'التحويلات الكبيرة')}</span><strong>{largeTransferCount}</strong></div>
-          <div><span>{tr('Alert threshold', 'حد التنبيه')}</span><strong>{largeThreshold > 0 ? `${number.format(largeThreshold)} ${token.symbol}` : tr('Off', 'متوقف')}</strong></div>
+          <div><span>{tr('Watch threshold', 'حد المراقبة')}</span><strong>{number.format(LARGE_TRANSFER_THRESHOLD)} {token.symbol}</strong></div>
           <div><span>{tr('Unique addresses', 'العناوين الفريدة')}</span><strong>{data.summary.uniqueAddresses}</strong></div>
           <div><span>{tr('Failed transfers', 'التحويلات الفاشلة')}</span><strong>{data.summary.failedCount}</strong></div>
           <div><span>{tr('TRONSCAN risk flags', 'إشارات المخاطر من TRONSCAN')}</span><strong>{data.summary.riskCount}</strong></div>
-          <div><span>{tr('Auto refresh', 'التحديث التلقائي')}</span><strong>{refreshSeconds ? `${refreshSeconds}s` : tr('Off', 'متوقف')}</strong></div>
+          <div><span>{tr('Auto refresh', 'التحديث التلقائي')}</span><strong>{AUTO_REFRESH_SECONDS}s</strong></div>
           <div><span>{tr('Last refreshed', 'آخر تحديث')}</span><strong>{new Date(data.fetchedAt).toLocaleString(isArabic ? 'ar-LB' : undefined)}</strong></div>
         </div>
       </article>
@@ -150,7 +141,7 @@ export function TokenMonitorPage() {
       <div className="section-heading token-table-heading"><div><p className="eyebrow">{tr('Blockchain activity', 'نشاط البلوكشين')}</p><h2>{tr('Latest transfers', 'أحدث التحويلات')}</h2></div><a className="row-link" href="https://tronscan.org/#/token20/TEoUqbkBtzSbGmUspNP3ztqVx7AzqhCLJr/transfers" target="_blank" rel="noreferrer">TRONSCAN ↗</a></div>
       <div className="table-scroll"><table><thead><tr><th>{tr('Time', 'الوقت')}</th><th>{tr('From', 'من')}</th><th>{tr('To', 'إلى')}</th><th>{tr('Amount', 'المبلغ')}</th><th>{tr('Result', 'النتيجة')}</th><th>{tr('Transaction', 'المعاملة')}</th></tr></thead><tbody>
         {latest.map((item) => {
-          const isLarge = largeThreshold > 0 && item.amount >= largeThreshold;
+          const isLarge = item.amount >= LARGE_TRANSFER_THRESHOLD;
           return <tr key={item.transactionId} className={isLarge ? 'token-large-transfer-row' : undefined}>
             <td>{new Date(item.timestamp).toLocaleString(isArabic ? 'ar-LB' : undefined, { dateStyle: 'short', timeStyle: 'short' })}</td>
             <td><a href={addressUrl(item.from)} target="_blank" rel="noreferrer" className="token-address-link" dir="ltr" title={item.from}>{addressLabel(item.from, item.fromTag)}</a>{item.fromIsContract && <small className="table-subtext">Contract</small>}</td>

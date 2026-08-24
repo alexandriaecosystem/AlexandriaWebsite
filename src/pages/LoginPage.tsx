@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -7,11 +7,13 @@ import { useLanguage } from '../i18n/LanguageContext';
 export function LoginPage() {
   const client = getSupabaseClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const { tr } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const passwordChanged = Boolean((location.state as { passwordChanged?: boolean } | null)?.passwordChanged);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -44,6 +46,8 @@ export function LoginPage() {
         <p className="eyebrow">{tr('Admin portal', 'بوابة الإدارة')}</p>
         <h1>{tr('Welcome back', 'مرحباً بعودتك')}</h1>
         <p className="muted">{tr('Sign in with an authorized administrator account to continue.', 'سجّل الدخول بحساب مسؤول مخوّل للمتابعة.')}</p>
+
+        {passwordChanged && <p className="form-success" role="status">{tr('Password changed successfully. Sign in again with your new password.', 'تم تغيير كلمة المرور بنجاح. سجّل الدخول مرة أخرى باستخدام كلمة المرور الجديدة.')}</p>}
 
         <form onSubmit={submit}>
           <label>
