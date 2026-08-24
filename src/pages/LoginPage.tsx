@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import { useLanguage } from '../i18n/LanguageContext';
+import alexandriaLogo from '../assets/alexandria-logo.svg';
 
 export function LoginPage() {
   const client = getSupabaseClient();
@@ -88,7 +89,7 @@ export function LoginPage() {
     <main className="login-page">
       <div className="login-language"><LanguageToggle compact /></div>
       <section className="login-card">
-        <div className="brand login-brand"><span className="brand-mark" aria-hidden="true">A</span><div><strong>Alexandria</strong><small>{tr('Secure administration', 'إدارة آمنة')}</small></div></div>
+        <div className="brand login-brand"><img className="brand-logo" src={alexandriaLogo} alt="" aria-hidden="true" /><div><strong>Alexandria</strong><small>{tr('Secure administration', 'إدارة آمنة')}</small></div></div>
         <p className="eyebrow">{mfaFactorId ? tr('Two-factor authentication', 'المصادقة الثنائية') : tr('Admin portal', 'بوابة الإدارة')}</p>
         <h1>{mfaFactorId ? tr('Enter verification code', 'أدخل رمز التحقق') : tr('Welcome back', 'مرحباً بعودتك')}</h1>
         <p className="muted">{mfaFactorId ? tr('Open your authenticator app and enter the current code.', 'افتح تطبيق المصادقة وأدخل الرمز الحالي.') : tr('Sign in with an authorized administrator account to continue.', 'سجّل الدخول بحساب مسؤول مخوّل للمتابعة.')}</p>
