@@ -39,8 +39,6 @@ const navigation: NavGroup[] = [
   },
   {
     en: 'Operations', ar: 'العمليات', items: [
-      { to: '/system-health', en: 'System health', ar: 'صحة النظام', icon: '●' },
-      { to: '/failed-operations', en: 'Failed operations', ar: 'العمليات الفاشلة', icon: '!' },
       { to: '/activity', en: 'Activity log', ar: 'سجل النشاط', icon: '≡' },
     ],
   },
