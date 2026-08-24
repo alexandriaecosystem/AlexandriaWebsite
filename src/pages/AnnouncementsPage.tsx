@@ -4,6 +4,7 @@ import { listAnnouncementHistory, type AnnouncementHistoryItem } from '../servic
 import { getSupabaseClient } from '../services/supabase';
 import type { MessagingPlatform } from '../types/contracts';
 import { useLanguage } from '../i18n/LanguageContext';
+import './AnnouncementsPage.css';
 
 const allPlatforms: MessagingPlatform[] = ['telegram', 'discord', 'whatsapp'];
 type AnnouncementAudience = 'GENERAL' | 'APPROVED' | 'BOTH';
@@ -13,8 +14,8 @@ const formatDate = (value: string | null) => value ? new Date(value).toLocaleStr
 export function AnnouncementsPage() {
   const { tr } = useLanguage();
   const [content, setContent] = useState('');
-  const [audiences, setAudiences] = useState<SelectableAudience[]>(['GENERAL']);
-  const [platforms, setPlatforms] = useState<MessagingPlatform[]>(['telegram']);
+  const [audiences, setAudiences] = useState<SelectableAudience[]>([]);
+  const [platforms, setPlatforms] = useState<MessagingPlatform[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -40,6 +41,10 @@ export function AnnouncementsPage() {
         ? tr('General community', 'المجتمع العام')
         : tr('Approved members', 'الأعضاء المقبولون');
 
+  const audienceNames = audiences.map((audience) => audience === 'GENERAL'
+    ? tr('General community', 'المجتمع العام')
+    : tr('Approved members', 'الأعضاء المقبولون'));
+
   async function submit(approve: boolean) {
     if (busy || !content.trim() || !audiences.length || !platforms.length) return;
     setBusy(true); setError(''); setMessage('');
@@ -48,6 +53,8 @@ export function AnnouncementsPage() {
       if (approve) await approveAnnouncement(getSupabaseClient(), id);
       setMessage(approve ? tr('Announcement approved and queued for delivery.', 'تم اعتماد الإعلان ووضعه في قائمة الإرسال.') : tr('Draft saved.', 'تم حفظ المسودة.'));
       setContent('');
+      setAudiences([]);
+      setPlatforms([]);
       setReload((n) => n + 1);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : tr('Announcement could not be created.', 'تعذر إنشاء الإعلان.'));
@@ -76,16 +83,55 @@ export function AnnouncementsPage() {
       <div className="composer-layout">
         <section className="panel announcement-form">
           <form onSubmit={(event) => event.preventDefault()}>
-            <p className="eyebrow">{tr('New message', 'رسالة جديدة')}</p><h2>{tr('Compose announcement', 'إنشاء إعلان')}</h2>
+            <div><p className="eyebrow">{tr('New message', 'رسالة جديدة')}</p><h2>{tr('Compose announcement', 'إنشاء إعلان')}</h2></div>
             <label>{tr('Message', 'الرسالة')}<textarea required maxLength={4000} value={content} onChange={(event) => setContent(event.target.value)} placeholder={tr('Write the announcement…', 'اكتب الإعلان…')} /><small className="helper">{content.length.toLocaleString()} / 4,000 {tr('characters', 'حرف')}</small></label>
-            <fieldset><legend>{tr('Audience', 'الجمهور')}</legend><label className="choice"><input type="checkbox" checked={audiences.includes('GENERAL')} onChange={() => toggleAudience('GENERAL')} /> {tr('General community', 'المجتمع العام')}</label><label className="choice"><input type="checkbox" checked={audiences.includes('APPROVED')} onChange={() => toggleAudience('APPROVED')} /> {tr('Approved members', 'الأعضاء المقبولون')}</label></fieldset>
-            <fieldset><legend>{tr('Platforms', 'المنصات')}</legend>{allPlatforms.map((platform) => <label className="choice" key={platform}><input type="checkbox" checked={platforms.includes(platform)} onChange={() => togglePlatform(platform)} /><span className={`platform ${platform}`} dir="ltr">{platform}</span></label>)}</fieldset>
+
+            <fieldset>
+              <legend>{tr('Audience', 'الجمهور')}</legend>
+              <div className="selection-grid">
+                <label className={`selection-card ${audiences.includes('GENERAL') ? 'selected' : ''}`}>
+                  <input type="checkbox" checked={audiences.includes('GENERAL')} onChange={() => toggleAudience('GENERAL')} />
+                  <span className="selection-check" aria-hidden="true">✓</span>
+                  <span>{tr('General community', 'المجتمع العام')}</span>
+                </label>
+                <label className={`selection-card ${audiences.includes('APPROVED') ? 'selected' : ''}`}>
+                  <input type="checkbox" checked={audiences.includes('APPROVED')} onChange={() => toggleAudience('APPROVED')} />
+                  <span className="selection-check" aria-hidden="true">✓</span>
+                  <span>{tr('Approved members', 'الأعضاء المقبولون')}</span>
+                </label>
+              </div>
+              {!audiences.length && <p className="selection-helper">{tr('Select at least one audience. You can select both.', 'اختر جمهوراً واحداً على الأقل. يمكنك اختيار كليهما.')}</p>}
+            </fieldset>
+
+            <fieldset>
+              <legend>{tr('Platforms', 'المنصات')}</legend>
+              <div className="selection-grid platform-selection-grid">
+                {allPlatforms.map((platform) => (
+                  <label className={`selection-card ${platforms.includes(platform) ? 'selected' : ''}`} key={platform}>
+                    <input type="checkbox" checked={platforms.includes(platform)} onChange={() => togglePlatform(platform)} />
+                    <span className="selection-check" aria-hidden="true">✓</span>
+                    <span className={`platform ${platform}`} dir="ltr">{platform}</span>
+                  </label>
+                ))}
+              </div>
+              {!platforms.length && <p className="selection-helper">{tr('Select one or more delivery platforms.', 'اختر منصة إرسال واحدة أو أكثر.')}</p>}
+            </fieldset>
+
             {error && <p className="form-error" role="alert">{error}</p>}{message && <p className="form-success" role="status">{message}</p>}
             <div className="decision-actions"><button type="button" disabled={busy || !ready} onClick={() => void submit(false)}>{tr('Save draft', 'حفظ كمسودة')}</button><button type="button" className="primary" disabled={busy || !ready} onClick={confirmAndQueue}>{busy ? tr('Working…', 'جارٍ التنفيذ…') : tr('Review & queue', 'مراجعة وإرسال')}</button></div>
           </form>
         </section>
 
-        <aside className="panel composer-summary"><p className="eyebrow">{tr('Delivery summary', 'ملخص الإرسال')}</p><h2>{tr('Before you queue', 'قبل الإرسال')}</h2><dl><div><dt>{tr('Audience', 'الجمهور')}</dt><dd>{audienceLabel}</dd></div><div><dt>{tr('Platforms', 'المنصات')}</dt><dd dir="ltr">{platforms.length ? platforms.join(', ') : tr('None selected', 'لا شيء محدد')}</dd></div><div><dt>{tr('Status', 'الحالة')}</dt><dd>{ready ? tr('Ready for review', 'جاهز للمراجعة') : tr('Incomplete', 'غير مكتمل')}</dd></div></dl><div className="delivery-note"><strong>{tr('Delivery safety', 'سلامة الإرسال')}</strong><p>{tr('A final confirmation shows the audience and platforms before the announcement is queued.', 'يظهر تأكيد نهائي للجمهور والمنصات قبل وضع الإعلان في قائمة الإرسال.')}</p></div></aside>
+        <aside className="panel composer-summary">
+          <p className="eyebrow">{tr('Delivery summary', 'ملخص الإرسال')}</p><h2>{tr('Before you queue', 'قبل الإرسال')}</h2>
+          <dl>
+            <div><dt>{tr('Audience', 'الجمهور')}</dt><dd>{audienceNames.length ? <span className="summary-value-list">{audienceNames.map((name) => <span className="summary-chip" key={name}>{name}</span>)}</span> : tr('None selected', 'لا شيء محدد')}</dd></div>
+            <div><dt>{tr('Platforms', 'المنصات')}</dt><dd>{platforms.length ? <span className="summary-value-list">{platforms.map((platform) => <span className={`platform ${platform}`} key={platform} dir="ltr">{platform}</span>)}</span> : tr('None selected', 'لا شيء محدد')}</dd></div>
+            <div><dt>{tr('Status', 'الحالة')}</dt><dd><span className={`summary-status ${ready ? 'ready' : 'incomplete'}`}>{ready ? tr('Ready for review', 'جاهز للمراجعة') : tr('Needs selections', 'يحتاج إلى تحديد الخيارات')}</span></dd></div>
+          </dl>
+          <div className="announcement-preview"><small>{tr('Message preview', 'معاينة الرسالة')}</small><p className={content.trim() ? 'has-content' : ''}>{content.trim() || tr('Your announcement preview will appear here.', 'ستظهر معاينة الإعلان هنا.')}</p></div>
+          <div className="delivery-note"><strong>{tr('Delivery safety', 'سلامة الإرسال')}</strong><p>{tr('A final confirmation shows the audience and platforms before the announcement is queued.', 'يظهر تأكيد نهائي للجمهور والمنصات قبل وضع الإعلان في قائمة الإرسال.')}</p></div>
+        </aside>
       </div>
 
       <section className="table-card announcement-history-card">
