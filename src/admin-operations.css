@@ -35,6 +35,10 @@
 .settings-list strong { text-align:end; }
 .question-cell { min-width:320px; max-width:640px; }
 .error-text { color:var(--danger, #ff7777) !important; max-width:260px; white-space:normal; }
+.announcement-history-card { margin-top:18px; }
+.history-heading { padding:20px 22px 12px; }
+.announcement-text-cell { min-width:280px; max-width:520px; }
+.announcement-text-cell strong { display:block; white-space:pre-wrap; overflow-wrap:anywhere; }
 
 @media (max-width: 1050px) {
   .health-grid, .attention-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
