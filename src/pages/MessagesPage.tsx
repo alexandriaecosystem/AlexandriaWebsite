@@ -16,6 +16,12 @@ function formatDate(value: string | null) {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
 }
 
+function preview(text: string | null) {
+  const clean = (text ?? '').replace(/\s+/g, ' ').trim();
+  if (!clean) return 'No message preview available';
+  return clean.length > 120 ? `${clean.slice(0, 117)}…` : clean;
+}
+
 export function MessagesPage() {
   const { tr } = useLanguage();
   const [items, setItems] = useState<AdminUserListItem[]>([]);
@@ -42,39 +48,35 @@ export function MessagesPage() {
       .filter((user) => user.messageCount > 0)
       .filter((user) => platform === 'all' || user.platforms.includes(platform))
       .sort((a, b) => {
+        if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
         const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
         const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
         return bTime - aTime;
       });
   }, [items, platform]);
 
+  const unreadCount = conversations.filter((item) => item.hasUnread).length;
+
   return (
     <>
       <header className="page-header">
         <div>
-          <p className="eyebrow">{tr('Conversations', 'المحادثات')}</p>
+          <p className="eyebrow">{tr('Inbox', 'صندوق الوارد')}</p>
           <h1>{tr('Messages', 'الرسائل')}</h1>
-          <p className="muted page-subtitle">
-            {tr(
-              'Review private conversations and open the profile of the user who sent each message.',
-              'راجع المحادثات الخاصة وافتح ملف المستخدم الذي أرسل كل رسالة.',
-            )}
-          </p>
+          <p className="muted page-subtitle">{tr('See the latest private message first, spot new conversations, and open the full user history.', 'شاهد أحدث رسالة خاصة أولاً، وتعرّف على المحادثات الجديدة، وافتح سجل المستخدم الكامل.')}</p>
         </div>
-        <span className="status-pill neutral">{conversations.length.toLocaleString()} {tr('conversations', 'محادثة')}</span>
+        <div className="header-status-group">
+          {unreadCount > 0 && <span className="status-pill positive">{unreadCount} {tr('new', 'جديد')}</span>}
+          <span className="status-pill neutral">{conversations.length.toLocaleString()} {tr('conversations', 'محادثة')}</span>
+        </div>
       </header>
 
       <div className="toolbar messages-toolbar">
         <label className="search-field">
           <span className="search-icon" aria-hidden="true">⌕</span>
           <span className="sr-only">{tr('Search conversations', 'بحث المحادثات')}</span>
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={tr('Search by name, username, phone or platform ID…', 'ابحث بالاسم أو اسم المستخدم أو الهاتف أو معرّف المنصة…')}
-          />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr('Search by name, username, phone or platform ID…', 'ابحث بالاسم أو اسم المستخدم أو الهاتف أو معرّف المنصة…')} />
         </label>
-
         <label className="conversation-filter messages-platform-filter">
           <span className="sr-only">{tr('Filter by platform', 'تصفية حسب المنصة')}</span>
           <select value={platform} onChange={(event) => setPlatform(event.target.value)}>
@@ -91,48 +93,32 @@ export function MessagesPage() {
       <section className="table-card messages-inbox">
         <div className="table-scroll">
           <table>
-            <thead>
-              <tr>
-                <th>{tr('Sender', 'المرسل')}</th>
-                <th>{tr('Platforms', 'المنصات')}</th>
-                <th>{tr('Messages', 'الرسائل')}</th>
-                <th>{tr('Last activity', 'آخر نشاط')}</th>
-                <th>{tr('Status', 'الحالة')}</th>
-                <th />
-              </tr>
-            </thead>
+            <thead><tr><th>{tr('Conversation', 'المحادثة')}</th><th>{tr('Latest message', 'أحدث رسالة')}</th><th>{tr('Activity', 'النشاط')}</th><th>{tr('Score', 'النتيجة')}</th><th /></tr></thead>
             <tbody>
               {conversations.map((user) => (
-                <tr key={user.id}>
+                <tr key={user.id} className={user.hasUnread ? 'conversation-unread' : undefined}>
                   <td>
-                    <Link className="identity-cell identity-link" to={`/users/${user.id}`}>
+                    <Link className="identity-cell identity-link" to={`/users/${user.id}?tab=conversation`}>
                       <span className="avatar">{initials(user.name)}</span>
                       <span>
-                        <strong>{user.name || tr('Unnamed user', 'مستخدم بدون اسم')}</strong>
-                        <small className="muted mono">{user.id.slice(0, 8)}…</small>
+                        <span className="conversation-name-line"><strong>{user.name || tr('Unnamed user', 'مستخدم بدون اسم')}</strong>{user.hasUnread && <i className="unread-dot" title={tr('New user message', 'رسالة مستخدم جديدة')} />}</span>
+                        <small className="muted">{user.latestMessagePlatform ? <span className={`platform ${user.latestMessagePlatform}`}>{user.latestMessagePlatform}</span> : user.platforms.join(', ')}</small>
                       </span>
                     </Link>
                   </td>
-                  <td>
-                    <div className="user-platforms">
-                      {user.platforms.map((item) => <span key={item} className={`platform ${item}`}>{item}</span>)}
-                    </div>
+                  <td className="message-preview-cell">
+                    <Link to={`/users/${user.id}?tab=conversation`}>
+                      <small className="message-preview-sender">{user.latestMessageDirection === 'ASSISTANT' ? tr('Assistant', 'المساعد') : tr('User', 'المستخدم')}</small>
+                      <span>{preview(user.latestMessageText)}</span>
+                    </Link>
                   </td>
-                  <td><strong>{user.messageCount.toLocaleString()}</strong></td>
-                  <td className="muted">{formatDate(user.lastMessageAt)}</td>
-                  <td><span className={`status-pill ${user.status === 'ACTIVE' ? 'positive' : 'neutral'}`}>{user.applicationStatus || user.status}</span></td>
-                  <td className="table-action">
-                    <Link className="row-link" to={`/users/${user.id}`}>{tr('Open conversation', 'فتح المحادثة')} →</Link>
-                  </td>
+                  <td><strong>{formatDate(user.lastMessageAt)}</strong><small className="table-subtext">{user.messageCount.toLocaleString()} {tr('messages', 'رسالة')}</small></td>
+                  <td>{user.finalScore == null ? '—' : <span className="score-cell"><strong>{Math.round(user.finalScore)}</strong><small>/100</small></span>}</td>
+                  <td className="table-action"><Link className="row-link" to={`/users/${user.id}?tab=conversation`}>{tr('Open', 'فتح')} →</Link></td>
                 </tr>
               ))}
-
-              {!loading && !conversations.length && (
-                <tr><td colSpan={6} className="empty-row">{tr('No conversations found.', 'لم يتم العثور على محادثات.')}</td></tr>
-              )}
-              {loading && (
-                <tr><td colSpan={6} className="empty-row">{tr('Loading conversations…', 'جارٍ تحميل المحادثات…')}</td></tr>
-              )}
+              {!loading && !conversations.length && <tr><td colSpan={5} className="empty-row">{tr('No conversations found.', 'لم يتم العثور على محادثات.')}</td></tr>}
+              {loading && <tr><td colSpan={5} className="empty-row">{tr('Loading conversations…', 'جارٍ تحميل المحادثات…')}</td></tr>}
             </tbody>
           </table>
         </div>

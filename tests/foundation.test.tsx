@@ -1,11 +1,25 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AdminGuard } from '../src/app/AdminGuard';
 import { ConflictState, RetryableErrorState } from '../src/components/AsyncState';
 import { LanguageProvider } from '../src/i18n/LanguageContext';
 import { LanguageToggle } from '../src/i18n/LanguageToggle';
 import { readPublicFrontendConfig } from '../src/services/supabase';
+
+afterEach(() => cleanup());
+
+function authenticatedClient(admin: boolean, aal: { currentLevel: 'aal1' | 'aal2'; nextLevel: 'aal1' | 'aal2' } = { currentLevel: 'aal1', nextLevel: 'aal1' }) {
+  return {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: { user: {} } }, error: null }),
+      mfa: {
+        getAuthenticatorAssuranceLevel: vi.fn().mockResolvedValue({ data: aal, error: null }),
+      },
+    },
+    rpc: vi.fn().mockResolvedValue({ data: { user_id: 'u', is_admin: admin, is_active: true }, error: null }),
+  };
+}
 
 describe('browser configuration boundary', () => {
   it('accepts public Supabase values', () => {
@@ -19,23 +33,29 @@ describe('browser configuration boundary', () => {
 
 describe('administrator authorization', () => {
   it('denies an authenticated non-admin even when the account is active', async () => {
-    const client = {
-      auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { user: {} } }, error: null }) },
-      rpc: vi.fn().mockResolvedValue({ data: { user_id: 'u', is_admin: false, is_active: true }, error: null }),
-    };
-
+    const client = authenticatedClient(false);
     render(<MemoryRouter><AdminGuard client={client as never}>protected</AdminGuard></MemoryRouter>);
     expect(await screen.findByText('Access denied')).toBeInTheDocument();
   });
 
   it('allows an active administrator', async () => {
-    const client = {
-      auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { user: {} } }, error: null }) },
-      rpc: vi.fn().mockResolvedValue({ data: { user_id: 'u', is_admin: true, is_active: true }, error: null }),
-    };
-
+    const client = authenticatedClient(true);
     render(<MemoryRouter><AdminGuard client={client as never}>protected</AdminGuard></MemoryRouter>);
     expect(await screen.findByText('protected')).toBeInTheDocument();
+  });
+
+  it('redirects an enrolled administrator to MFA before protected content', async () => {
+    const client = authenticatedClient(true, { currentLevel: 'aal1', nextLevel: 'aal2' });
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<AdminGuard client={client as never}>protected</AdminGuard>} />
+          <Route path="/login" element={<div>mfa login</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('mfa login')).toBeInTheDocument();
+    expect(screen.queryByText('protected')).not.toBeInTheDocument();
   });
 });
 

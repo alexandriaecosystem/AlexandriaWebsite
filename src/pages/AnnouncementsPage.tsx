@@ -20,15 +20,17 @@ export function AnnouncementsPage() {
   const [history, setHistory] = useState<AnnouncementHistoryItem[]>([]);
   const [reload, setReload] = useState(0);
 
-  useEffect(() => {
-    void listAnnouncementHistory(getSupabaseClient()).then(setHistory).catch(() => undefined);
-  }, [reload]);
+  useEffect(() => { void listAnnouncementHistory(getSupabaseClient()).then(setHistory).catch(() => undefined); }, [reload]);
 
   function toggle(platform: MessagingPlatform) {
-    setPlatforms((selected) => selected.includes(platform)
-      ? selected.filter((item) => item !== platform)
-      : [...selected, platform]);
+    setPlatforms((selected) => selected.includes(platform) ? selected.filter((item) => item !== platform) : [...selected, platform]);
   }
+
+  const audienceLabel = destination === 'GENERAL'
+    ? tr('General community', 'المجتمع العام')
+    : destination === 'APPROVED'
+      ? tr('Approved members', 'الأعضاء المقبولون')
+      : tr('General community + Approved members', 'المجتمع العام + الأعضاء المقبولون');
 
   async function submit(approve: boolean) {
     if (busy || !content.trim() || !platforms.length) return;
@@ -36,7 +38,7 @@ export function AnnouncementsPage() {
     try {
       const id = await createAnnouncement(getSupabaseClient(), { content: content.trim(), destination, platforms });
       if (approve) await approveAnnouncement(getSupabaseClient(), id);
-      setMessage(approve ? tr('Announcement approved and queued for delivery.', 'تم اعتماد الإعلان ووضعه في قائمة الإرسال.') : tr(`Draft created: ${id}`, `تم إنشاء المسودة: ${id}`));
+      setMessage(approve ? tr('Announcement approved and queued for delivery.', 'تم اعتماد الإعلان ووضعه في قائمة الإرسال.') : tr('Draft saved.', 'تم حفظ المسودة.'));
       setContent('');
       setReload((n) => n + 1);
     } catch (caught) {
@@ -44,12 +46,20 @@ export function AnnouncementsPage() {
     } finally { setBusy(false); }
   }
 
+  function confirmAndQueue() {
+    if (!content.trim() || !platforms.length || busy) return;
+    const confirmed = window.confirm([
+      tr('Queue this announcement for delivery?', 'هل تريد وضع هذا الإعلان في قائمة الإرسال؟'),
+      '',
+      `${tr('Audience', 'الجمهور')}: ${audienceLabel}`,
+      `${tr('Platforms', 'المنصات')}: ${platforms.join(', ')}`,
+      '',
+      tr('The selected communities will receive this message after the delivery workers process the queue.', 'ستتلقى المجتمعات المحددة هذه الرسالة بعد أن تعالج خدمات الإرسال قائمة الانتظار.'),
+    ].join('\n'));
+    if (confirmed) void submit(true);
+  }
+
   const ready = Boolean(content.trim() && platforms.length);
-  const audienceLabel = destination === 'GENERAL'
-    ? tr('General community', 'المجتمع العام')
-    : destination === 'APPROVED'
-      ? tr('Approved members', 'الأعضاء المقبولون')
-      : tr('General community + Approved members', 'المجتمع العام + الأعضاء المقبولون');
 
   return (
     <>
@@ -63,11 +73,11 @@ export function AnnouncementsPage() {
             <fieldset><legend>{tr('Audience', 'الجمهور')}</legend><label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'GENERAL'} onChange={() => setDestination('GENERAL')} /> {tr('General community', 'المجتمع العام')}</label><label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'APPROVED'} onChange={() => setDestination('APPROVED')} /> {tr('Approved members', 'الأعضاء المقبولون')}</label><label className="choice"><input type="radio" name="announcement-audience" checked={destination === 'BOTH'} onChange={() => setDestination('BOTH')} /> {tr('Both groups', 'المجموعتان')}</label></fieldset>
             <fieldset><legend>{tr('Platforms', 'المنصات')}</legend>{allPlatforms.map((platform) => <label className="choice" key={platform}><input type="checkbox" checked={platforms.includes(platform)} onChange={() => toggle(platform)} /><span className={`platform ${platform}`} dir="ltr">{platform}</span></label>)}</fieldset>
             {error && <p className="form-error" role="alert">{error}</p>}{message && <p className="form-success" role="status">{message}</p>}
-            <div className="decision-actions"><button type="button" disabled={busy || !ready} onClick={() => void submit(false)}>{tr('Save draft', 'حفظ كمسودة')}</button><button type="button" className="primary" disabled={busy || !ready} onClick={() => void submit(true)}>{busy ? tr('Working…', 'جارٍ التنفيذ…') : tr('Approve & queue', 'اعتماد وإرسال')}</button></div>
+            <div className="decision-actions"><button type="button" disabled={busy || !ready} onClick={() => void submit(false)}>{tr('Save draft', 'حفظ كمسودة')}</button><button type="button" className="primary" disabled={busy || !ready} onClick={confirmAndQueue}>{busy ? tr('Working…', 'جارٍ التنفيذ…') : tr('Review & queue', 'مراجعة وإرسال')}</button></div>
           </form>
         </section>
 
-        <aside className="panel composer-summary"><p className="eyebrow">{tr('Delivery summary', 'ملخص الإرسال')}</p><h2>{tr('Before you queue', 'قبل الإرسال')}</h2><dl><div><dt>{tr('Audience', 'الجمهور')}</dt><dd>{audienceLabel}</dd></div><div><dt>{tr('Platforms', 'المنصات')}</dt><dd dir="ltr">{platforms.length ? platforms.join(', ') : tr('None selected', 'لا شيء محدد')}</dd></div><div><dt>{tr('Status', 'الحالة')}</dt><dd>{ready ? tr('Ready for action', 'جاهز للتنفيذ') : tr('Incomplete', 'غير مكتمل')}</dd></div></dl><div className="delivery-note"><strong>{tr('Delivery safety', 'سلامة الإرسال')}</strong><p>{tr('Queueing does not mark a message delivered. Supabase records success only after the selected platform confirms the send.', 'وضع الرسالة في قائمة الإرسال لا يعني أنها وصلت. يسجل Supabase النجاح فقط بعد تأكيد المنصة المحددة لعملية الإرسال.')}</p></div></aside>
+        <aside className="panel composer-summary"><p className="eyebrow">{tr('Delivery summary', 'ملخص الإرسال')}</p><h2>{tr('Before you queue', 'قبل الإرسال')}</h2><dl><div><dt>{tr('Audience', 'الجمهور')}</dt><dd>{audienceLabel}</dd></div><div><dt>{tr('Platforms', 'المنصات')}</dt><dd dir="ltr">{platforms.length ? platforms.join(', ') : tr('None selected', 'لا شيء محدد')}</dd></div><div><dt>{tr('Status', 'الحالة')}</dt><dd>{ready ? tr('Ready for review', 'جاهز للمراجعة') : tr('Incomplete', 'غير مكتمل')}</dd></div></dl><div className="delivery-note"><strong>{tr('Delivery safety', 'سلامة الإرسال')}</strong><p>{tr('A final confirmation shows the audience and platforms before the announcement is queued.', 'يظهر تأكيد نهائي للجمهور والمنصات قبل وضع الإعلان في قائمة الإرسال.')}</p></div></aside>
       </div>
 
       <section className="table-card announcement-history-card">

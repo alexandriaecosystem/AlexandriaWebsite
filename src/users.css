@@ -6,19 +6,37 @@
 .messages-platform-filter { width: min(220px, 34%); }
 .messages-inbox tbody tr { transition: background .16s ease; }
 .messages-inbox tbody tr:hover { background: rgba(255,255,255,.018); }
+.messages-inbox tbody tr.conversation-unread { background: rgba(128,108,255,.045); }
+.conversation-name-line { display:flex; align-items:center; gap:7px; }
+.unread-dot { width:8px; height:8px; flex:0 0 auto; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px rgba(128,108,255,.1); }
+.message-preview-cell { min-width:280px; max-width:520px; }
+.message-preview-cell a { display:grid; gap:4px; color:inherit; text-decoration:none; }
+.message-preview-cell a:hover span { color:var(--text); }
+.message-preview-cell span { color:var(--muted-strong); line-height:1.4; }
+.message-preview-sender { color:var(--accent-strong); font-weight:800; text-transform:uppercase; letter-spacing:.06em; }
 .user-conversation-header { align-items: center; }
 .conversation-total { min-width: 118px; min-height: 118px; border: 1px solid rgba(128,108,255,.28); border-radius: 22px; background: rgba(128,108,255,.08); display: grid; place-content: center; text-align: center; }
 .conversation-total strong { font-size: 2rem; letter-spacing: -.04em; }
 .conversation-total span { color: var(--muted); font-size: .75rem; }
 .user-profile-grid { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(0, 1.8fr); gap: 16px; align-items: start; }
-.user-profile-panel { position: sticky; top: 24px; }
+.user-overview-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
+.user-profile-panel { min-width:0; }
 .profile-list { display: grid; gap: 0; margin: 0 0 26px; }
 .profile-list > div { display: grid; gap: 5px; padding: 13px 0; border-bottom: 1px solid var(--border); }
 .profile-list dt { color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .profile-list dd { margin: 0; overflow-wrap: anywhere; }
+.compact-profile-list { margin-bottom:0; margin-top:18px; }
+.access-detail-list { grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:28px; margin:18px 0 0; }
+.access-status-hero { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 0 2px; }
+.access-status-hero p { margin:0; }
 .account-list { display: grid; gap: 10px; }
 .account-card { display: grid; gap: 6px; padding: 13px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.018); }
 .account-card .platform { justify-self: start; }
+.user-detail-tabs { display:flex; gap:6px; margin:0 0 18px; padding:5px; width:max-content; max-width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:13px; background:var(--panel-soft); }
+.user-detail-tabs button { width:auto; min-width:max-content; padding:9px 13px; border:0; border-radius:9px; background:transparent; color:var(--muted); cursor:pointer; font-weight:750; }
+.user-detail-tabs button:hover { color:var(--text); background:rgba(255,255,255,.035); }
+.user-detail-tabs button.active { color:var(--text); background:var(--accent-soft); box-shadow:inset 0 0 0 1px rgba(128,108,255,.24); }
+.user-tab-panel { min-width:0; }
 .conversation-panel { min-width: 0; padding: 0; overflow: hidden; }
 .conversation-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 22px 24px 16px; border-bottom: 1px solid var(--border); }
 .conversation-toolbar h2 { margin-bottom: 0; }
@@ -37,9 +55,9 @@
 .historical-note { display: block; margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.08); color: var(--warning); }
 
 @media (max-width: 980px) {
-  .user-profile-grid { grid-template-columns: 1fr; }
-  .user-profile-panel { position: static; }
+  .user-profile-grid, .user-overview-grid { grid-template-columns: 1fr; }
   .message-row { max-width: 92%; }
+  .access-detail-list { grid-template-columns:1fr; }
 }
 
 @media (max-width: 640px) {
@@ -49,4 +67,5 @@
   .conversation-filter, .messages-platform-filter { width: 100%; }
   .conversation-stream { padding: 16px; }
   .message-row { max-width: 100%; }
+  .message-preview-cell { min-width:220px; }
 }

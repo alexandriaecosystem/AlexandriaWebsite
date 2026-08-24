@@ -1,5 +1,6 @@
 .account-security-header { margin-bottom:24px; }
-.account-security-layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(280px,.7fr); gap:16px; align-items:start; }
+.account-security-layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(300px,.75fr); gap:16px; align-items:start; }
+.account-security-stack { display:grid; gap:16px; }
 .account-password-panel { display:grid; gap:18px; }
 .account-section-heading { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
 .account-section-heading h2 { margin:3px 0 0; }
@@ -11,10 +12,17 @@
 .account-security-note { display:grid; gap:12px; }
 .account-security-note h2 { margin:0; }
 .account-security-note > p { margin:0; }
+.account-security-note > button { justify-self:start; }
 .account-security-points { display:grid; gap:12px; margin-top:4px; }
 .account-security-points > div { display:grid; grid-template-columns:24px 1fr; gap:10px; align-items:start; padding-top:12px; border-top:1px solid var(--border); }
 .account-security-points span { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:var(--success-soft); color:var(--success); font-weight:900; font-size:.72rem; }
 .account-security-points p { margin:0; color:var(--muted-strong); font-size:.88rem; }
+.mfa-enrollment { display:grid; gap:12px; }
+.mfa-enrollment img { width:min(220px,100%); aspect-ratio:1; padding:10px; border-radius:14px; background:#fff; }
+.mfa-enrollment details { color:var(--muted); }
+.mfa-enrollment code { display:block; margin-top:8px; padding:10px; overflow-wrap:anywhere; border:1px solid var(--border); border-radius:10px; background:var(--panel-soft); color:var(--text); }
+.mfa-code-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+.mfa-code-row input { letter-spacing:.18em; font-weight:800; }
 
 @media(max-width:960px){
   .account-security-layout { grid-template-columns:1fr; }
@@ -22,4 +30,6 @@
 @media(max-width:650px){
   .account-password-actions { justify-content:stretch; }
   .account-password-actions .primary { width:100%; }
+  .mfa-code-row { grid-template-columns:1fr; }
+  .mfa-code-row button { width:100%; }
 }

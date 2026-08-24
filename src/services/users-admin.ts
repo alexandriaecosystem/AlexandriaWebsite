@@ -12,6 +12,10 @@ export type AdminUserListItem = {
   platforms: string[];
   messageCount: number;
   lastMessageAt: string | null;
+  latestMessageText: string | null;
+  latestMessageDirection: 'USER' | 'ASSISTANT' | null;
+  latestMessagePlatform: string | null;
+  hasUnread: boolean;
   applicationStatus: string | null;
   finalScore: number | null;
   recommendation: string | null;
@@ -48,6 +52,7 @@ export type AdminUserConversation = {
     createdAt: string;
   }>;
   application: Record<string, unknown> | null;
+  access: Record<string, unknown> | null;
   messages: AdminConversationMessage[];
   messageCount: number;
 };
@@ -82,11 +87,22 @@ export async function listAdminUsers(client: SupabaseClient, search = ''): Promi
       platforms: Array.isArray(item.platforms) ? item.platforms.map(String) : [],
       messageCount: Number(item.message_count ?? 0),
       lastMessageAt: asNullableString(item.last_message_at),
+      latestMessageText: asNullableString(item.latest_message_text),
+      latestMessageDirection: item.latest_message_direction === 'USER' || item.latest_message_direction === 'ASSISTANT'
+        ? item.latest_message_direction
+        : null,
+      latestMessagePlatform: asNullableString(item.latest_message_platform),
+      hasUnread: item.has_unread === true,
       applicationStatus: asNullableString(item.application_status),
       finalScore: asNumberOrNull(item.final_score),
       recommendation: asNullableString(item.recommendation),
     })),
   };
+}
+
+export async function markAdminConversationRead(client: SupabaseClient, userId: string): Promise<void> {
+  const { error } = await client.rpc('admin_mark_conversation_read', { p_user_id: userId });
+  if (error) throw new Error(error.message);
 }
 
 export async function getAdminUserConversation(client: SupabaseClient, userId: string): Promise<AdminUserConversation> {
@@ -119,6 +135,7 @@ export async function getAdminUserConversation(client: SupabaseClient, userId: s
       createdAt: String(account.created_at),
     })),
     application: value.application && typeof value.application === 'object' ? value.application as Record<string, unknown> : null,
+    access: value.access && typeof value.access === 'object' ? value.access as Record<string, unknown> : null,
     messages: messages.map((message) => ({
       id: String(message.id),
       platform: String(message.platform),

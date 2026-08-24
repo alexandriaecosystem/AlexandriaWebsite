@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AdminGuard } from './AdminGuard';
 import { AppShell } from './AppShell';
 import { LoginPage } from '../pages/LoginPage';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ReviewsPage } from '../pages/ReviewsPage';
 import { ReviewDetailPage } from '../pages/ReviewDetailPage';
@@ -19,6 +20,7 @@ import { LanguageProvider } from '../i18n/LanguageContext';
 export function App() {
   return <LanguageProvider><BrowserRouter><Routes>
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route element={<AdminGuard />}>
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
