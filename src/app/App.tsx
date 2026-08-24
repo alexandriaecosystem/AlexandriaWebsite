@@ -11,6 +11,16 @@ import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
 import { UsersPage } from '../pages/UsersPage';
 import { UserConversationPage } from '../pages/UserConversationPage';
 import { MessagesPage } from '../pages/MessagesPage';
+import { DeadLetterPage } from '../pages/DeadLetterPage';
+import {
+  ActivityLogPage,
+  AdminUsersPage,
+  AiPerformancePage,
+  ApprovedCommunityPage,
+  KnowledgeGapsPage,
+  SettingsPage,
+  SystemHealthPage,
+} from '../pages/AdminOperationsPages';
 import { LanguageProvider } from '../i18n/LanguageContext';
 
 export function App() {
@@ -24,9 +34,17 @@ export function App() {
         <Route path="users" element={<UsersPage />} />
         <Route path="users/:userId" element={<UserConversationPage />} />
         <Route path="messages" element={<MessagesPage />} />
+        <Route path="community" element={<ApprovedCommunityPage />} />
         <Route path="knowledge" element={<KnowledgeBasePage />} />
+        <Route path="knowledge-gaps" element={<KnowledgeGapsPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="ai-performance" element={<AiPerformancePage />} />
+        <Route path="system-health" element={<SystemHealthPage />} />
+        <Route path="failed-operations" element={<DeadLetterPage />} />
+        <Route path="activity" element={<ActivityLogPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="admin-users" element={<AdminUsersPage />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
