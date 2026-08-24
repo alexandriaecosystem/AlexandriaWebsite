@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ConfirmDialog, useToast } from '../components/Feedback';
 import { getSupabaseClient } from '../services/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../account-security.css';
@@ -10,6 +11,7 @@ type MfaEnrollment = { factorId: string; qrCode: string; secret: string };
 
 export function AccountSecurityPage() {
   const { tr } = useLanguage();
+  const { notify } = useToast();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -23,6 +25,7 @@ export function AccountSecurityPage() {
   const [securityBusy, setSecurityBusy] = useState(false);
   const [securityMessage, setSecurityMessage] = useState('');
   const [securityError, setSecurityError] = useState('');
+  const [confirmDisableMfa, setConfirmDisableMfa] = useState(false);
 
   const passwordLongEnough = newPassword.length >= MIN_PASSWORD_LENGTH;
   const passwordsMatch = Boolean(newPassword) && newPassword === confirmPassword;
@@ -60,7 +63,9 @@ export function AccountSecurityPage() {
       await client.auth.signOut({ scope: 'global' });
       navigate('/login', { replace: true, state: { passwordChanged: true } });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : tr('Password could not be changed.', 'تعذر تغيير كلمة المرور.'));
+      const text = caught instanceof Error ? caught.message : tr('Password could not be changed.', 'تعذر تغيير كلمة المرور.');
+      setError(text);
+      notify({ tone: 'error', title: tr('Password change failed', 'فشل تغيير كلمة المرور'), message: text });
       setBusy(false);
     }
   }
@@ -74,7 +79,9 @@ export function AccountSecurityPage() {
       if (enrollError) throw enrollError;
       setEnrollment({ factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret });
     } catch (caught) {
-      setSecurityError(caught instanceof Error ? caught.message : tr('MFA setup could not start.', 'تعذر بدء إعداد المصادقة الثنائية.'));
+      const text = caught instanceof Error ? caught.message : tr('MFA setup could not start.', 'تعذر بدء إعداد المصادقة الثنائية.');
+      setSecurityError(text);
+      notify({ tone: 'error', title: tr('MFA setup failed', 'فشل إعداد المصادقة الثنائية'), message: text });
     } finally { setSecurityBusy(false); }
   }
 
@@ -85,24 +92,32 @@ export function AccountSecurityPage() {
       const { error: verifyError } = await getSupabaseClient().auth.mfa.challengeAndVerify({ factorId: enrollment.factorId, code: mfaCode.trim() });
       if (verifyError) throw verifyError;
       setEnrollment(null); setMfaCode('');
-      setSecurityMessage(tr('Two-factor authentication is now enabled.', 'تم تفعيل المصادقة الثنائية.'));
+      const text = tr('Two-factor authentication is now enabled.', 'تم تفعيل المصادقة الثنائية.');
+      setSecurityMessage(text);
+      notify({ tone: 'success', title: tr('MFA enabled', 'تم تفعيل المصادقة الثنائية'), message: text });
       await refreshMfa();
     } catch (caught) {
-      setSecurityError(caught instanceof Error ? caught.message : tr('The verification code was not accepted.', 'لم يتم قبول رمز التحقق.'));
+      const text = caught instanceof Error ? caught.message : tr('The verification code was not accepted.', 'لم يتم قبول رمز التحقق.');
+      setSecurityError(text);
+      notify({ tone: 'error', title: tr('Verification failed', 'فشل التحقق'), message: text });
     } finally { setSecurityBusy(false); }
   }
 
   async function disableMfa() {
     if (!verifiedFactorId || securityBusy) return;
-    if (!window.confirm(tr('Disable two-factor authentication for this admin account?', 'هل تريد تعطيل المصادقة الثنائية لهذا الحساب؟'))) return;
     setSecurityBusy(true); setSecurityError(''); setSecurityMessage('');
     try {
       const { error: unenrollError } = await getSupabaseClient().auth.mfa.unenroll({ factorId: verifiedFactorId });
       if (unenrollError) throw unenrollError;
-      setSecurityMessage(tr('Two-factor authentication was disabled.', 'تم تعطيل المصادقة الثنائية.'));
+      const text = tr('Two-factor authentication was disabled.', 'تم تعطيل المصادقة الثنائية.');
+      setSecurityMessage(text);
+      notify({ tone: 'success', title: tr('MFA disabled', 'تم تعطيل المصادقة الثنائية'), message: text });
+      setConfirmDisableMfa(false);
       await refreshMfa();
     } catch (caught) {
-      setSecurityError(caught instanceof Error ? caught.message : tr('MFA could not be disabled.', 'تعذر تعطيل المصادقة الثنائية.'));
+      const text = caught instanceof Error ? caught.message : tr('MFA could not be disabled.', 'تعذر تعطيل المصادقة الثنائية.');
+      setSecurityError(text);
+      notify({ tone: 'error', title: tr('Could not disable MFA', 'تعذر تعطيل المصادقة الثنائية'), message: text });
     } finally { setSecurityBusy(false); }
   }
 
@@ -112,9 +127,13 @@ export function AccountSecurityPage() {
     try {
       const { error: signOutError } = await getSupabaseClient().auth.signOut({ scope: 'others' });
       if (signOutError) throw signOutError;
-      setSecurityMessage(tr('Other sessions were signed out. This session remains active.', 'تم تسجيل الخروج من الجلسات الأخرى. تبقى هذه الجلسة نشطة.'));
+      const text = tr('Other sessions were signed out. This session remains active.', 'تم تسجيل الخروج من الجلسات الأخرى. تبقى هذه الجلسة نشطة.');
+      setSecurityMessage(text);
+      notify({ tone: 'success', title: tr('Other sessions signed out', 'تم تسجيل الخروج من الجلسات الأخرى'), message: text });
     } catch (caught) {
-      setSecurityError(caught instanceof Error ? caught.message : tr('Other sessions could not be signed out.', 'تعذر تسجيل الخروج من الجلسات الأخرى.'));
+      const text = caught instanceof Error ? caught.message : tr('Other sessions could not be signed out.', 'تعذر تسجيل الخروج من الجلسات الأخرى.');
+      setSecurityError(text);
+      notify({ tone: 'error', title: tr('Session action failed', 'فشل إجراء الجلسة'), message: text });
     } finally { setSecurityBusy(false); }
   }
 
@@ -143,7 +162,7 @@ export function AccountSecurityPage() {
             <p className="muted">{tr('Use an authenticator app to require a one-time code after the password.', 'استخدم تطبيق مصادقة لطلب رمز مؤقت بعد كلمة المرور.')}</p>
             {!mfaLoading && !verifiedFactorId && !enrollment && <button type="button" className="primary" disabled={securityBusy} onClick={() => void startMfaEnrollment()}>{tr('Set up MFA', 'إعداد المصادقة الثنائية')}</button>}
             {enrollment && <div className="mfa-enrollment"><img src={enrollment.qrCode} alt={tr('Authenticator QR code', 'رمز QR لتطبيق المصادقة')} /><p className="muted">{tr('Scan this QR code with your authenticator app, then enter the 6-digit code.', 'امسح رمز QR باستخدام تطبيق المصادقة ثم أدخل الرمز المكوّن من 6 أرقام.')}</p><details><summary>{tr('Cannot scan?', 'لا يمكنك المسح؟')}</summary><code dir="ltr">{enrollment.secret}</code></details><div className="mfa-code-row"><input value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" dir="ltr" /><button type="button" className="primary" disabled={securityBusy || mfaCode.length < 6} onClick={() => void verifyMfa()}>{tr('Verify', 'تحقق')}</button></div></div>}
-            {verifiedFactorId && <button type="button" className="compact-button danger" disabled={securityBusy} onClick={() => void disableMfa()}>{tr('Disable MFA', 'تعطيل المصادقة الثنائية')}</button>}
+            {verifiedFactorId && <button type="button" className="compact-button danger" disabled={securityBusy} onClick={() => setConfirmDisableMfa(true)}>{tr('Disable MFA', 'تعطيل المصادقة الثنائية')}</button>}
           </section>
 
           <section className="panel account-security-note"><p className="eyebrow">{tr('Sessions', 'الجلسات')}</p><h2>{tr('Other devices', 'الأجهزة الأخرى')}</h2><p className="muted">{tr('If you signed in on another computer or browser, you can revoke those sessions while keeping this one open.', 'إذا سجلت الدخول على جهاز أو متصفح آخر، يمكنك إلغاء تلك الجلسات مع إبقاء هذه الجلسة مفتوحة.')}</p><button type="button" className="compact-button" disabled={securityBusy} onClick={() => void signOutOtherDevices()}>{tr('Sign out other devices', 'تسجيل الخروج من الأجهزة الأخرى')}</button></section>
@@ -151,6 +170,18 @@ export function AccountSecurityPage() {
           {(securityError || securityMessage) && <p className={securityError ? 'form-error' : 'form-success'} role="status">{securityError || securityMessage}</p>}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDisableMfa}
+        title={tr('Disable two-factor authentication?', 'تعطيل المصادقة الثنائية؟')}
+        message={<p>{tr('Future sign-ins will no longer require an authenticator code for this admin account.', 'لن تتطلب عمليات تسجيل الدخول المستقبلية رمز تطبيق المصادقة لهذا الحساب.')}</p>}
+        confirmLabel={securityBusy ? tr('Working…', 'جارٍ التنفيذ…') : tr('Disable MFA', 'تعطيل المصادقة الثنائية')}
+        cancelLabel={tr('Keep MFA enabled', 'إبقاء المصادقة الثنائية مفعلة')}
+        tone="danger"
+        busy={securityBusy}
+        onCancel={() => setConfirmDisableMfa(false)}
+        onConfirm={() => void disableMfa()}
+      />
     </>
   );
 }
