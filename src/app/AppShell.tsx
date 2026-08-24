@@ -2,6 +2,8 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import { useLanguage } from '../i18n/LanguageContext';
+import alexandriaLogo from '../assets/alexandria-logo.svg';
+import './AppShell.css';
 
 type NavItem = { to: string; en: string; ar: string; icon: string; end?: boolean };
 type NavGroup = { en: string; ar: string; items: NavItem[] };
@@ -43,7 +45,7 @@ export function AppShell() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">A</span>
+          <img className="brand-logo" src={alexandriaLogo} alt="" aria-hidden="true" />
           <div>
             <strong>Alexandria</strong>
             <small>{tr('Community admin', 'إدارة المجتمع')}</small>
