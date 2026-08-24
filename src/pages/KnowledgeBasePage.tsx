@@ -9,6 +9,7 @@ import {
 import { getSupabaseClient } from '../services/supabase';
 import type { KnowledgeDocumentSummary } from '../types/contracts';
 import { LoadingState, RetryableErrorState } from '../components/AsyncState';
+import { KnowledgeDocumentEditor } from '../components/KnowledgeDocumentEditor';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const statusClass = (status: string) => status === 'READY' ? 'healthy' : status === 'FAILED' ? 'danger' : 'neutral';
@@ -21,6 +22,7 @@ export function KnowledgeBasePage() {
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [title, setTitle] = useState('');
@@ -76,7 +78,7 @@ export function KnowledgeBasePage() {
   return (
     <>
       <header className="page-header">
-        <div><p className="eyebrow">{tr('RAG sources', 'مصادر RAG')}</p><h1>{tr('Knowledge base', 'قاعدة المعرفة')}</h1><p className="muted page-subtitle">{tr('Upload approved project sources, track processing, and control which documents can feed retrieval.', 'ارفع مصادر المشروع، تابع معالجتها، وتحكم بالمستندات المسموح باستخدامها في الاسترجاع.')}</p></div>
+        <div><p className="eyebrow">{tr('RAG sources', 'مصادر RAG')}</p><h1>{tr('Knowledge base', 'قاعدة المعرفة')}</h1><p className="muted page-subtitle">{tr('Upload approved project sources, open them like documents, edit the extracted knowledge, and control what can feed retrieval.', 'ارفع مصادر المشروع، افتحها كمستندات، عدّل محتوى المعرفة المستخرج، وتحكم بالمستندات المسموح باستخدامها في الاسترجاع.')}</p></div>
         <span className="status-pill neutral">{total} {tr('documents', 'مستندات')}</span>
       </header>
 
@@ -93,7 +95,7 @@ export function KnowledgeBasePage() {
           <label>{tr('Language', 'لغة المستند')}<input value={language} onChange={(event) => setLanguage(event.target.value)} required placeholder="en" maxLength={8} dir="ltr" /></label>
           <label>{tr('File', 'الملف')}<input type="file" accept=".pdf,.doc,.docx,.txt,.md" required onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
           <button className="primary" disabled={uploading || !file || !title.trim()}>{uploading ? tr('Uploading…', 'جارٍ الرفع…') : tr('Upload to Supabase', 'رفع إلى Supabase')}</button>
-          <p className="muted form-note">{tr('The browser uploads only to the protected knowledge-base bucket. n8n credentials are never exposed here.', 'المتصفح يرفع الملفات فقط إلى مساحة knowledge-base المحمية. لا يتم كشف بيانات اعتماد n8n في الواجهة.')}</p>
+          <p className="muted form-note">{tr('The original file stays in the protected knowledge-base bucket. After processing, admins can open and edit the extracted knowledge in the built-in document editor.', 'يبقى الملف الأصلي في مساحة knowledge-base المحمية. بعد المعالجة، يستطيع المشرف فتح المعرفة المستخرجة وتعديلها في محرر المستندات المدمج.')}</p>
           {message && <p className="form-success" role="status">{message}</p>}
         </form>
 
@@ -108,6 +110,7 @@ export function KnowledgeBasePage() {
                 <div className="document-head"><div><div className="chip-row"><span className={`status-pill ${statusClass(doc.processingStatus)}`}>{statusLabel(doc.processingStatus)}</span>{doc.isApproved && <span className="status-pill healthy">{tr('Approved', 'معتمد')}</span>}</div><h3>{doc.title}</h3><p className="muted" dir="ltr">{doc.category} · {doc.language.toUpperCase()} · v{doc.version}</p></div><strong className="chunk-count">{doc.chunkCount}<small>{tr('chunks', 'أجزاء')}</small></strong></div>
                 {doc.processingError && <p className="form-error" dir="ltr">{doc.processingError}</p>}
                 <div className="document-footer"><small>{tr('Updated', 'آخر تحديث')} {new Date(doc.updatedAt).toLocaleString(isArabic ? 'ar-LB' : undefined)}</small><div className="decision-actions">
+                  <button type="button" className="compact-button" disabled={busyId === doc.id || doc.processingStatus === 'PROCESSING'} onClick={() => setEditingId(doc.id)}>{tr('Open / Edit', 'فتح / تعديل')}</button>
                   <button type="button" className="compact-button" disabled={busyId === doc.id || doc.processingStatus !== 'READY' || doc.isApproved} onClick={() => act(doc.id, 'approve')}>{tr('Approve', 'اعتماد')}</button>
                   <button type="button" className="compact-button" disabled={busyId === doc.id} onClick={() => act(doc.id, 'reprocess')}>{tr('Reprocess', 'إعادة المعالجة')}</button>
                   <button type="button" className="compact-button danger" disabled={busyId === doc.id} onClick={() => act(doc.id, 'delete')}>{tr('Delete', 'حذف')}</button>
@@ -117,6 +120,14 @@ export function KnowledgeBasePage() {
           )}
         </div>
       </section>
+
+      {editingId && (
+        <KnowledgeDocumentEditor
+          documentId={editingId}
+          onClose={() => setEditingId(null)}
+          onSaved={() => setReload((n) => n + 1)}
+        />
+      )}
     </>
   );
 }
