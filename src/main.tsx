@@ -6,6 +6,7 @@ import './ui-overrides.css';
 import './i18n.css';
 import './admin-theme.css';
 import './ux-system.css';
+import './advanced-ux.css';
 
 const root = document.getElementById('root');
 
