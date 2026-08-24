@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ConflictState, LoadingState, RetryableErrorState } from '../components/AsyncState';
-import { decideApplication, getApplicationAudit, getReviewDetail } from '../services/admin';
+import { ConfirmDialog, useToast } from '../components/Feedback';
+import { decideApplication, getApplicationAudit, getReviewDetail, listPendingReviews } from '../services/admin';
 import { getSupabaseClient } from '../services/supabase';
-import type { ApplicationAuditDetail, ReviewDetail } from '../types/contracts';
+import type { ApplicationAuditDetail, ReviewDetail, ReviewListItem } from '../types/contracts';
 import { useLanguage } from '../i18n/LanguageContext';
 
 function readableEvidence(item: unknown) {
@@ -29,24 +30,31 @@ const clampScore = (value: unknown) => Math.max(0, Math.min(100, Number(value) |
 
 export function ReviewDetailPage() {
   const { tr } = useLanguage();
+  const { notify } = useToast();
   const { applicationId = '' } = useParams();
   const navigate = useNavigate();
   const [detail, setDetail] = useState<ReviewDetail>();
   const [audit, setAudit] = useState<ApplicationAuditDetail>();
+  const [queue, setQueue] = useState<ReviewListItem[]>([]);
   const [error, setError] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
+  const [openNext, setOpenNext] = useState(true);
+  const [pendingDecision, setPendingDecision] = useState<'APPROVE' | 'REJECT' | null>(null);
 
   useEffect(() => {
     setError(false);
+    setReason('');
     Promise.all([
       getReviewDetail(getSupabaseClient(), applicationId),
       getApplicationAudit(getSupabaseClient(), applicationId),
-    ]).then(([reviewDetail, applicationAudit]) => {
+      listPendingReviews(getSupabaseClient()),
+    ]).then(([reviewDetail, applicationAudit, pending]) => {
       setDetail(reviewDetail);
       setAudit(applicationAudit);
+      setQueue(pending);
     }).catch(() => setError(true));
   }, [applicationId, reload]);
 
@@ -55,12 +63,27 @@ export function ReviewDetailPage() {
     setBusy(true);
     try {
       await decideApplication(getSupabaseClient(), applicationId, decision, reason.trim());
-      navigate('/reviews');
+      notify({
+        tone: 'success',
+        title: decision === 'APPROVE' ? tr('Member approved', 'تم اعتماد العضو') : tr('Application rejected', 'تم رفض الطلب'),
+        message: decision === 'APPROVE' ? tr('Community access has been queued.', 'تمت جدولة الوصول إلى المجتمع.') : tr('The decision was saved to the audit history.', 'تم حفظ القرار في سجل التدقيق.'),
+      });
+      if (openNext) {
+        const refreshed = await listPendingReviews(getSupabaseClient());
+        const next = refreshed.find((item) => item.applicationId !== applicationId);
+        navigate(next ? `/reviews/${next.applicationId}` : '/reviews', { replace: true });
+      } else {
+        navigate('/reviews');
+      }
     } catch (caught) {
       if (String(caught).includes('PENDING_REVIEW')) setConflict(true);
-      else setError(true);
+      else {
+        notify({ tone: 'error', title: tr('Decision could not be saved', 'تعذر حفظ القرار'), message: caught instanceof Error ? caught.message : tr('Please try again.', 'يرجى المحاولة مرة أخرى.') });
+        setError(true);
+      }
     } finally {
       setBusy(false);
+      setPendingDecision(null);
     }
   }
 
@@ -70,6 +93,9 @@ export function ReviewDetailPage() {
 
   const score = clampScore(detail.score);
   const rationaleReady = reason.trim().length >= 8;
+  const currentIndex = queue.findIndex((item) => item.applicationId === applicationId);
+  const previousItem = currentIndex > 0 ? queue[currentIndex - 1] : null;
+  const nextItem = currentIndex >= 0 && currentIndex < queue.length - 1 ? queue[currentIndex + 1] : null;
   const latestAccess = audit.access.length && audit.access[audit.access.length - 1] && typeof audit.access[audit.access.length - 1] === 'object'
     ? audit.access[audit.access.length - 1] as Record<string, unknown>
     : null;
@@ -77,6 +103,17 @@ export function ReviewDetailPage() {
   return (
     <>
       <Link className="back-link" to="/reviews">← {tr('Review queue', 'قائمة المراجعة')}</Link>
+
+      {currentIndex >= 0 && queue.length > 1 && (
+        <div className="review-nav" aria-label={tr('Review queue navigation', 'التنقل في قائمة المراجعة')}>
+          <span className="review-progress">{tr(`Review ${currentIndex + 1} of ${queue.length}`, `المراجعة ${currentIndex + 1} من ${queue.length}`)}</span>
+          <div className="review-nav-links">
+            {previousItem ? <Link to={`/reviews/${previousItem.applicationId}`}>← {tr('Previous', 'السابق')}</Link> : <span />}
+            {nextItem ? <Link to={`/reviews/${nextItem.applicationId}`}>{tr('Next', 'التالي')} →</Link> : <span />}
+          </div>
+        </div>
+      )}
+
       <header className="page-header detail-header">
         <div>
           <p className="eyebrow">{tr('Pending review', 'قيد المراجعة')}</p>
@@ -113,8 +150,24 @@ export function ReviewDetailPage() {
 
       <section className="decision-panel">
         <div><p className="eyebrow">{tr('Human decision required', 'مطلوب قرار من المسؤول')}</p><h2>{tr('Approve or reject this application', 'اعتماد أو رفض هذا الطلب')}</h2><p className="muted">{tr('The rationale is stored with the administrator decision and audit history. AI scoring remains advisory.', 'يتم حفظ سبب القرار مع سجل المسؤول والتدقيق. تبقى نتيجة الذكاء الاصطناعي استشارية فقط.')}</p><div className="decision-warning">{tr('This action changes the application state. Review the evidence before continuing.', 'هذا الإجراء يغيّر حالة الطلب. راجع الأدلة قبل المتابعة.')}</div></div>
-        <form onSubmit={(event) => event.preventDefault()}><label>{tr('Decision rationale', 'سبب القرار')}<textarea minLength={8} required value={reason} onChange={(event) => setReason(event.target.value)} placeholder={tr('Record a clear reason for this decision…', 'اكتب سبباً واضحاً لهذا القرار…')} /><small className={rationaleReady ? 'helper success-text' : 'helper'}>{rationaleReady ? tr('Rationale ready', 'السبب جاهز') : tr('Enter at least 8 characters', 'أدخل 8 أحرف على الأقل')}</small></label><div className="decision-actions"><button type="button" className="danger" disabled={busy || !rationaleReady} onClick={() => void decide('REJECT')}>{tr('Reject', 'رفض')}</button><button type="button" className="primary" disabled={busy || !rationaleReady} onClick={() => void decide('APPROVE')}>{busy ? tr('Saving…', 'جارٍ الحفظ…') : tr('Approve & queue access', 'اعتماد وإرسال طلب الوصول')}</button></div></form>
+        <form onSubmit={(event) => event.preventDefault()}>
+          <label>{tr('Decision rationale', 'سبب القرار')}<textarea minLength={8} required value={reason} onChange={(event) => setReason(event.target.value)} placeholder={tr('Record a clear reason for this decision…', 'اكتب سبباً واضحاً لهذا القرار…')} /><small className={rationaleReady ? 'helper success-text' : 'helper'}>{rationaleReady ? tr('Rationale ready', 'السبب جاهز') : tr('Enter at least 8 characters', 'أدخل 8 أحرف على الأقل')}</small></label>
+          <label className="review-next-toggle"><input type="checkbox" checked={openNext} onChange={(event) => setOpenNext(event.target.checked)} /> {tr('After saving, open the next pending review', 'بعد الحفظ، افتح المراجعة المعلقة التالية')}</label>
+          <div className="decision-actions"><button type="button" className="danger" disabled={busy || !rationaleReady} onClick={() => setPendingDecision('REJECT')}>{tr('Reject', 'رفض')}</button><button type="button" className="primary" disabled={busy || !rationaleReady} onClick={() => setPendingDecision('APPROVE')}>{busy ? tr('Saving…', 'جارٍ الحفظ…') : tr('Approve & queue access', 'اعتماد وإرسال طلب الوصول')}</button></div>
+        </form>
       </section>
+
+      <ConfirmDialog
+        open={Boolean(pendingDecision)}
+        title={pendingDecision === 'APPROVE' ? tr('Approve this member?', 'اعتماد هذا العضو؟') : tr('Reject this application?', 'رفض هذا الطلب؟')}
+        message={<p><strong>{tr('Decision rationale', 'سبب القرار')}:</strong> {reason.trim()}</p>}
+        confirmLabel={busy ? tr('Saving…', 'جارٍ الحفظ…') : pendingDecision === 'APPROVE' ? tr('Approve member', 'اعتماد العضو') : tr('Reject application', 'رفض الطلب')}
+        cancelLabel={tr('Back to review', 'العودة للمراجعة')}
+        tone={pendingDecision === 'REJECT' ? 'danger' : 'primary'}
+        busy={busy}
+        onCancel={() => setPendingDecision(null)}
+        onConfirm={() => { if (pendingDecision) void decide(pendingDecision); }}
+      />
     </>
   );
 }
