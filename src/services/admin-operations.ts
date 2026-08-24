@@ -95,6 +95,11 @@ export type AnnouncementHistoryItem = {
   deliveries: Array<{ platform: string; status: string; attemptCount: number; sentAt: string | null; error: string | null }>;
 };
 
+export type MessageSeriesPoint = {
+  bucketDate: string;
+  messages: number;
+};
+
 export async function listApprovedCommunity(client: SupabaseClient, search = '') {
   const { data, error } = await client.rpc('admin_list_approved_community', { p_limit: 200, p_offset: 0, p_search: search.trim() || null });
   const value = assertData(data as { items?: Record<string, unknown>[]; total?: number } | null, error);
@@ -161,5 +166,14 @@ export async function listAnnouncementHistory(client: SupabaseClient): Promise<A
     scheduledFor: nullable(item.scheduled_for), approvedAt: nullable(item.approved_at), publishedAt: nullable(item.published_at), createdAt: String(item.created_at),
     deliveryCount: Number(item.delivery_count ?? 0), sentCount: Number(item.sent_count ?? 0), failedCount: Number(item.failed_count ?? 0),
     deliveries: Array.isArray(item.deliveries) ? (item.deliveries as Record<string, unknown>[]).map((delivery) => ({ platform: String(delivery.platform), status: String(delivery.status), attemptCount: Number(delivery.attempt_count ?? 0), sentAt: nullable(delivery.sent_at), error: nullable(delivery.error) })) : [],
+  }));
+}
+
+export async function getMessageTimeseries(client: SupabaseClient, days = 30): Promise<MessageSeriesPoint[]> {
+  const { data, error } = await client.rpc('admin_get_message_timeseries', { p_days: days });
+  const value = assertData(data as { series?: Record<string, unknown>[] } | null, error);
+  return (value.series ?? []).map((item) => ({
+    bucketDate: String(item.bucket_date),
+    messages: Number(item.messages ?? 0),
   }));
 }
