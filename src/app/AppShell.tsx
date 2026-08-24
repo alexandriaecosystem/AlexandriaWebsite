@@ -7,48 +7,24 @@ type NavItem = { to: string; en: string; ar: string; icon: string; end?: boolean
 type NavGroup = { en: string; ar: string; items: NavItem[] };
 
 const navigation: NavGroup[] = [
-  {
-    en: 'Overview', ar: 'نظرة عامة', items: [
-      { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: '⌂', end: true },
-    ],
-  },
-  {
-    en: 'Community', ar: 'المجتمع', items: [
-      { to: '/users', en: 'Users', ar: 'المستخدمون', icon: '◉' },
-      { to: '/messages', en: 'Messages', ar: 'الرسائل', icon: '✉' },
-      { to: '/reviews', en: 'Member reviews', ar: 'مراجعة الأعضاء', icon: '◎' },
-      { to: '/community', en: 'Approved community', ar: 'المجتمع المعتمد', icon: '✓' },
-    ],
-  },
-  {
-    en: 'Knowledge', ar: 'المعرفة', items: [
-      { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: '◇' },
-      { to: '/knowledge-gaps', en: 'Knowledge gaps', ar: 'فجوات المعرفة', icon: '?' },
-    ],
-  },
-  {
-    en: 'Communication', ar: 'التواصل', items: [
-      { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: '↗' },
-    ],
-  },
-  {
-    en: 'Intelligence', ar: 'الذكاء', items: [
-      { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: '◫' },
-      { to: '/ai-performance', en: 'AI performance', ar: 'أداء الذكاء الاصطناعي', icon: '▥' },
-      { to: '/token-monitor', en: 'On-chain token', ar: 'التوكن على السلسلة', icon: '◈' },
-    ],
-  },
-  {
-    en: 'Operations', ar: 'العمليات', items: [
-      { to: '/activity', en: 'Activity log', ar: 'سجل النشاط', icon: '≡' },
-    ],
-  },
-  {
-    en: 'Admin', ar: 'الإدارة', items: [
-      { to: '/settings', en: 'Settings', ar: 'الإعدادات', icon: '⚙' },
-      { to: '/admin-users', en: 'Admin users', ar: 'المشرفون', icon: '♙' },
-    ],
-  },
+  { en: 'Overview', ar: 'نظرة عامة', items: [
+    { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: '⌂', end: true },
+  ] },
+  { en: 'Community', ar: 'المجتمع', items: [
+    { to: '/users', en: 'Users', ar: 'المستخدمون', icon: '◉' },
+    { to: '/messages', en: 'Messages', ar: 'الرسائل', icon: '✉' },
+    { to: '/reviews', en: 'Member reviews', ar: 'مراجعة الأعضاء', icon: '◎' },
+    { to: '/community', en: 'Approved community', ar: 'المجتمع المعتمد', icon: '✓' },
+  ] },
+  { en: 'Content', ar: 'المحتوى', items: [
+    { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: '◇' },
+    { to: '/knowledge-gaps', en: 'Knowledge gaps', ar: 'فجوات المعرفة', icon: '?' },
+    { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: '↗' },
+  ] },
+  { en: 'Insights', ar: 'المؤشرات', items: [
+    { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: '◫' },
+    { to: '/token-monitor', en: 'Token activity', ar: 'نشاط التوكن', icon: '◈' },
+  ] },
 ];
 
 export function AppShell() {
@@ -88,10 +64,6 @@ export function AppShell() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="environment-status">
-            <span className="status-dot" aria-hidden="true" />
-            <span><strong>{tr('Secure access', 'دخول آمن')}</strong><small>{tr('Administrator account', 'حساب المسؤول')}</small></span>
-          </div>
           <button type="button" className="text-button sign-out" onClick={signOut}>{tr('Sign out', 'تسجيل الخروج')}</button>
         </div>
       </aside>

@@ -9,7 +9,6 @@ import { useLanguage } from '../i18n/LanguageContext';
 import '../dashboard-chart.css';
 
 const money = (value: number) => `$${value.toFixed(value < 1 ? 4 : 2)}`;
-const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 
 export function DashboardPage() {
   const { tr, isArabic } = useLanguage();
@@ -43,7 +42,7 @@ export function DashboardPage() {
         <div>
           <p className="eyebrow">{tr('Dashboard', 'لوحة التحكم')}</p>
           <h1>{tr('Alexandria community', 'مجتمع Alexandria')}</h1>
-          <p className="muted page-subtitle">{tr('See what needs attention first, then monitor community activity, knowledge and AI spend.', 'ابدأ بما يحتاج إلى متابعة ثم راقب نشاط المجتمع والمعرفة وتكلفة الذكاء الاصطناعي.')}</p>
+          <p className="muted page-subtitle">{tr('Review community activity, content and costs from one place.', 'راجع نشاط المجتمع والمحتوى والتكاليف من مكان واحد.')}</p>
         </div>
         <span className="status-pill healthy"><span className="pill-dot" /> {tr('Live', 'مباشر')}</span>
       </header>
@@ -54,21 +53,27 @@ export function DashboardPage() {
         <>
           <section className="panel attention-panel">
             <div className="section-heading">
-              <div><p className="eyebrow">{tr('Needs attention', 'يحتاج إلى متابعة')}</p><h2>{attentionCount ? tr('Admin actions waiting', 'إجراءات إدارية بانتظارك') : tr('Nothing urgent right now', 'لا يوجد شيء عاجل حالياً')}</h2></div>
+              <div>
+                <p className="eyebrow">{tr('Needs attention', 'يحتاج إلى متابعة')}</p>
+                <h2>{attentionCount ? tr('Items waiting for you', 'عناصر بانتظارك') : tr('Nothing urgent right now', 'لا يوجد شيء عاجل حالياً')}</h2>
+              </div>
               <span className={`status-pill ${attentionCount ? 'negative' : 'positive'}`}>{attentionCount}</span>
             </div>
             <div className="attention-grid">
               <Link to="/reviews"><span>{tr('Member reviews', 'مراجعة الأعضاء')}</span><strong>{metrics.pendingReviews}</strong><small>{tr('waiting for decision', 'بانتظار القرار')}</small></Link>
-              <Link to="/knowledge"><span>{tr('Knowledge failures', 'أخطاء المعرفة')}</span><strong>{failedKnowledge}</strong><small>{tr('documents need attention', 'مستند يحتاج للمتابعة')}</small></Link>
+              <Link to="/knowledge"><span>{tr('Knowledge documents', 'مستندات المعرفة')}</span><strong>{failedKnowledge}</strong><small>{tr('need attention', 'تحتاج إلى متابعة')}</small></Link>
               <Link to="/knowledge-gaps"><span>{tr('Knowledge gaps', 'فجوات المعرفة')}</span><strong>{openGaps}</strong><small>{tr('unresolved questions', 'أسئلة غير محلولة')}</small></Link>
             </div>
           </section>
 
           {usageTrackingMissing && (
             <section className="panel" role="status" style={{ marginBottom: 18 }}>
-              <div className="section-heading"><div><p className="eyebrow">{tr('AI cost telemetry', 'قياس تكلفة الذكاء الاصطناعي')}</p><h2>{tr('Spend tracking is not receiving provider usage yet', 'تتبّع التكلفة لا يستقبل بيانات الاستخدام من المزوّد بعد')}</h2></div><span className="status-pill negative">{tr('Tracking incomplete', 'التتبّع غير مكتمل')}</span></div>
-              <p className="muted">{tr('AI replies have been recorded, but provider token and cost events have not reached the usage ledger yet. The $0 value is not treated as a verified spend total.', 'تم تسجيل ردود للذكاء الاصطناعي لكن بيانات الرموز والتكلفة لم تصل بعد إلى سجل الاستخدام. لذلك لا تعتبر قيمة 0$ إجمالي تكلفة مؤكداً.')}</p>
-              <Link className="inline-link" to="/analytics">{tr('Open AI telemetry', 'فتح قياسات الذكاء الاصطناعي')} →</Link>
+              <div className="section-heading">
+                <div><p className="eyebrow">{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</p><h2>{tr('Cost tracking needs setup', 'تتبّع التكلفة يحتاج إلى إعداد')}</h2></div>
+                <span className="status-pill neutral">{tr('Setup needed', 'يلزم الإعداد')}</span>
+              </div>
+              <p className="muted">{tr('AI replies are working, but accurate provider costs are not being recorded yet.', 'ردود الذكاء الاصطناعي تعمل، لكن التكلفة الدقيقة من المزوّد لا يتم تسجيلها بعد.')}</p>
+              <Link className="inline-link" to="/analytics">{tr('View AI costs', 'عرض تكلفة الذكاء الاصطناعي')} →</Link>
             </section>
           )}
 
@@ -76,9 +81,8 @@ export function DashboardPage() {
             <article className="metric-card"><span>{tr('Total users', 'إجمالي المستخدمين')}</span><strong>{metrics.totalUsers.toLocaleString()}</strong><small>{metrics.approvedUsers.toLocaleString()} {tr('approved members', 'عضو مقبول')}</small></article>
             <article className="metric-card"><span>{tr('Active users', 'المستخدمون النشطون')}</span><strong>{metrics.activeUsers.toLocaleString()}</strong><small>{metrics.blockedUsers.toLocaleString()} {tr('blocked', 'محظور')}</small></article>
             <Link className="metric-card metric-link" to="/messages"><span>{tr('Messages', 'الرسائل')}</span><strong>{metrics.totalMessages.toLocaleString()}</strong><small>{metrics.messagesToday.toLocaleString()} {tr('today', 'اليوم')} · {metrics.messagesLast7Days.toLocaleString()} {tr('last 7 days', 'آخر 7 أيام')}</small></Link>
-            <Link className="metric-card metric-link" to="/analytics"><span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span><strong>{usageTrackingMissing ? '—' : money(metrics.aiCostTotal)}</strong><small>{usageTrackingMissing ? tr('Waiting for provider usage telemetry', 'بانتظار بيانات الاستخدام من المزوّد') : `${money(metrics.aiCost30Days)} ${tr('last 30 days', 'آخر 30 يوماً')}`}</small></Link>
-            <Link className="metric-card metric-link" to="/community"><span>{tr('Approved members', 'الأعضاء المقبولون')}</span><strong>{metrics.approvedUsers.toLocaleString()}</strong><small>{tr('Open community access', 'فتح دخول المجتمع')}</small></Link>
-            <article className="metric-card"><span>{tr('Answers reused', 'إجابات أُعيد استخدامها')}</span><strong>{metrics.cachedResponses.toLocaleString()}</strong><small>{percent(metrics.cacheHitRate)} {tr('of responses reused approved stored answers', 'من الردود استخدمت إجابات مخزنة ومعتمدة')}</small></article>
+            <Link className="metric-card metric-link" to="/analytics"><span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span><strong>{usageTrackingMissing ? '—' : money(metrics.aiCostTotal)}</strong><small>{usageTrackingMissing ? tr('Cost tracking setup needed', 'يلزم إعداد تتبّع التكلفة') : `${money(metrics.aiCost30Days)} ${tr('last 30 days', 'آخر 30 يوماً')}`}</small></Link>
+            <Link className="metric-card metric-link" to="/community"><span>{tr('Approved members', 'الأعضاء المقبولون')}</span><strong>{metrics.approvedUsers.toLocaleString()}</strong><small>{tr('Manage approved community', 'إدارة المجتمع المعتمد')}</small></Link>
           </section>
 
           <section className="panel dashboard-chart-panel" aria-label={tr('Messages trend', 'اتجاه الرسائل')}>
@@ -114,9 +118,14 @@ export function DashboardPage() {
             )}
           </section>
 
-          <section className="dashboard-grid">
-            <article className="panel"><div className="section-heading"><div><p className="eyebrow">{tr('Last 30 days', 'آخر 30 يوماً')}</p><h2>{tr('Community activity', 'نشاط المجتمع')}</h2></div></div><div className="mini-stat-row"><span>{tr('Messages', 'الرسائل')}</span><strong>{metrics.messagesLast30Days.toLocaleString()}</strong></div><div className="mini-stat-row"><span>{tr('AI replies', 'ردود الذكاء الاصطناعي')}</span><strong>{metrics.aiResponses.toLocaleString()}</strong></div><div className="mini-stat-row"><span>{tr('Approved members', 'الأعضاء المقبولون')}</span><strong>{metrics.approvedUsers.toLocaleString()}</strong></div><div className="mini-stat-row"><span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span><strong>{usageTrackingMissing ? '—' : money(metrics.aiCost30Days)}</strong></div><Link className="inline-link" to="/analytics">{tr('View AI & cost details', 'عرض تفاصيل الذكاء الاصطناعي والتكلفة')} →</Link></article>
-            <article className="panel quick-actions-panel"><div className="section-heading"><div><p className="eyebrow">{tr('Quick actions', 'إجراءات سريعة')}</p><h2>{tr('What would you like to do?', 'ماذا تريد أن تفعل؟')}</h2></div></div><div className="quick-actions"><Link to="/reviews"><span>{tr('Review members', 'مراجعة الأعضاء')}</span><small>{tr('Approve or decline pending members', 'قبول أو رفض الأعضاء المعلّقين')}</small><b>→</b></Link><Link to="/knowledge"><span>{tr('Add knowledge', 'إضافة معرفة')}</span><small>{tr('Upload and manage project documents', 'رفع وإدارة مستندات المشروع')}</small><b>→</b></Link><Link to="/messages"><span>{tr('Review messages', 'مراجعة الرسائل')}</span><small>{tr('Open user conversations', 'فتح محادثات المستخدمين')}</small><b>→</b></Link><Link to="/announcements"><span>{tr('Post announcement', 'نشر إعلان')}</span><small>{tr('Choose Telegram, Discord, or WhatsApp', 'اختر Telegram أو Discord أو WhatsApp')}</small><b>→</b></Link></div></article>
+          <section className="panel quick-actions-panel" style={{ marginTop: 16 }}>
+            <div className="section-heading"><div><p className="eyebrow">{tr('Quick actions', 'إجراءات سريعة')}</p><h2>{tr('Common admin tasks', 'مهام الإدارة الشائعة')}</h2></div></div>
+            <div className="quick-actions">
+              <Link to="/reviews"><span>{tr('Review members', 'مراجعة الأعضاء')}</span><small>{tr('Approve or decline pending members', 'قبول أو رفض الأعضاء المعلّقين')}</small><b>→</b></Link>
+              <Link to="/knowledge"><span>{tr('Manage knowledge', 'إدارة المعرفة')}</span><small>{tr('Upload, edit and approve project documents', 'رفع وتعديل واعتماد مستندات المشروع')}</small><b>→</b></Link>
+              <Link to="/announcements"><span>{tr('Post announcement', 'نشر إعلان')}</span><small>{tr('Send to Telegram, Discord or WhatsApp', 'إرسال إلى Telegram أو Discord أو WhatsApp')}</small><b>→</b></Link>
+              <Link to="/token-monitor"><span>{tr('View token activity', 'عرض نشاط التوكن')}</span><small>{tr('Review recent on-chain transfers', 'مراجعة التحويلات الأخيرة على السلسلة')}</small><b>→</b></Link>
+            </div>
           </section>
         </>
       )}
