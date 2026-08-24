@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { getKnowledgeDocument, updateKnowledgeDocumentContent } from '../services/admin';
+import { getKnowledgeDocumentForEditing, updateKnowledgeDocumentContent, type EditableKnowledgeDocument } from '../services/knowledge-editor';
 import { getSupabaseClient } from '../services/supabase';
-import type { KnowledgeDocumentDetail } from '../types/contracts';
 import { LoadingState, RetryableErrorState } from './AsyncState';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../document-editor.css';
@@ -20,6 +19,7 @@ const escapeHtml = (value: string) => value
 function plainTextToHtml(value: string) {
   return value
     .split(/\n{2,}/)
+    .filter(Boolean)
     .map((paragraph) => `<p>${escapeHtml(paragraph).replaceAll('\n', '<br>')}</p>`)
     .join('');
 }
@@ -27,7 +27,7 @@ function plainTextToHtml(value: string) {
 export function KnowledgeDocumentEditor({ documentId, onClose, onSaved }: KnowledgeDocumentEditorProps) {
   const { tr } = useLanguage();
   const editorRef = useRef<HTMLDivElement>(null);
-  const [document, setDocument] = useState<KnowledgeDocumentDetail>();
+  const [doc, setDoc] = useState<EditableKnowledgeDocument>();
   const [title, setTitle] = useState('');
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
@@ -38,12 +38,12 @@ export function KnowledgeDocumentEditor({ documentId, onClose, onSaved }: Knowle
   useEffect(() => {
     let current = true;
     setError(false);
-    getKnowledgeDocument(getSupabaseClient(), documentId)
+    getKnowledgeDocumentForEditing(getSupabaseClient(), documentId)
       .then((value) => {
         if (!current) return;
-        setDocument(value);
+        setDoc(value);
         setTitle(value.title);
-        const fallbackText = value.content?.trim() || value.chunks
+        const fallbackText = value.content?.trim() || [...value.chunks]
           .sort((a, b) => a.chunkIndex - b.chunkIndex)
           .map((chunk) => chunk.content)
           .join('\n\n');
@@ -55,6 +55,53 @@ export function KnowledgeDocumentEditor({ documentId, onClose, onSaved }: Knowle
       .catch(() => setError(true));
     return () => { current = false; };
   }, [documentId, reload]);
+
+  function runCommand(command: string, value?: string) {
+    editorRef.current?.focus();
+    window.document.execCommand(command, false, value);
+    setDirty(true);
+  }
+
+  function toolbarMouseDown(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+  }
+
+  async function save() {
+    if (!doc || !editorRef.current || saving) return;
+    const content = editorRef.current.innerText.replace(/\n{3,}/g, '\n\n').trim();
+    if (!content) {
+      setMessage(tr('The document cannot be empty.', 'لا يمكن أن يكون المستند فارغاً.'));
+      return;
+    }
+    setSaving(true);
+    setMessage('');
+    try {
+      const result = await updateKnowledgeDocumentContent(getSupabaseClient(), {
+        documentId: doc.id,
+        title: title.trim() || doc.title,
+        content,
+        editorHtml: editorRef.current.innerHTML,
+        expectedVersion: doc.version,
+      });
+      setDirty(false);
+      setDoc((current) => current ? {
+        ...current,
+        title: title.trim() || current.title,
+        version: result.version,
+        processingStatus: 'PENDING',
+        isApproved: false,
+        chunkCount: 0,
+        content,
+        editorHtml: editorRef.current?.innerHTML ?? current.editorHtml,
+      } : current);
+      setMessage(tr('Saved. The document is queued for reprocessing and must be approved again after processing.', 'تم الحفظ. تمت جدولة المستند لإعادة المعالجة ويجب اعتماده من جديد بعد اكتمال المعالجة.'));
+      onSaved();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : tr('Could not save the document.', 'تعذر حفظ المستند.'));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -68,46 +115,15 @@ export function KnowledgeDocumentEditor({ documentId, onClose, onSaved }: Knowle
     return () => window.removeEventListener('keydown', onKeyDown);
   });
 
-  function runCommand(command: string, value?: string) {
-    editorRef.current?.focus();
-    document.execCommand(command, false, value);
-    setDirty(true);
-  }
-
-  function toolbarMouseDown(event: MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-  }
-
-  async function save() {
-    if (!document || !editorRef.current || saving) return;
-    const content = editorRef.current.innerText.replace(/\n{3,}/g, '\n\n').trim();
-    if (!content) {
-      setMessage(tr('The document cannot be empty.', 'لا يمكن أن يكون المستند فارغاً.'));
-      return;
-    }
-    setSaving(true);
-    setMessage('');
-    try {
-      const result = await updateKnowledgeDocumentContent(getSupabaseClient(), {
-        documentId: document.id,
-        title: title.trim() || document.title,
-        content,
-        editorHtml: editorRef.current.innerHTML,
-        expectedVersion: document.version,
-      });
-      setDirty(false);
-      setDocument((current) => current ? { ...current, title: title.trim() || current.title, version: result.version, processingStatus: 'PENDING', isApproved: false, chunkCount: 0 } : current);
-      setMessage(tr('Saved. The document is queued for reprocessing and must be approved again after processing.', 'تم الحفظ. تمت جدولة المستند لإعادة المعالجة ويجب اعتماده من جديد بعد اكتمال المعالجة.'));
-      onSaved();
-    } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : tr('Could not save the document.', 'تعذر حفظ المستند.'));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   if (error) {
-    return <div className="document-editor-overlay"><div className="document-editor-shell"><RetryableErrorState onRetry={() => { setError(false); setReload((n) => n + 1); }} /><button type="button" className="compact-button" onClick={onClose}>{tr('Close', 'إغلاق')}</button></div></div>;
+    return (
+      <div className="document-editor-overlay">
+        <div className="document-editor-shell editor-error-shell">
+          <RetryableErrorState onRetry={() => { setError(false); setReload((n) => n + 1); }} />
+          <button type="button" className="compact-button" onClick={onClose}>{tr('Close', 'إغلاق')}</button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -117,14 +133,14 @@ export function KnowledgeDocumentEditor({ documentId, onClose, onSaved }: Knowle
           <div className="document-editor-title-group">
             <span className="document-editor-icon" aria-hidden="true">W</span>
             <div>
-              <input className="document-editor-title" value={title} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} aria-label={tr('Document title', 'عنوان المستند')} disabled={!document} />
-              <small>{document ? `${document.category} · ${document.language.toUpperCase()} · v${document.version}` : tr('Loading document…', 'جارٍ تحميل المستند…')}</small>
+              <input className="document-editor-title" value={title} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} aria-label={tr('Document title', 'عنوان المستند')} disabled={!doc} />
+              <small>{doc ? `${doc.category} · ${doc.language.toUpperCase()} · v${doc.version}` : tr('Loading document…', 'جارٍ تحميل المستند…')}</small>
             </div>
           </div>
           <div className="document-editor-header-actions">
             {dirty && <span className="unsaved-indicator">{tr('Unsaved changes', 'تغييرات غير محفوظة')}</span>}
             <button type="button" className="compact-button" onClick={onClose}>{tr('Close', 'إغلاق')}</button>
-            <button type="button" className="primary" disabled={!document || saving || !dirty} onClick={() => void save()}>{saving ? tr('Saving…', 'جارٍ الحفظ…') : tr('Save', 'حفظ')}</button>
+            <button type="button" className="primary" disabled={!doc || saving || !dirty} onClick={() => void save()}>{saving ? tr('Saving…', 'جارٍ الحفظ…') : tr('Save', 'حفظ')}</button>
           </div>
         </header>
 
@@ -158,7 +174,7 @@ export function KnowledgeDocumentEditor({ documentId, onClose, onSaved }: Knowle
         </div>
 
         <main className="document-editor-workspace">
-          {!document ? <div className="document-editor-loading"><LoadingState label={tr('Opening document', 'جارٍ فتح المستند')} /></div> : (
+          {!doc ? <div className="document-editor-loading"><LoadingState label={tr('Opening document', 'جارٍ فتح المستند')} /></div> : (
             <div className="document-page-wrap">
               <div
                 ref={editorRef}
@@ -166,7 +182,7 @@ export function KnowledgeDocumentEditor({ documentId, onClose, onSaved }: Knowle
                 contentEditable
                 suppressContentEditableWarning
                 spellCheck
-                dir={document.language.toLowerCase().startsWith('ar') ? 'rtl' : 'auto'}
+                dir={doc.language.toLowerCase().startsWith('ar') ? 'rtl' : 'auto'}
                 onInput={() => setDirty(true)}
                 aria-label={tr('Editable document content', 'محتوى المستند القابل للتحرير')}
               />
@@ -175,7 +191,7 @@ export function KnowledgeDocumentEditor({ documentId, onClose, onSaved }: Knowle
         </main>
 
         <footer className="document-editor-statusbar">
-          <span>{document ? tr(`${document.chunkCount} current chunks`, `${document.chunkCount} جزء حالي`) : ''}</span>
+          <span>{doc ? tr(`${doc.chunkCount} current chunks`, `${doc.chunkCount} جزء حالي`) : ''}</span>
           <span>{message || tr('Ctrl/Cmd + S to save', 'Ctrl/Cmd + S للحفظ')}</span>
         </footer>
       </div>
