@@ -52,11 +52,12 @@ export function AdminSettingsPage() {
   }
 
   async function save() {
-    if (!changed || saving) return;
+    const currentSettings = settings;
+    if (!currentSettings || !changed || saving) return;
     setSaving(true);
     setMessage('');
     try {
-      const saved = await updateAdminUiSettings(getSupabaseClient(), settings);
+      const saved = await updateAdminUiSettings(getSupabaseClient(), currentSettings);
       setSettings(saved);
       setSavedSettings(saved);
       setMessage(tr('Settings saved.', 'تم حفظ الإعدادات.'));
