@@ -1,0 +1,356 @@
+/* Advanced shared UX: skeletons, bulk actions, review flow and mobile data cards. */
+
+.skeleton-lines {
+  display: grid;
+  gap: 8px;
+  width: min(520px, 100%);
+  margin-top: 10px;
+}
+
+.skeleton-lines span,
+.skeleton-table-row span {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eef6;
+}
+
+.skeleton-lines span {
+  height: 10px;
+}
+
+.skeleton-lines span:nth-child(1) { width: 88%; }
+.skeleton-lines span:nth-child(2) { width: 72%; }
+.skeleton-lines span:nth-child(3) { width: 52%; }
+
+.skeleton-lines span::after,
+.skeleton-table-row span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.78), transparent);
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.skeleton-table-card {
+  padding: 16px;
+}
+
+.skeleton-table {
+  display: grid;
+  gap: 10px;
+}
+
+.skeleton-table-row {
+  display: grid;
+  gap: 16px;
+  min-height: 48px;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.skeleton-table-row span {
+  height: 12px;
+}
+
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 13px;
+  background: #eff6ff;
+}
+
+.bulk-toolbar-copy {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.bulk-count {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.bulk-toolbar-copy span:last-child {
+  color: #1e3a5f;
+  font-size: .82rem;
+  font-weight: 750;
+}
+
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.bulk-actions button {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: .76rem;
+}
+
+.row-select,
+.document-select input {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.document-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 750;
+}
+
+.document-card.selected-document {
+  border-color: #93c5fd;
+  box-shadow: 0 8px 26px rgba(37, 99, 235, .09);
+}
+
+.table-tools {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.table-tools select {
+  min-width: 170px;
+}
+
+.review-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(15,23,42,.035);
+}
+
+.review-nav-links {
+  display: flex;
+  gap: 7px;
+}
+
+.review-nav a,
+.review-nav button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: .76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.review-progress {
+  color: var(--muted-strong);
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+.review-next-toggle {
+  display: flex;
+  grid-template: none;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted-strong);
+  font-size: .78rem;
+  font-weight: 650;
+}
+
+.review-next-toggle input {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  accent-color: #2563eb;
+}
+
+.table-check-cell {
+  width: 44px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .bulk-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bulk-actions {
+    justify-content: stretch;
+  }
+
+  .bulk-actions button {
+    flex: 1 1 auto;
+  }
+
+  .table-tools {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .table-tools select {
+    width: 100%;
+  }
+
+  .review-nav {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .review-nav-links {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .review-nav a,
+  .review-nav button {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .table-card.mobile-card-table {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .mobile-card-table .table-scroll {
+    overflow: visible;
+  }
+
+  table.responsive-table,
+  table.responsive-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  table.responsive-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  table.responsive-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  table.responsive-table tbody tr {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 5px 16px rgba(15,23,42,.045);
+  }
+
+  table.responsive-table tbody tr:hover {
+    background: #fff;
+  }
+
+  table.responsive-table td {
+    display: grid;
+    grid-template-columns: minmax(104px, .72fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+    min-height: 48px;
+    padding: 11px 13px;
+    border-bottom: 1px solid #eef2f7;
+    text-align: left;
+  }
+
+  table.responsive-table td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: .66rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  table.responsive-table td[data-label=''] {
+    display: block;
+    padding-top: 8px;
+    padding-bottom: 12px;
+    text-align: right;
+  }
+
+  table.responsive-table td[data-label='']::before {
+    display: none;
+  }
+
+  table.responsive-table td:last-child {
+    border-bottom: 0;
+  }
+
+  table.responsive-table .identity-cell,
+  table.responsive-table .score-cell,
+  table.responsive-table .user-platforms {
+    justify-self: start;
+  }
+
+  table.responsive-table .table-action {
+    text-align: right;
+  }
+
+  table.responsive-table .row-link {
+    justify-content: center;
+    width: 100%;
+    min-height: 40px;
+    background: #eff6ff;
+  }
+
+  table.responsive-table .table-check-cell {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  table.responsive-table .table-check-cell::before {
+    content: attr(data-label);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-lines span::after,
+  .skeleton-table-row span::after {
+    animation: none;
+  }
+}
