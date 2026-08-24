@@ -100,7 +100,16 @@
     overflow: hidden;
   }
 
-  .app-shell .sidebar.open {
+  html[dir='rtl'] .app-shell .sidebar {
+    inset: 0 0 0 auto;
+    border-right: 0;
+    border-left: 1px solid var(--border);
+    box-shadow: -24px 0 70px rgba(15, 23, 42, .18);
+    transform: translateX(105%);
+  }
+
+  .app-shell .sidebar.open,
+  html[dir='rtl'] .app-shell .sidebar.open {
     transform: translateX(0);
   }
 
@@ -131,6 +140,10 @@
     padding: 0 4px 12px 0;
     overflow-y: auto;
     overflow-x: hidden;
+  }
+
+  html[dir='rtl'] .app-shell .sidebar > nav {
+    padding: 0 0 12px 4px;
   }
 
   .app-shell .sidebar nav a {
