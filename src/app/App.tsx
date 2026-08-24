@@ -11,6 +11,7 @@ import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
 import { UsersPage } from '../pages/UsersPage';
 import { UserConversationPage } from '../pages/UserConversationPage';
 import { MessagesPage } from '../pages/MessagesPage';
+import { TokenMonitorPage } from '../pages/TokenMonitorPage';
 import {
   ActivityLogPage,
   AdminUsersPage,
@@ -38,6 +39,7 @@ export function App() {
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="ai-performance" element={<AiPerformancePage />} />
+        <Route path="token-monitor" element={<TokenMonitorPage />} />
         <Route path="activity" element={<ActivityLogPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="admin-users" element={<AdminUsersPage />} />
