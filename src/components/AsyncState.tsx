@@ -15,7 +15,21 @@ function State({ title, children, action, className }: StateProps) {
 
 export function LoadingState({ label }: { label?: string }) {
   const { tr } = useOptionalLanguage();
-  return <State title={label ?? tr('Loading', 'جارٍ التحميل')} className="loading-card"><div className="loading-state"><span className="spinner" aria-hidden="true" /><p>{tr('Please wait while the latest data is loaded.', 'يرجى الانتظار بينما يتم تحميل أحدث البيانات.')}</p></div></State>;
+  return <State title={label ?? tr('Loading', 'جارٍ التحميل')} className="loading-card"><div className="loading-state"><span className="spinner" aria-hidden="true" /><p>{tr('Please wait while the latest data is loaded.', 'يرجى الانتظار بينما يتم تحميل أحدث البيانات.')}</p></div><div className="skeleton-lines" aria-hidden="true"><span /><span /><span /></div></State>;
+}
+
+export function TableSkeleton({ columns = 5, rows = 5 }: { columns?: number; rows?: number }) {
+  return (
+    <div className="table-card skeleton-table-card" role="status" aria-label="Loading table">
+      <div className="skeleton-table" aria-hidden="true">
+        {Array.from({ length: rows }).map((_, rowIndex) => (
+          <div className="skeleton-table-row" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} key={rowIndex}>
+            {Array.from({ length: columns }).map((__, columnIndex) => <span key={columnIndex} />)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function EmptyState({ title, message }: { title?: string; message?: string }) {
