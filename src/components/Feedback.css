@@ -9,6 +9,11 @@
   pointer-events: none;
 }
 
+html[dir='rtl'] .toast-stack {
+  right: auto;
+  left: 22px;
+}
+
 .toast {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -103,6 +108,10 @@
   padding-top: 6px;
 }
 
+html[dir='rtl'] .confirm-actions {
+  justify-content: flex-start;
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px) scale(.985); }
   to { opacity: 1; transform: none; }
@@ -115,6 +124,7 @@
 
 @media (max-width: 620px) {
   .toast-stack { right: 16px; bottom: 16px; }
+  html[dir='rtl'] .toast-stack { right: auto; left: 16px; }
   .confirm-backdrop { align-items: end; padding: 0; }
   .confirm-dialog { width: 100%; border-radius: 18px 18px 0 0; padding: 20px 18px calc(18px + env(safe-area-inset-bottom)); }
   .confirm-actions { flex-direction: column-reverse; }
