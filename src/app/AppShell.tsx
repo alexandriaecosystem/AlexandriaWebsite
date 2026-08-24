@@ -35,6 +35,7 @@ const navigation: NavGroup[] = [
     en: 'Intelligence', ar: 'الذكاء', items: [
       { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: '◫' },
       { to: '/ai-performance', en: 'AI performance', ar: 'أداء الذكاء الاصطناعي', icon: '▥' },
+      { to: '/token-monitor', en: 'On-chain token', ar: 'التوكن على السلسلة', icon: '◈' },
     ],
   },
   {
