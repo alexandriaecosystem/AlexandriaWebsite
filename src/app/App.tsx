@@ -12,6 +12,7 @@ import { UsersPage } from '../pages/UsersPage';
 import { UserConversationPage } from '../pages/UserConversationPage';
 import { MessagesPage } from '../pages/MessagesPage';
 import { TokenMonitorPage } from '../pages/TokenMonitorPage';
+import { AdminSettingsPage } from '../pages/AdminSettingsPage';
 import { ApprovedCommunityPage, KnowledgeGapsPage } from '../pages/AdminOperationsPages';
 import { LanguageProvider } from '../i18n/LanguageContext';
 
@@ -32,6 +33,7 @@ export function App() {
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="token-monitor" element={<TokenMonitorPage />} />
+        <Route path="settings" element={<AdminSettingsPage />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
