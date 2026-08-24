@@ -43,6 +43,7 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">{tr('Skip to content', 'انتقل إلى المحتوى')}</a>
       <aside className="sidebar">
         <div className="brand">
           <img className="brand-logo" src={alexandriaLogo} alt="" aria-hidden="true" />
@@ -72,7 +73,7 @@ export function AppShell() {
           <button type="button" className="text-button sign-out" onClick={signOut}>{tr('Sign out', 'تسجيل الخروج')}</button>
         </div>
       </aside>
-      <main className="content"><Outlet /></main>
+      <main id="main-content" className="content" tabIndex={-1}><Outlet /></main>
     </div>
   );
 }
