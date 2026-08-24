@@ -8,6 +8,8 @@ import { ReviewDetailPage } from '../pages/ReviewDetailPage';
 import { AnnouncementsPage } from '../pages/AnnouncementsPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
+import { UsersPage } from '../pages/UsersPage';
+import { UserConversationPage } from '../pages/UserConversationPage';
 import { LanguageProvider } from '../i18n/LanguageContext';
 
 export function App() {
@@ -18,6 +20,8 @@ export function App() {
         <Route index element={<DashboardPage />} />
         <Route path="reviews" element={<ReviewsPage />} />
         <Route path="reviews/:applicationId" element={<ReviewDetailPage />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="users/:userId" element={<UserConversationPage />} />
         <Route path="knowledge" element={<KnowledgeBasePage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
