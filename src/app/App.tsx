@@ -16,9 +16,10 @@ import { TokenMonitorPage } from '../pages/TokenMonitorPage';
 import { AccountSecurityPage } from '../pages/AccountSecurityPage';
 import { ApprovedCommunityPage, KnowledgeGapsPage } from '../pages/AdminOperationsPages';
 import { LanguageProvider } from '../i18n/LanguageContext';
+import { ToastProvider } from '../components/Feedback';
 
 export function App() {
-  return <LanguageProvider><BrowserRouter><Routes>
+  return <LanguageProvider><ToastProvider><BrowserRouter><Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route element={<AdminGuard />}>
@@ -40,5 +41,5 @@ export function App() {
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
-  </Routes></BrowserRouter></LanguageProvider>;
+  </Routes></BrowserRouter></ToastProvider></LanguageProvider>;
 }
