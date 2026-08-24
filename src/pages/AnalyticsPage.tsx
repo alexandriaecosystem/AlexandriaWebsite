@@ -35,6 +35,7 @@ export function AnalyticsPage() {
   }, [days, reload]);
 
   const maxDailyCost = useMemo(() => Math.max(...series.map((item) => item.costUsd), 0.000001), [series]);
+  const noTelemetry = summary?.totalCalls === 0;
 
   return (
     <>
@@ -42,7 +43,7 @@ export function AnalyticsPage() {
         <div>
           <p className="eyebrow">{tr('AI telemetry', 'قياسات الذكاء الاصطناعي')}</p>
           <h1>{tr('Usage & cost', 'الاستخدام والتكلفة')}</h1>
-          <p className="muted page-subtitle">{tr('Server-recorded model usage, tokens, cache activity, and spend.', 'استخدام النماذج والرموز والتخزين المؤقت والتكلفة كما يسجلها الخادم.')}</p>
+          <p className="muted page-subtitle">{tr('Provider-recorded model usage, tokens, cache activity, and spend.', 'استخدام النماذج والرموز والتخزين المؤقت والتكلفة كما يسجلها مزوّد الذكاء الاصطناعي.')}</p>
         </div>
         <select className="compact-select" value={days} onChange={(event) => setDays(Number(event.target.value))} aria-label={tr('Analytics period', 'فترة التحليل')}>
           <option value={7}>{tr('Last 7 days', 'آخر 7 أيام')}</option><option value={30}>{tr('Last 30 days', 'آخر 30 يوماً')}</option><option value={90}>{tr('Last 90 days', 'آخر 90 يوماً')}</option>
@@ -53,23 +54,41 @@ export function AnalyticsPage() {
         <LoadingState label={tr('Loading AI telemetry', 'جارٍ تحميل بيانات الذكاء الاصطناعي')} />
       ) : (
         <>
+          {noTelemetry && (
+            <section className="panel" role="status" style={{ marginBottom: 18 }}>
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">{tr('Telemetry status', 'حالة القياس')}</p>
+                  <h2>{tr('No provider usage has been recorded yet', 'لم يتم تسجيل بيانات استخدام من المزوّد بعد')}</h2>
+                </div>
+                <span className="status-pill danger">{tr('Waiting for n8n', 'بانتظار n8n')}</span>
+              </div>
+              <p className="muted">
+                {tr(
+                  'Cost values remain unavailable until the n8n OpenRouter request nodes forward each provider response to the usage logger. Zero is not presented as verified spend while telemetry is missing.',
+                  'تبقى قيم التكلفة غير متاحة حتى ترسل عقد طلب OpenRouter في n8n استجابة كل طلب إلى سجل الاستخدام. لا يتم عرض الصفر كتكلفة مؤكدة عندما تكون بيانات القياس مفقودة.'
+                )}
+              </p>
+            </section>
+          )}
+
           <section className="metric-grid analytics-metrics">
-            <article className="metric-card"><span>{tr('Total cost', 'إجمالي التكلفة')}</span><strong>{money(summary.costUsd)}</strong><small>{money(summary.avgCostPerCall)} {tr('average per call', 'متوسط لكل طلب')}</small></article>
+            <article className="metric-card"><span>{tr('Total cost', 'إجمالي التكلفة')}</span><strong>{noTelemetry ? '—' : money(summary.costUsd)}</strong><small>{noTelemetry ? tr('No verified provider telemetry', 'لا توجد بيانات مؤكدة من المزوّد') : `${money(summary.avgCostPerCall)} ${tr('average per call', 'متوسط لكل طلب')}`}</small></article>
             <article className="metric-card"><span>{tr('AI calls', 'طلبات الذكاء الاصطناعي')}</span><strong>{summary.totalCalls.toLocaleString()}</strong><small>{summary.successfulCalls.toLocaleString()} {tr('successful', 'ناجح')} · {summary.failedCalls.toLocaleString()} {tr('failed', 'فاشل')}</small></article>
-            <article className="metric-card"><span>{tr('Total tokens', 'إجمالي الرموز')}</span><strong>{summary.totalTokens.toLocaleString()}</strong><small>{summary.inputTokens.toLocaleString()} {tr('input', 'إدخال')} · {summary.outputTokens.toLocaleString()} {tr('output', 'إخراج')}</small></article>
-            <article className="metric-card"><span>{tr('Cache hit rate', 'نسبة التخزين المؤقت')}</span><strong>{pct(summary.cacheHitRate)}</strong><small>{summary.cacheHitCount.toLocaleString()} {tr('cached operations', 'عملية مخزنة مؤقتاً')}</small></article>
+            <article className="metric-card"><span>{tr('Total tokens', 'إجمالي الرموز')}</span><strong>{noTelemetry ? '—' : summary.totalTokens.toLocaleString()}</strong><small>{noTelemetry ? tr('Waiting for provider usage', 'بانتظار بيانات الاستخدام') : `${summary.inputTokens.toLocaleString()} ${tr('input', 'إدخال')} · ${summary.outputTokens.toLocaleString()} ${tr('output', 'إخراج')}`}</small></article>
+            <article className="metric-card"><span>{tr('Cache hit rate', 'نسبة التخزين المؤقت')}</span><strong>{noTelemetry ? '—' : pct(summary.cacheHitRate)}</strong><small>{noTelemetry ? tr('No telemetry yet', 'لا توجد بيانات بعد') : `${summary.cacheHitCount.toLocaleString()} ${tr('cached operations', 'عملية مخزنة مؤقتاً')}`}</small></article>
           </section>
 
           <section className="analytics-grid">
             <article className="panel span-two">
               <div className="section-heading"><div><p className="eyebrow">{tr('Daily cost', 'التكلفة اليومية')}</p><h2>{tr('Spend over time', 'الإنفاق مع الوقت')}</h2></div></div>
-              {series.length ? <div className="cost-series">
+              {!noTelemetry && series.length ? <div className="cost-series">
                 {series.map((point) => <div className="cost-row" key={point.bucketDate}>
                   <span>{new Date(`${point.bucketDate}T00:00:00`).toLocaleDateString(isArabic ? 'ar-LB' : undefined, { month: 'short', day: 'numeric' })}</span>
                   <div className="cost-bar-track"><i style={{ width: `${Math.max(2, (point.costUsd / maxDailyCost) * 100)}%` }} /></div>
                   <strong>{money(point.costUsd)}</strong><small>{point.calls} {tr('calls', 'طلبات')}</small>
                 </div>)}
-              </div> : <p className="muted">{tr('No AI usage has been logged for this period yet.', 'لم يتم تسجيل استخدام للذكاء الاصطناعي خلال هذه الفترة بعد.')}</p>}
+              </div> : <p className="muted">{tr('No verified AI usage has been logged for this period yet.', 'لم يتم تسجيل استخدام مؤكد للذكاء الاصطناعي خلال هذه الفترة بعد.')}</p>}
             </article>
 
             <article className="panel">
@@ -82,7 +101,7 @@ export function AnalyticsPage() {
             <article className="panel">
               <div className="section-heading"><div><p className="eyebrow">{tr('Platforms', 'المنصات')}</p><h2>{tr('Conversation activity', 'نشاط المحادثات')}</h2></div></div>
               {platforms.length ? <div className="data-list">{platforms.map((item) => (
-                <div key={item.platform}><span><strong className="capitalize" dir="ltr">{item.platform}</strong><small>{item.messages.toLocaleString()} {tr('messages', 'رسائل')} · {item.aiResponses.toLocaleString()} {tr('AI replies', 'ردود AI')}</small></span><b>{money(item.aiCostUsd)}</b></div>
+                <div key={item.platform}><span><strong className="capitalize" dir="ltr">{item.platform}</strong><small>{item.messages.toLocaleString()} {tr('messages', 'رسائل')} · {item.aiResponses.toLocaleString()} {tr('AI replies', 'ردود AI')}</small></span><b>{noTelemetry ? '—' : money(item.aiCostUsd)}</b></div>
               ))}</div> : <p className="muted">{tr('No platform activity for this period.', 'لا يوجد نشاط للمنصات خلال هذه الفترة.')}</p>}
             </article>
 
@@ -90,7 +109,7 @@ export function AnalyticsPage() {
               <div className="section-heading"><div><p className="eyebrow">{tr('Models', 'النماذج')}</p><h2>{tr('Provider usage', 'استخدام مزوّدي النماذج')}</h2></div></div>
               {models.length ? <div className="table-wrap"><table><thead><tr><th>{tr('Provider / model', 'المزوّد / النموذج')}</th><th>{tr('Calls', 'الطلبات')}</th><th>{tr('Tokens', 'الرموز')}</th><th>{tr('Success', 'النجاح')}</th><th>{tr('Cost', 'التكلفة')}</th></tr></thead><tbody>{models.map((item) => (
                 <tr key={`${item.provider}:${item.model}`}><td dir="ltr"><strong>{item.model}</strong><small className="table-subtext">{item.provider}</small></td><td>{item.calls.toLocaleString()}</td><td>{item.totalTokens.toLocaleString()}</td><td>{pct(item.successRate)}</td><td>{money(item.costUsd)}</td></tr>
-              ))}</tbody></table></div> : <p className="muted">{tr('No model telemetry has been logged yet. n8n must call log_ai_usage_event after provider requests.', 'لم يتم تسجيل بيانات استخدام النماذج بعد. يجب أن يستدعي n8n الدالة log_ai_usage_event بعد طلبات مزوّد النموذج.')}</p>}
+              ))}</tbody></table></div> : <p className="muted">{tr('No model telemetry has been logged yet. n8n must send OpenRouter responses to log_openrouter_usage_response after provider requests.', 'لم يتم تسجيل بيانات استخدام النماذج بعد. يجب أن يرسل n8n استجابات OpenRouter إلى log_openrouter_usage_response بعد طلبات المزوّد.')}</p>}
             </article>
           </section>
         </>
