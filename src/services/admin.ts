@@ -176,7 +176,7 @@ export async function decideApplication(client: SupabaseClient, applicationId: s
 }
 
 export async function createAnnouncement(client: SupabaseClient, input: {
-  content: string; destination: 'GENERAL' | 'APPROVED'; platforms: MessagingPlatform[];
+  content: string; destination: 'GENERAL' | 'APPROVED' | 'BOTH'; platforms: MessagingPlatform[];
 }) {
   const created = await client.rpc('admin_create_announcement', {
     p_content: input.content, p_destination_level: input.destination,
@@ -261,19 +261,8 @@ export async function listDeadLetterOperations(client: SupabaseClient, offset = 
   const { data, error } = await client.rpc('admin_list_dead_letter_operations', { p_limit: 50, p_offset: offset });
   const value = assertRpc(data as { items?: Record<string, unknown>[] } | null, error);
   return (value.items ?? []).map((item) => ({
-    id: String(item.id),
-    eventType: String(item.event_type),
-    aggregateType: String(item.aggregate_type),
-    aggregateId: String(item.aggregate_id),
-    lastError: item.last_error == null ? null : String(item.last_error),
-    attemptCount: asNumber(item.attempt_count),
-    createdAt: String(item.created_at),
-    updatedAt: String(item.updated_at),
-    claimedAt: item.claimed_at == null ? null : String(item.claimed_at),
+    id: String(item.id), eventType: String(item.event_type), aggregateType: String(item.aggregate_type), aggregateId: String(item.aggregate_id),
+    attemptCount: asNumber(item.attempt_count), lastError: asNullableString(item.last_error), availableAt: String(item.available_at),
+    createdAt: String(item.created_at), updatedAt: String(item.updated_at),
   }));
-}
-
-export async function retryDeadLetterOperation(client: SupabaseClient, eventId: string) {
-  const { data, error } = await client.rpc('admin_retry_dead_letter_operation', { p_event_id: eventId });
-  return assertRpc(data, error);
 }
