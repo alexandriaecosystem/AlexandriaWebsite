@@ -201,6 +201,10 @@
   text-align: center;
 }
 
+html[dir='rtl'] .bulk-actions {
+  justify-content: flex-start;
+}
+
 @media (max-width: 760px) {
   .bulk-toolbar {
     align-items: stretch;
@@ -297,6 +301,10 @@
     text-align: left;
   }
 
+  html[dir='rtl'] table.responsive-table td {
+    text-align: right;
+  }
+
   table.responsive-table td::before {
     content: attr(data-label);
     color: #64748b;
@@ -306,11 +314,20 @@
     text-transform: uppercase;
   }
 
+  html[dir='rtl'] table.responsive-table td::before {
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
   table.responsive-table td[data-label=''] {
     display: block;
     padding-top: 8px;
     padding-bottom: 12px;
     text-align: right;
+  }
+
+  html[dir='rtl'] table.responsive-table td[data-label=''] {
+    text-align: left;
   }
 
   table.responsive-table td[data-label='']::before {
@@ -327,8 +344,18 @@
     justify-self: start;
   }
 
+  html[dir='rtl'] table.responsive-table .identity-cell,
+  html[dir='rtl'] table.responsive-table .score-cell,
+  html[dir='rtl'] table.responsive-table .user-platforms {
+    justify-self: end;
+  }
+
   table.responsive-table .table-action {
     text-align: right;
+  }
+
+  html[dir='rtl'] table.responsive-table .table-action {
+    text-align: left;
   }
 
   table.responsive-table .row-link {
@@ -345,6 +372,17 @@
 
   table.responsive-table .table-check-cell::before {
     content: attr(data-label);
+  }
+
+  table.responsive-table .empty-row {
+    display: block;
+    min-height: 0;
+    padding: 26px 18px !important;
+    text-align: center;
+  }
+
+  table.responsive-table .empty-row::before {
+    display: none;
   }
 }
 
