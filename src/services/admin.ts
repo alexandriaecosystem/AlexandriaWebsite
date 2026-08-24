@@ -262,7 +262,12 @@ export async function listDeadLetterOperations(client: SupabaseClient, offset = 
   const value = assertRpc(data as { items?: Record<string, unknown>[] } | null, error);
   return (value.items ?? []).map((item) => ({
     id: String(item.id), eventType: String(item.event_type), aggregateType: String(item.aggregate_type), aggregateId: String(item.aggregate_id),
-    attemptCount: asNumber(item.attempt_count), lastError: asNullableString(item.last_error), availableAt: String(item.available_at),
+    attemptCount: asNumber(item.attempt_count), lastError: asNullableString(item.last_error), claimedAt: asNullableString(item.claimed_at),
     createdAt: String(item.created_at), updatedAt: String(item.updated_at),
   }));
+}
+
+export async function retryDeadLetterOperation(client: SupabaseClient, eventId: string) {
+  const { data, error } = await client.rpc('admin_retry_dead_letter_operation', { p_event_id: eventId });
+  return assertRpc(data, error);
 }
