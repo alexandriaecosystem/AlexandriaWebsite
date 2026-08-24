@@ -12,14 +12,7 @@ import { UsersPage } from '../pages/UsersPage';
 import { UserConversationPage } from '../pages/UserConversationPage';
 import { MessagesPage } from '../pages/MessagesPage';
 import { TokenMonitorPage } from '../pages/TokenMonitorPage';
-import {
-  ActivityLogPage,
-  AdminUsersPage,
-  AiPerformancePage,
-  ApprovedCommunityPage,
-  KnowledgeGapsPage,
-  SettingsPage,
-} from '../pages/AdminOperationsPages';
+import { ApprovedCommunityPage, KnowledgeGapsPage } from '../pages/AdminOperationsPages';
 import { LanguageProvider } from '../i18n/LanguageContext';
 
 export function App() {
@@ -38,11 +31,7 @@ export function App() {
         <Route path="knowledge-gaps" element={<KnowledgeGapsPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="ai-performance" element={<AiPerformancePage />} />
         <Route path="token-monitor" element={<TokenMonitorPage />} />
-        <Route path="activity" element={<ActivityLogPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="admin-users" element={<AdminUsersPage />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
