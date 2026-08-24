@@ -20,6 +20,14 @@ export function DashboardPage() {
     getDashboardMetrics(getSupabaseClient()).then(setMetrics).catch(() => setError(true));
   }, [reload]);
 
+  const usageTrackingMissing = Boolean(
+    metrics &&
+    metrics.aiResponses > 0 &&
+    metrics.inputTokens === 0 &&
+    metrics.outputTokens === 0 &&
+    metrics.aiCostTotal === 0
+  );
+
   return (
     <>
       <header className="page-header hero-header">
@@ -35,11 +43,34 @@ export function DashboardPage() {
         <LoadingState label={tr('Loading dashboard', 'جارٍ تحميل لوحة التحكم')} />
       ) : (
         <>
+          {usageTrackingMissing && (
+            <section className="panel" role="status" style={{ marginBottom: 18 }}>
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">{tr('AI cost telemetry', 'قياس تكلفة الذكاء الاصطناعي')}</p>
+                  <h2>{tr('Spend tracking is not receiving provider usage yet', 'تتبّع التكلفة لا يستقبل بيانات الاستخدام من المزوّد بعد')}</h2>
+                </div>
+                <span className="status-pill danger">{tr('Tracking incomplete', 'التتبّع غير مكتمل')}</span>
+              </div>
+              <p className="muted">
+                {tr(
+                  'AI replies have been recorded, but no provider token or cost events have reached the usage ledger. The $0 value is therefore not treated as a verified spend total.',
+                  'تم تسجيل ردود للذكاء الاصطناعي، لكن لم تصل بعد بيانات الرموز أو التكلفة من المزوّد إلى سجل الاستخدام. لذلك لا يتم اعتبار قيمة 0$ إجمالي تكلفة مؤكداً.'
+                )}
+              </p>
+              <Link className="inline-link" to="/analytics">{tr('Open AI telemetry', 'فتح قياسات الذكاء الاصطناعي')} →</Link>
+            </section>
+          )}
+
           <section className="metric-grid" aria-label={tr('Community summary', 'ملخص المجتمع')}>
             <article className="metric-card"><span>{tr('Total users', 'إجمالي المستخدمين')}</span><strong>{metrics.totalUsers.toLocaleString()}</strong><small>{metrics.approvedUsers.toLocaleString()} {tr('approved members', 'عضو مقبول')}</small></article>
             <article className="metric-card"><span>{tr('Active users', 'المستخدمون النشطون')}</span><strong>{metrics.activeUsers.toLocaleString()}</strong><small>{metrics.blockedUsers.toLocaleString()} {tr('blocked', 'محظور')}</small></article>
             <article className="metric-card"><span>{tr('Messages', 'الرسائل')}</span><strong>{metrics.totalMessages.toLocaleString()}</strong><small>{metrics.messagesToday.toLocaleString()} {tr('today', 'اليوم')} · {metrics.messagesLast7Days.toLocaleString()} {tr('last 7 days', 'آخر 7 أيام')}</small></article>
-            <Link className="metric-card metric-link" to="/analytics"><span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span><strong>{money(metrics.aiCostTotal)}</strong><small>{money(metrics.aiCost30Days)} {tr('last 30 days', 'آخر 30 يوماً')}</small></Link>
+            <Link className="metric-card metric-link" to="/analytics">
+              <span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span>
+              <strong>{usageTrackingMissing ? '—' : money(metrics.aiCostTotal)}</strong>
+              <small>{usageTrackingMissing ? tr('Waiting for provider usage telemetry', 'بانتظار بيانات الاستخدام من المزوّد') : `${money(metrics.aiCost30Days)} ${tr('last 30 days', 'آخر 30 يوماً')}`}</small>
+            </Link>
             <Link className="metric-card metric-link" to="/reviews"><span>{tr('Members to review', 'أعضاء للمراجعة')}</span><strong>{metrics.pendingReviews.toLocaleString()}</strong><small>{metrics.pendingReviews ? tr('Waiting for your decision', 'بانتظار قرارك') : tr('Nothing waiting', 'لا توجد طلبات معلّقة')}</small></Link>
             <article className="metric-card"><span>{tr('Answers reused', 'إجابات أُعيد استخدامها')}</span><strong>{metrics.cachedResponses.toLocaleString()}</strong><small>{percent(metrics.cacheHitRate)} {tr('of responses reused approved stored answers', 'من الردود استخدمت إجابات مخزنة ومعتمدة')}</small></article>
           </section>
@@ -50,7 +81,7 @@ export function DashboardPage() {
               <div className="mini-stat-row"><span>{tr('Messages', 'الرسائل')}</span><strong>{metrics.messagesLast30Days.toLocaleString()}</strong></div>
               <div className="mini-stat-row"><span>{tr('AI replies', 'ردود الذكاء الاصطناعي')}</span><strong>{metrics.aiResponses.toLocaleString()}</strong></div>
               <div className="mini-stat-row"><span>{tr('Approved members', 'الأعضاء المقبولون')}</span><strong>{metrics.approvedUsers.toLocaleString()}</strong></div>
-              <div className="mini-stat-row"><span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span><strong>{money(metrics.aiCost30Days)}</strong></div>
+              <div className="mini-stat-row"><span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span><strong>{usageTrackingMissing ? '—' : money(metrics.aiCost30Days)}</strong></div>
               <Link className="inline-link" to="/analytics">{tr('View AI & cost details', 'عرض تفاصيل الذكاء الاصطناعي والتكلفة')} →</Link>
             </article>
 
