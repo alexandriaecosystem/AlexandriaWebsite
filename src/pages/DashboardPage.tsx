@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
-import { getDashboardMetrics } from '../services/admin';
-import { getSystemHealth, listKnowledgeGaps, type SystemHealth } from '../services/admin-operations';
+import { getDashboardMetrics, listKnowledgeDocuments } from '../services/admin';
+import { listKnowledgeGaps } from '../services/admin-operations';
 import type { DashboardMetrics } from '../types/contracts';
 import { LoadingState, RetryableErrorState } from '../components/AsyncState';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -13,7 +13,7 @@ const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 export function DashboardPage() {
   const { tr } = useLanguage();
   const [metrics, setMetrics] = useState<DashboardMetrics>();
-  const [health, setHealth] = useState<SystemHealth>();
+  const [failedKnowledge, setFailedKnowledge] = useState(0);
   const [openGaps, setOpenGaps] = useState(0);
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
@@ -21,7 +21,7 @@ export function DashboardPage() {
   useEffect(() => {
     setError(false);
     getDashboardMetrics(getSupabaseClient()).then(setMetrics).catch(() => setError(true));
-    void getSystemHealth(getSupabaseClient()).then(setHealth).catch(() => undefined);
+    void listKnowledgeDocuments(getSupabaseClient(), 'FAILED').then((result) => setFailedKnowledge(result.total)).catch(() => undefined);
     void listKnowledgeGaps(getSupabaseClient(), 'OPEN').then((result) => setOpenGaps(result.total)).catch(() => undefined);
   }, [reload]);
 
@@ -29,7 +29,7 @@ export function DashboardPage() {
     metrics && metrics.aiResponses > 0 && metrics.inputTokens === 0 && metrics.outputTokens === 0 && metrics.aiCostTotal === 0
   );
 
-  const attentionCount = (metrics?.pendingReviews ?? 0) + (health?.outboxDeadLetter ?? 0) + (health?.knowledgeFailed ?? 0) + openGaps;
+  const attentionCount = (metrics?.pendingReviews ?? 0) + failedKnowledge + openGaps;
 
   return (
     <>
@@ -37,7 +37,7 @@ export function DashboardPage() {
         <div>
           <p className="eyebrow">{tr('Dashboard', 'لوحة التحكم')}</p>
           <h1>{tr('Alexandria community', 'مجتمع Alexandria')}</h1>
-          <p className="muted page-subtitle">{tr('See what needs attention first, then monitor community activity, knowledge, operations and AI spend.', 'ابدأ بما يحتاج إلى متابعة ثم راقب نشاط المجتمع والمعرفة والعمليات وتكلفة الذكاء الاصطناعي.')}</p>
+          <p className="muted page-subtitle">{tr('See what needs attention first, then monitor community activity, knowledge and AI spend.', 'ابدأ بما يحتاج إلى متابعة ثم راقب نشاط المجتمع والمعرفة وتكلفة الذكاء الاصطناعي.')}</p>
         </div>
         <span className="status-pill healthy"><span className="pill-dot" /> {tr('Live', 'مباشر')}</span>
       </header>
@@ -53,9 +53,8 @@ export function DashboardPage() {
             </div>
             <div className="attention-grid">
               <Link to="/reviews"><span>{tr('Member reviews', 'مراجعة الأعضاء')}</span><strong>{metrics.pendingReviews}</strong><small>{tr('waiting for decision', 'بانتظار القرار')}</small></Link>
-              <Link to="/knowledge"><span>{tr('Knowledge failures', 'أخطاء المعرفة')}</span><strong>{health?.knowledgeFailed ?? 0}</strong><small>{tr('documents need attention', 'مستند يحتاج للمتابعة')}</small></Link>
+              <Link to="/knowledge"><span>{tr('Knowledge failures', 'أخطاء المعرفة')}</span><strong>{failedKnowledge}</strong><small>{tr('documents need attention', 'مستند يحتاج للمتابعة')}</small></Link>
               <Link to="/knowledge-gaps"><span>{tr('Knowledge gaps', 'فجوات المعرفة')}</span><strong>{openGaps}</strong><small>{tr('unresolved questions', 'أسئلة غير محلولة')}</small></Link>
-              <Link to="/failed-operations"><span>{tr('Failed operations', 'العمليات الفاشلة')}</span><strong>{health?.outboxDeadLetter ?? metrics.failedOperations}</strong><small>{tr('jobs need inspection', 'عمليات تحتاج للفحص')}</small></Link>
             </div>
           </section>
 
@@ -78,7 +77,7 @@ export function DashboardPage() {
 
           <section className="dashboard-grid">
             <article className="panel"><div className="section-heading"><div><p className="eyebrow">{tr('Last 30 days', 'آخر 30 يوماً')}</p><h2>{tr('Community activity', 'نشاط المجتمع')}</h2></div></div><div className="mini-stat-row"><span>{tr('Messages', 'الرسائل')}</span><strong>{metrics.messagesLast30Days.toLocaleString()}</strong></div><div className="mini-stat-row"><span>{tr('AI replies', 'ردود الذكاء الاصطناعي')}</span><strong>{metrics.aiResponses.toLocaleString()}</strong></div><div className="mini-stat-row"><span>{tr('Approved members', 'الأعضاء المقبولون')}</span><strong>{metrics.approvedUsers.toLocaleString()}</strong></div><div className="mini-stat-row"><span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span><strong>{usageTrackingMissing ? '—' : money(metrics.aiCost30Days)}</strong></div><Link className="inline-link" to="/analytics">{tr('View AI & cost details', 'عرض تفاصيل الذكاء الاصطناعي والتكلفة')} →</Link></article>
-            <article className="panel quick-actions-panel"><div className="section-heading"><div><p className="eyebrow">{tr('Quick actions', 'إجراءات سريعة')}</p><h2>{tr('What would you like to do?', 'ماذا تريد أن تفعل؟')}</h2></div></div><div className="quick-actions"><Link to="/reviews"><span>{tr('Review members', 'مراجعة الأعضاء')}</span><small>{tr('Approve or decline pending members', 'قبول أو رفض الأعضاء المعلّقين')}</small><b>→</b></Link><Link to="/knowledge"><span>{tr('Add knowledge', 'إضافة معرفة')}</span><small>{tr('Upload and manage project documents', 'رفع وإدارة مستندات المشروع')}</small><b>→</b></Link><Link to="/system-health"><span>{tr('Check system health', 'فحص صحة النظام')}</span><small>{tr('Inspect failures and recent platform activity', 'افحص الأخطاء ونشاط المنصات')}</small><b>→</b></Link><Link to="/announcements"><span>{tr('Post announcement', 'نشر إعلان')}</span><small>{tr('Choose Telegram, Discord, or WhatsApp', 'اختر Telegram أو Discord أو WhatsApp')}</small><b>→</b></Link></div></article>
+            <article className="panel quick-actions-panel"><div className="section-heading"><div><p className="eyebrow">{tr('Quick actions', 'إجراءات سريعة')}</p><h2>{tr('What would you like to do?', 'ماذا تريد أن تفعل؟')}</h2></div></div><div className="quick-actions"><Link to="/reviews"><span>{tr('Review members', 'مراجعة الأعضاء')}</span><small>{tr('Approve or decline pending members', 'قبول أو رفض الأعضاء المعلّقين')}</small><b>→</b></Link><Link to="/knowledge"><span>{tr('Add knowledge', 'إضافة معرفة')}</span><small>{tr('Upload and manage project documents', 'رفع وإدارة مستندات المشروع')}</small><b>→</b></Link><Link to="/messages"><span>{tr('Review messages', 'مراجعة الرسائل')}</span><small>{tr('Open user conversations', 'فتح محادثات المستخدمين')}</small><b>→</b></Link><Link to="/announcements"><span>{tr('Post announcement', 'نشر إعلان')}</span><small>{tr('Choose Telegram, Discord, or WhatsApp', 'اختر Telegram أو Discord أو WhatsApp')}</small><b>→</b></Link></div></article>
           </section>
         </>
       )}
