@@ -1,0 +1,37 @@
+.health-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+.health-card { display:grid; gap:8px; }
+.health-card > span { color:var(--muted); font-size:.76rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; }
+.health-card > strong { font-size:2rem; letter-spacing:-.04em; }
+.health-card > a { color:var(--accent); text-decoration:none; font-weight:750; font-size:.8rem; }
+.health-card > small { color:var(--muted); }
+.health-list { display:grid; }
+.health-list > div { display:grid; grid-template-columns:minmax(120px,.45fr) minmax(180px,1fr) minmax(160px,.8fr); gap:14px; align-items:center; padding:14px 0; border-bottom:1px solid var(--border); }
+.health-list > div:last-child { border-bottom:0; }
+.health-list > div > strong { text-align:end; font-size:.78rem; overflow-wrap:anywhere; }
+.activity-feed { padding:0 24px; }
+.activity-feed article { position:relative; display:grid; grid-template-columns:18px 1fr; gap:14px; padding:18px 0; border-bottom:1px solid var(--border); }
+.activity-feed article:last-child { border-bottom:0; }
+.activity-marker { width:9px; height:9px; margin-top:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 5px rgba(128,108,255,.10); }
+.activity-feed article > div:last-child { min-width:0; }
+.activity-feed strong { display:block; margin-top:8px; }
+.activity-feed p { margin:5px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.activity-feed time { display:block; margin-top:7px; color:var(--muted); font-size:.7rem; }
+.settings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.settings-list { display:grid; margin-top:14px; }
+.settings-list > div { display:flex; justify-content:space-between; gap:20px; padding:13px 0; border-bottom:1px solid var(--border); }
+.settings-list > div:last-child { border-bottom:0; }
+.settings-list span { color:var(--muted); }
+.settings-list strong { text-align:end; }
+.question-cell { min-width:320px; max-width:640px; }
+.error-text { color:var(--danger, #ff7777) !important; max-width:260px; white-space:normal; }
+
+@media (max-width: 1050px) {
+  .health-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 720px) {
+  .health-grid, .settings-grid { grid-template-columns:1fr; }
+  .health-list > div { grid-template-columns:1fr; gap:6px; }
+  .health-list > div > strong { text-align:start; }
+  .settings-list > div { flex-direction:column; gap:5px; }
+  .settings-list strong { text-align:start; }
+}
