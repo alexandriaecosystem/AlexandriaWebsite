@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getSupabaseClient } from '../services/supabase';
 import { getTokenMonitorData, type TokenMonitorData, type TokenTransfer } from '../services/token-monitor';
-import { LoadingState, RetryableErrorState } from '../components/AsyncState';
+import { LoadingState } from '../components/AsyncState';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../token-monitor.css';
 
