@@ -32,9 +32,9 @@ export function TableSkeleton({ columns = 5, rows = 5 }: { columns?: number; row
   );
 }
 
-export function EmptyState({ title, message }: { title?: string; message?: string }) {
+export function EmptyState({ title, message, action }: { title?: string; message?: string; action?: ReactNode }) {
   const { tr } = useOptionalLanguage();
-  return <State title={title ?? tr('Nothing here', 'لا توجد بيانات')} className="empty-state-card">{message && <p>{message}</p>}</State>;
+  return <State title={title ?? tr('Nothing here', 'لا توجد بيانات')} className="empty-state-card" action={action}>{message && <p>{message}</p>}</State>;
 }
 
 export function ForbiddenState() {
