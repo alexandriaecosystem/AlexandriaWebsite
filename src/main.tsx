@@ -8,6 +8,7 @@ import './admin-theme.css';
 import './ux-system.css';
 import './advanced-ux.css';
 import './mobile-shell.css';
+import './qa-responsive.css';
 
 const root = document.getElementById('root');
 
