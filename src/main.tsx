@@ -9,6 +9,7 @@ import './ux-system.css';
 import './advanced-ux.css';
 import './mobile-shell.css';
 import './qa-responsive.css';
+import './knowledge-analytics-ux.css';
 
 const root = document.getElementById('root');
 
