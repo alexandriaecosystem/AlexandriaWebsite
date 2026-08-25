@@ -137,18 +137,18 @@ export function TokenMonitorPage() {
       </article>
     </section>
 
-    <section className="table-card token-transfer-table">
+    <section className="table-card token-transfer-table mobile-card-table">
       <div className="section-heading token-table-heading"><div><p className="eyebrow">{tr('Blockchain activity', 'نشاط البلوكشين')}</p><h2>{tr('Latest transfers', 'أحدث التحويلات')}</h2></div><a className="row-link" href="https://tronscan.org/#/token20/TEoUqbkBtzSbGmUspNP3ztqVx7AzqhCLJr/transfers" target="_blank" rel="noreferrer">TRONSCAN ↗</a></div>
-      <div className="table-scroll"><table><thead><tr><th>{tr('Time', 'الوقت')}</th><th>{tr('From', 'من')}</th><th>{tr('To', 'إلى')}</th><th>{tr('Amount', 'المبلغ')}</th><th>{tr('Result', 'النتيجة')}</th><th>{tr('Transaction', 'المعاملة')}</th></tr></thead><tbody>
+      <div className="table-scroll"><table className="responsive-table"><thead><tr><th>{tr('Time', 'الوقت')}</th><th>{tr('From', 'من')}</th><th>{tr('To', 'إلى')}</th><th>{tr('Amount', 'المبلغ')}</th><th>{tr('Result', 'النتيجة')}</th><th>{tr('Transaction', 'المعاملة')}</th></tr></thead><tbody>
         {latest.map((item) => {
           const isLarge = item.amount >= LARGE_TRANSFER_THRESHOLD;
           return <tr key={item.transactionId} className={isLarge ? 'token-large-transfer-row' : undefined}>
-            <td>{new Date(item.timestamp).toLocaleString(isArabic ? 'ar-LB' : undefined, { dateStyle: 'short', timeStyle: 'short' })}</td>
-            <td><a href={addressUrl(item.from)} target="_blank" rel="noreferrer" className="token-address-link" dir="ltr" title={item.from}>{addressLabel(item.from, item.fromTag)}</a>{item.fromIsContract && <small className="table-subtext">Contract</small>}</td>
-            <td><a href={addressUrl(item.to)} target="_blank" rel="noreferrer" className="token-address-link" dir="ltr" title={item.to}>{addressLabel(item.to, item.toTag)}</a>{item.toIsContract && <small className="table-subtext">Contract</small>}</td>
-            <td><strong>{number.format(item.amount)}</strong><small className="table-subtext">{token.symbol}</small>{isLarge && <span className="status-pill neutral token-large-pill">{tr('Large', 'كبير')}</span>}</td>
-            <td><span className={`status-pill ${item.result === 'SUCCESS' ? 'positive' : 'negative'}`}>{item.result}</span>{item.riskTransaction && <span className="status-pill negative token-risk-pill">Risk</span>}</td>
-            <td><a className="row-link mono" href={transferUrl(item.transactionId)} target="_blank" rel="noreferrer">{item.transactionId.slice(0, 10)}… ↗</a></td>
+            <td data-label={tr('Time', 'الوقت')}>{new Date(item.timestamp).toLocaleString(isArabic ? 'ar-LB' : undefined, { dateStyle: 'short', timeStyle: 'short' })}</td>
+            <td data-label={tr('From', 'من')}><a href={addressUrl(item.from)} target="_blank" rel="noreferrer" className="token-address-link" dir="ltr" title={item.from}>{addressLabel(item.from, item.fromTag)}</a>{item.fromIsContract && <small className="table-subtext">Contract</small>}</td>
+            <td data-label={tr('To', 'إلى')}><a href={addressUrl(item.to)} target="_blank" rel="noreferrer" className="token-address-link" dir="ltr" title={item.to}>{addressLabel(item.to, item.toTag)}</a>{item.toIsContract && <small className="table-subtext">Contract</small>}</td>
+            <td data-label={tr('Amount', 'المبلغ')}><strong>{number.format(item.amount)}</strong><small className="table-subtext">{token.symbol}</small>{isLarge && <span className="status-pill neutral token-large-pill">{tr('Large', 'كبير')}</span>}</td>
+            <td data-label={tr('Result', 'النتيجة')}><span className={`status-pill ${item.result === 'SUCCESS' ? 'positive' : 'negative'}`}>{item.result}</span>{item.riskTransaction && <span className="status-pill negative token-risk-pill">Risk</span>}</td>
+            <td data-label={tr('Transaction', 'المعاملة')}><a className="row-link mono" href={transferUrl(item.transactionId)} target="_blank" rel="noreferrer">{item.transactionId.slice(0, 10)}… ↗</a></td>
           </tr>;
         })}
       </tbody></table></div>
