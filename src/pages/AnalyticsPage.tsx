@@ -105,10 +105,10 @@ export function AnalyticsPage() {
               ))}</div> : <p className="muted">{tr('No platform activity for this period.', 'لا يوجد نشاط للمنصات خلال هذه الفترة.')}</p>}
             </article>
 
-            <article className="panel span-two">
+            <article className="panel span-two analytics-model-panel">
               <div className="section-heading"><div><p className="eyebrow">{tr('Models', 'النماذج')}</p><h2>{tr('Provider usage', 'استخدام مزوّدي النماذج')}</h2></div></div>
-              {models.length ? <div className="table-wrap"><table><thead><tr><th>{tr('Provider / model', 'المزوّد / النموذج')}</th><th>{tr('Calls', 'الطلبات')}</th><th>{tr('Tokens', 'الرموز')}</th><th>{tr('Success', 'النجاح')}</th><th>{tr('Cost', 'التكلفة')}</th></tr></thead><tbody>{models.map((item) => (
-                <tr key={`${item.provider}:${item.model}`}><td dir="ltr"><strong>{item.model}</strong><small className="table-subtext">{item.provider}</small></td><td>{item.calls.toLocaleString()}</td><td>{item.totalTokens.toLocaleString()}</td><td>{pct(item.successRate)}</td><td>{money(item.costUsd)}</td></tr>
+              {models.length ? <div className="table-wrap analytics-model-table"><table className="responsive-table"><thead><tr><th>{tr('Provider / model', 'المزوّد / النموذج')}</th><th>{tr('Calls', 'الطلبات')}</th><th>{tr('Tokens', 'الرموز')}</th><th>{tr('Success', 'النجاح')}</th><th>{tr('Cost', 'التكلفة')}</th></tr></thead><tbody>{models.map((item) => (
+                <tr key={`${item.provider}:${item.model}`}><td data-label={tr('Provider / model', 'المزوّد / النموذج')} dir="ltr"><strong>{item.model}</strong><small className="table-subtext">{item.provider}</small></td><td data-label={tr('Calls', 'الطلبات')}>{item.calls.toLocaleString()}</td><td data-label={tr('Tokens', 'الرموز')}>{item.totalTokens.toLocaleString()}</td><td data-label={tr('Success', 'النجاح')}>{pct(item.successRate)}</td><td data-label={tr('Cost', 'التكلفة')}>{money(item.costUsd)}</td></tr>
               ))}</tbody></table></div> : <p className="muted">{tr('No model telemetry has been logged yet. n8n must send OpenRouter responses to log_openrouter_usage_response after provider requests.', 'لم يتم تسجيل بيانات استخدام النماذج بعد. يجب أن يرسل n8n استجابات OpenRouter إلى log_openrouter_usage_response بعد طلبات المزوّد.')}</p>}
             </article>
           </section>
