@@ -1,0 +1,337 @@
+/* Cross-page QA hardening for long content, RTL, narrow screens and remaining data tables. */
+
+.content,
+.content > *,
+.page-header > *,
+.section-heading > *,
+.panel > *,
+.metric-card > *,
+.document-head > *,
+.document-footer > *,
+.token-title-row > *,
+.data-list > div > *,
+.settings-list > div > *,
+.health-list > div > *,
+.composer-layout > *,
+.composer-step > *,
+.selection-card > *,
+.review-nav > * {
+  min-width: 0;
+}
+
+.page-header h1,
+.page-header h2,
+.page-subtitle,
+.panel h2,
+.panel h3,
+.identity-cell strong,
+.identity-cell small,
+.question-cell,
+.announcement-text-cell,
+.announcement-preview p,
+.message-bubble p,
+.form-error,
+.form-success,
+.error-cell,
+.profile-list dd,
+.document-head h3,
+.data-list strong,
+.data-list small,
+.settings-list strong,
+.health-list span,
+.health-list strong,
+.mono {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.status-pill,
+.platform,
+.queue-count {
+  max-width: 100%;
+}
+
+.status-pill,
+.platform {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-header .compact-select {
+  flex: 0 0 auto;
+}
+
+.table-scroll,
+.table-wrap {
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table,
+.table-wrap table {
+  max-width: 100%;
+}
+
+.table-subtext {
+  overflow-wrap: anywhere;
+}
+
+.token-title-row .page-subtitle .mono {
+  display: inline-block;
+  max-width: min(560px, 70vw);
+  vertical-align: bottom;
+}
+
+.announcement-preview,
+.announcement-text-cell,
+.question-cell {
+  white-space: normal;
+}
+
+.selection-card-copy,
+.step-heading > div,
+.action-readiness,
+.summary-value-list {
+  min-width: 0;
+}
+
+html[dir='rtl'] .responsive-table td,
+html[dir='rtl'] .responsive-table .table-action {
+  text-align: right;
+}
+
+html[dir='rtl'] .responsive-table td::before {
+  text-align: right;
+}
+
+html[dir='rtl'] .responsive-table .row-link {
+  justify-content: center;
+}
+
+/* The announcement history is the last large table that does not carry per-cell labels in JSX. */
+@media (max-width: 760px) {
+  .announcement-history-card {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .announcement-history-card .history-heading {
+    margin-bottom: 12px;
+    padding-inline: 2px;
+  }
+
+  .announcement-history-card .table-scroll {
+    overflow: visible;
+  }
+
+  .announcement-history-card table,
+  .announcement-history-card tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .announcement-history-card thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .announcement-history-card tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .announcement-history-card tbody tr {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 5px 16px rgba(15, 23, 42, .045);
+  }
+
+  .announcement-history-card tbody td {
+    display: grid;
+    grid-template-columns: minmax(96px, .7fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    min-height: 48px;
+    padding: 11px 13px;
+    border-bottom: 1px solid #eef2f7;
+    text-align: left;
+  }
+
+  .announcement-history-card tbody td::before {
+    color: #64748b;
+    font-size: .66rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  .announcement-history-card tbody td:nth-child(1)::before { content: 'Message'; }
+  .announcement-history-card tbody td:nth-child(2)::before { content: 'Audience'; }
+  .announcement-history-card tbody td:nth-child(3)::before { content: 'Platforms'; }
+  .announcement-history-card tbody td:nth-child(4)::before { content: 'Status'; }
+  .announcement-history-card tbody td:nth-child(5)::before { content: 'Delivery'; }
+  .announcement-history-card tbody td:nth-child(6)::before { content: 'Created'; }
+
+  html[dir='rtl'] .announcement-history-card tbody td {
+    text-align: right;
+  }
+
+  html[dir='rtl'] .announcement-history-card tbody td:nth-child(1)::before { content: 'الرسالة'; }
+  html[dir='rtl'] .announcement-history-card tbody td:nth-child(2)::before { content: 'الجمهور'; }
+  html[dir='rtl'] .announcement-history-card tbody td:nth-child(3)::before { content: 'المنصات'; }
+  html[dir='rtl'] .announcement-history-card tbody td:nth-child(4)::before { content: 'الحالة'; }
+  html[dir='rtl'] .announcement-history-card tbody td:nth-child(5)::before { content: 'الإرسال'; }
+  html[dir='rtl'] .announcement-history-card tbody td:nth-child(6)::before { content: 'الإنشاء'; }
+
+  .announcement-history-card tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  .announcement-history-card .empty-row {
+    display: block;
+    min-height: 0;
+    padding: 24px 16px !important;
+    text-align: center;
+  }
+
+  .announcement-history-card .empty-row::before {
+    display: none;
+  }
+
+  .analytics-model-table {
+    overflow: visible;
+  }
+
+  .analytics-model-panel {
+    overflow: visible;
+  }
+
+  .analytics-model-panel .responsive-table td {
+    grid-template-columns: minmax(110px, .72fr) minmax(0, 1fr);
+  }
+
+  .token-transfer-table .token-table-heading {
+    padding-inline: 2px;
+  }
+
+  .token-transfer-table .responsive-table td {
+    align-items: start;
+  }
+
+  .token-transfer-table .token-address-link,
+  .token-transfer-table .mono {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .health-list > div,
+  .settings-list > div,
+  .data-list > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .health-list > div strong,
+  .settings-list > div strong,
+  .data-list > div b {
+    max-width: 100%;
+  }
+
+  .cost-row {
+    grid-template-columns: 62px minmax(80px, 1fr) auto;
+  }
+
+  .cost-row small {
+    display: none;
+  }
+
+  .document-head,
+  .token-title-row {
+    align-items: flex-start;
+  }
+
+  .token-title-row .page-subtitle .mono {
+    max-width: 100%;
+  }
+
+  .composer-step,
+  .selection-card,
+  .announcement-preview,
+  .delivery-note {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding-inline: 12px;
+  }
+
+  .page-header h1 {
+    font-size: clamp(1.7rem, 11vw, 2.15rem);
+  }
+
+  .metric-card > strong {
+    font-size: 1.7rem;
+  }
+
+  .status-pill,
+  .platform,
+  .queue-count {
+    white-space: normal;
+  }
+
+  .responsive-table td,
+  .announcement-history-card tbody td {
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 9px;
+    padding-inline: 11px;
+  }
+
+  .decision-actions,
+  .action-buttons,
+  .bulk-actions {
+    width: 100%;
+  }
+
+  .decision-actions button,
+  .action-buttons button,
+  .bulk-actions button {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .page-header {
+    gap: 20px;
+  }
+
+  .content {
+    padding-inline: 28px;
+  }
+
+  .table-scroll table {
+    min-width: 760px;
+  }
+
+  .analytics-model-table table {
+    min-width: 640px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
