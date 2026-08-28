@@ -17,6 +17,8 @@ export const WRITE_TOOLS = new Set([
   "update_knowledge_record",
   "approve_document",
   "send_announcement",
+  "schedule_ai_sleep",
+  "cancel_ai_sleep",
 ]);
 
 const KNOWLEDGE_CATEGORIES = new Set([
@@ -26,6 +28,8 @@ const KNOWLEDGE_CATEGORIES = new Set([
   "DEFENSIVE_PLAYBOOK",
   "ADVERSARIAL_TESTING",
 ]);
+const SLEEP_STATUSES = new Set(["ACTIVE", "UPCOMING", "ENDED", "CANCELLED"]);
+const MAX_SLEEP_MS = 30 * 24 * 60 * 60 * 1000;
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid_tool_arguments");
@@ -101,6 +105,21 @@ function category(value: unknown): string {
   return normalized;
 }
 
+function isoDate(value: unknown, name: string): string {
+  const raw = text(value, name, 10, 80);
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) throw new Error(`invalid_${name}`);
+  return parsed.toISOString();
+}
+
+function sleepStatus(value: unknown): string | null {
+  const raw = optionalText(value, 30);
+  if (!raw) return null;
+  const normalized = raw.toUpperCase();
+  if (!SLEEP_STATUSES.has(normalized)) throw new Error("invalid_status");
+  return normalized;
+}
+
 export function normalizeToolArgs(tool: string, value: unknown): Record<string, unknown> {
   const raw = record(value);
   switch (tool) {
@@ -129,6 +148,35 @@ export function normalizeToolArgs(tool: string, value: unknown): Record<string, 
         search: optionalText(raw.search, 120),
         limit: integer(raw.limit, 50, 1, 200),
       };
+    case "list_ai_sleep_windows":
+      return {
+        platform: platform(raw.platform, true),
+        status: sleepStatus(raw.status),
+        limit: integer(raw.limit, 50, 1, 200),
+      };
+    case "get_ai_sleep_status":
+      return {
+        platform: platform(raw.platform),
+        external_channel_id: text(raw.external_channel_id, "external_channel_id", 1, 255),
+      };
+    case "schedule_ai_sleep": {
+      const startsAt = isoDate(raw.starts_at, "starts_at");
+      const endsAt = isoDate(raw.ends_at, "ends_at");
+      const startMs = new Date(startsAt).getTime();
+      const endMs = new Date(endsAt).getTime();
+      if (endMs <= startMs) throw new Error("invalid_sleep_window");
+      if (endMs - startMs > MAX_SLEEP_MS) throw new Error("sleep_window_too_long");
+      return {
+        platform: platform(raw.platform),
+        external_channel_id: text(raw.external_channel_id, "external_channel_id", 1, 255),
+        external_channel_name: optionalText(raw.external_channel_name, 160),
+        starts_at: startsAt,
+        ends_at: endsAt,
+        reason: optionalText(raw.reason, 500),
+      };
+    }
+    case "cancel_ai_sleep":
+      return { window_id: uuid(raw.window_id, "window_id") };
     case "create_knowledge_record":
       return {
         title: text(raw.title, "title", 2, 180),
@@ -195,6 +243,21 @@ export function previewFor(tool: string, args: Record<string, unknown>): Record<
         platforms: args.platforms,
         action: "Create, approve and queue announcement",
       };
+    case "schedule_ai_sleep":
+      return {
+        platform: args.platform,
+        channel: args.external_channel_name || args.external_channel_id,
+        external_channel_id: args.external_channel_id,
+        starts_at: args.starts_at,
+        ends_at: args.ends_at,
+        reason: args.reason,
+        action: "Pause automated AI replies for this channel during the scheduled window",
+      };
+    case "cancel_ai_sleep":
+      return {
+        sleep_window_id: args.window_id,
+        action: "Wake AI for this scheduled sleep window now",
+      };
     default:
       return args;
   }
@@ -204,6 +267,8 @@ const functionTool = (name: string, description: string, parameters: Record<stri
   type: "function",
   function: { name, description, parameters },
 });
+
+const platformSchema = { type: "string", enum: ["TELEGRAM", "DISCORD", "WHATSAPP"] };
 
 export const modelTools = [
   functionTool("navigate_to_page", "Navigate the admin UI to a known page.", {
@@ -265,11 +330,45 @@ export const modelTools = [
   functionTool("list_community_members", "List verified external-group members. Verified membership is distinct from approval state.", {
     type: "object",
     properties: {
-      platform: { type: "string", enum: ["TELEGRAM", "DISCORD", "WHATSAPP"] },
+      platform: platformSchema,
       tier: { type: "string", enum: ["GENERAL", "VIP"] },
       search: { type: "string" },
       limit: { type: "integer", minimum: 1, maximum: 200 },
     },
+    additionalProperties: false,
+  }),
+  functionTool("list_ai_sleep_windows", "List scheduled AI sleep/human-takeover windows, optionally filtered by platform and status.", {
+    type: "object",
+    properties: {
+      platform: platformSchema,
+      status: { type: "string", enum: ["ACTIVE", "UPCOMING", "ENDED", "CANCELLED"] },
+      limit: { type: "integer", minimum: 1, maximum: 200 },
+    },
+    additionalProperties: false,
+  }),
+  functionTool("get_ai_sleep_status", "Check whether automated AI replies are currently sleeping for one exact external channel/group id.", {
+    type: "object",
+    properties: { platform: platformSchema, external_channel_id: { type: "string" } },
+    required: ["platform", "external_channel_id"],
+    additionalProperties: false,
+  }),
+  functionTool("schedule_ai_sleep", "Propose a human-takeover window that pauses automated AI replies for one exact channel. Requires confirmation.", {
+    type: "object",
+    properties: {
+      platform: platformSchema,
+      external_channel_id: { type: "string" },
+      external_channel_name: { type: "string" },
+      starts_at: { type: "string", description: "ISO 8601 datetime with timezone" },
+      ends_at: { type: "string", description: "ISO 8601 datetime with timezone" },
+      reason: { type: "string" },
+    },
+    required: ["platform", "external_channel_id", "starts_at", "ends_at"],
+    additionalProperties: false,
+  }),
+  functionTool("cancel_ai_sleep", "Propose waking AI immediately by cancelling one scheduled sleep window. Requires confirmation.", {
+    type: "object",
+    properties: { window_id: { type: "string" } },
+    required: ["window_id"],
     additionalProperties: false,
   }),
   functionTool("send_announcement", "Propose creating, approving and queueing an announcement. Requires confirmation.", {
@@ -279,7 +378,7 @@ export const modelTools = [
       destination: { type: "string", enum: ["GENERAL", "APPROVED", "BOTH"] },
       platforms: {
         type: "array", minItems: 1, maxItems: 3,
-        items: { type: "string", enum: ["TELEGRAM", "DISCORD", "WHATSAPP"] },
+        items: platformSchema,
       },
     },
     required: ["content", "destination", "platforms"],
