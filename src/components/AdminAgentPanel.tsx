@@ -68,6 +68,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const pageContext = buildAdminPageContext(location.pathname, language);
 
   const addMessage = (role: AgentMessage['role'], text: string) => {
     setMessages((current) => [...current, { id: messageId(), role, text }]);
@@ -79,7 +80,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
     try {
       const response = await requestAgent({
         instruction,
-        context: buildAdminPageContext(location.pathname, language),
+        context: pageContext,
         ...(confirmation ? { confirmation } : {}),
       });
 
@@ -178,6 +179,11 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
     addMessage('assistant', tr('Action cancelled. Nothing was changed.', 'تم إلغاء الإجراء. لم يتم تغيير أي شيء.'));
   }
 
+  const statusLabel = status === 'listening' ? tr('Listening…', 'جارٍ الاستماع…')
+    : status === 'thinking' ? tr('Thinking…', 'جارٍ التفكير…')
+      : status === 'executing' ? tr('Executing tool…', 'جارٍ تنفيذ الأداة…')
+        : tr('Ready', 'جاهز');
+
   return (
     <div className={`admin-agent ${open ? 'open' : ''}`}>
       {!open ? (
@@ -187,33 +193,31 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
           aria-label={tr('Open AI admin assistant', 'فتح مساعد الإدارة بالذكاء الاصطناعي')}
           onClick={() => setOpen(true)}
         >
-          <span aria-hidden="true">✦</span>
+          <span className="admin-agent-launcher-icon" aria-hidden="true">✦</span>
+          <span className="admin-agent-launcher-label">{tr('AI admin', 'مساعد AI')}</span>
         </button>
       ) : (
         <section className="admin-agent-panel" aria-label={tr('AI admin assistant', 'مساعد الإدارة بالذكاء الاصطناعي')}>
           <header className="admin-agent-header">
-            <div>
-              <small>{tr('Global assistant', 'المساعد العام')}</small>
-              <strong>{tr('AI admin', 'مساعد الإدارة')}</strong>
+            <div className="admin-agent-title">
+              <span className="admin-agent-mark" aria-hidden="true">✦</span>
+              <div><small>{tr('Global assistant', 'المساعد العام')}</small><strong>{tr('AI admin', 'مساعد الإدارة')}</strong></div>
             </div>
             <button type="button" className="admin-agent-close" aria-label={tr('Close AI admin assistant', 'إغلاق مساعد الإدارة')} onClick={() => setOpen(false)}>×</button>
           </header>
 
           <div className="admin-agent-context">
-            <span>{buildAdminPageContext(location.pathname, language).pageLabel}</span>
-            <span className={`admin-agent-status ${status}`}>{
-              status === 'listening' ? tr('Listening…', 'جارٍ الاستماع…')
-                : status === 'thinking' ? tr('Thinking…', 'جارٍ التفكير…')
-                  : status === 'executing' ? tr('Executing tool…', 'جارٍ تنفيذ الأداة…')
-                    : tr('Ready', 'جاهز')
-            }</span>
+            <span className="admin-agent-page-chip"><i aria-hidden="true">●</i>{pageContext.pageLabel}</span>
+            <span className={`admin-agent-status ${status}`}><i aria-hidden="true" />{statusLabel}</span>
           </div>
 
           <div className="admin-agent-messages" aria-live="polite">
             {messages.length === 0 ? (
               <div className="admin-agent-empty">
+                <span className="admin-agent-empty-icon" aria-hidden="true">✦</span>
                 <strong>{tr('Ask or speak an admin task', 'اكتب أو انطق مهمة إدارية')}</strong>
-                <span>{tr('Try “Go to analytics” or ask about Telegram VIP members.', 'جرّب «افتح التحليلات» أو اسأل عن أعضاء Telegram VIP.')}</span>
+                <span>{tr('Navigate, inspect community data, or schedule human takeover with your voice.', 'تنقّل، افحص بيانات المجتمع، أو جدوِل التحكم البشري باستخدام صوتك.')}</span>
+                <small>{tr('Example: “Put Telegram VIP to sleep until 9 AM tomorrow.”', 'مثال: «أوقف AI في Telegram VIP حتى التاسعة صباحًا غدًا».')}</small>
               </div>
             ) : messages.map((message) => (
               <div className={`admin-agent-message ${message.role}`} key={message.id}>
@@ -245,7 +249,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
                 onClick={startListening}
                 disabled={status === 'thinking' || status === 'executing'}
               >
-                <span aria-hidden="true">◉</span>
+                <span className="admin-agent-mic-dot" aria-hidden="true">◉</span>
                 <span>{status === 'listening' ? tr('Listening', 'استماع') : tr('Voice', 'صوت')}</span>
               </button>
               <button type="submit" className="primary-button" aria-label={tr('Send message', 'إرسال الرسالة')} disabled={!input.trim() || status === 'thinking' || status === 'executing'}>
@@ -259,6 +263,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
       {pendingConfirmation && (
         <div className="admin-agent-confirmation-backdrop" role="presentation">
           <section className="admin-agent-confirmation" role="dialog" aria-modal="true" aria-label={tr('Confirm admin action', 'تأكيد الإجراء الإداري')}>
+            <div className="admin-agent-confirmation-icon" aria-hidden="true">✓</div>
             <p className="eyebrow">{tr('Confirmation required', 'التأكيد مطلوب')}</p>
             <h2>{tr('Review before changing data', 'راجع قبل تغيير البيانات')}</h2>
             <p>{pendingConfirmation.response.message}</p>
