@@ -174,7 +174,7 @@ export function AiSleepPanel({
       <div className={`ai-sleep-hero ${active.length ? 'sleeping' : 'awake'}`}>
         <div className="ai-sleep-hero-icon" aria-hidden="true">{active.length ? '☾' : '✦'}</div>
         <div>
-          <p className="eyebrow">{tr('Human takeover', 'التحكم البشري')}</p>
+          <p className="eyebrow">{tr('AI sleep mode', 'وضع إيقاف الذكاء الاصطناعي')}</p>
           <h2>{active.length ? tr('AI Sleeping', 'الذكاء الاصطناعي متوقف') : tr('AI Active', 'الذكاء الاصطناعي نشط')}</h2>
           <p>{active.length
             ? tr('Human takeover active', 'التحكم البشري نشط')
