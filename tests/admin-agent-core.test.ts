@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildAdminPageContext } from '../src/agent/page-context';
 import { resolveVoiceNavigation } from '../src/agent/voice-commands';
@@ -52,5 +53,18 @@ describe('admin page context', () => {
       pageLabel: 'Admin page',
       language: 'en',
     });
+  });
+});
+
+describe('secure write confirmation wiring', () => {
+  it('consumes the confirmation nonce before executing a write tool', () => {
+    const source = readFileSync(new URL('../supabase/functions/admin-agent/index.ts', import.meta.url), 'utf8');
+    const start = source.indexOf('if (body.confirmation)');
+    const end = source.indexOf('const model = await callModel', start);
+    const confirmationBranch = source.slice(start, end);
+
+    expect(confirmationBranch).toContain('admin_consume_agent_confirmation');
+    expect(confirmationBranch.indexOf('admin_consume_agent_confirmation'))
+      .toBeLessThan(confirmationBranch.indexOf('executeTool'));
   });
 });
