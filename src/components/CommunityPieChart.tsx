@@ -7,6 +7,10 @@ type CommunityPieChartProps = {
   compact?: boolean;
 };
 
+function percentLabel(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 export function CommunityPieChart({
   label,
   general,
@@ -19,7 +23,9 @@ export function CommunityPieChart({
   const safeVip = Math.max(0, Number.isFinite(vip) ? vip : 0);
   const total = safeGeneral + safeVip;
   const vipPercent = total === 0 ? 0 : Math.round((safeVip / total) * 1000) / 10;
-  const generalPercent = total === 0 ? 0 : 100 - vipPercent;
+  const generalPercent = total === 0 ? 0 : Math.round((100 - vipPercent) * 10) / 10;
+  const vipPercentText = percentLabel(vipPercent);
+  const generalPercentText = percentLabel(generalPercent);
   const chartBackground = total === 0
     ? 'var(--border)'
     : `conic-gradient(var(--accent) 0 ${generalPercent}%, var(--warning) ${generalPercent}% 100%)`;
@@ -29,15 +35,19 @@ export function CommunityPieChart({
       <div
         className="community-pie-visual"
         role="img"
-        aria-label={`${label}: ${safeGeneral} ${generalLabel}, ${safeVip} ${vipLabel}`}
+        aria-label={`${label}: ${safeGeneral} ${generalLabel} (${generalPercentText}%), ${safeVip} ${vipLabel} (${vipPercentText}%)`}
         data-vip-percent={String(vipPercent)}
         style={{ background: chartBackground }}
       >
-        <span aria-hidden="true"><strong>{total.toLocaleString()}</strong><small>{label}</small></span>
+        <span aria-hidden="true" className="community-pie-center">
+          <strong>{total.toLocaleString()}</strong>
+          <small>{label}</small>
+          {total > 0 && <em>{vipPercentText}% {vipLabel}</em>}
+        </span>
       </div>
-      <div className="community-pie-legend" aria-hidden="true">
-        <span className="general"><i />{safeGeneral.toLocaleString()} {generalLabel}</span>
-        <span className="vip"><i />{safeVip.toLocaleString()} {vipLabel}</span>
+      <div className="community-pie-legend">
+        <span className="general"><i aria-hidden="true" /><b>{safeGeneral.toLocaleString()} {generalLabel}</b><small>{generalPercentText}%</small></span>
+        <span className="vip"><i aria-hidden="true" /><b>{safeVip.toLocaleString()} {vipLabel}</b><small>{vipPercentText}%</small></span>
       </div>
     </div>
   );
