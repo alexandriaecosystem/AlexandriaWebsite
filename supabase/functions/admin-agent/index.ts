@@ -164,6 +164,8 @@ async function callModel(instruction: string, context: PageContext): Promise<{
     "Use an allowlisted tool for any request that depends on current Alexandria data or changes admin data.",
     "Never invent current database results. Never request or output SQL, API keys, service-role keys, bot tokens, webhook secrets, or arbitrary URLs.",
     "Known platform users, approved users, and verified external-group members are different concepts. Never substitute one for another.",
+    "AI sleep mode means human takeover for one exact external channel/group id between explicit timestamps. Incoming messages remain logged, automated AI replies are skipped, and messages received while sleeping are never replayed automatically after wake.",
+    "Never schedule sleep from a display name alone; an exact external_channel_id is required.",
     "Write actions are proposals only; the server requires explicit human confirmation before execution.",
     `Current admin page: ${context.pageLabel} (${context.pathname}). UI language: ${context.language}.`,
     context.language === "ar"
@@ -282,6 +284,56 @@ async function executeTool(
       return { kind: "tool_result", tool, result, message: localized(context, `I found ${count} verified group membership${count === 1 ? "" : "s"} matching those filters.`, `وجدت ${count} عضوية مجموعة موثقة تطابق عوامل التصفية.`) };
     }
 
+    case "list_ai_sleep_windows": {
+      const result = await rpc(client, "admin_list_ai_sleep_windows", {
+        p_platform: args.platform,
+        p_status: args.status,
+        p_limit: args.limit,
+        p_offset: 0,
+      });
+      const count = itemCount(result);
+      return { kind: "tool_result", tool, result, message: localized(context, `I found ${count} AI sleep window${count === 1 ? "" : "s"} matching those filters.`, `وجدت ${count} فترة إيقاف للذكاء الاصطناعي تطابق عوامل التصفية.`) };
+    }
+
+    case "get_ai_sleep_status": {
+      const result = await rpc(client, "admin_get_ai_sleep_status", {
+        p_platform: args.platform,
+        p_external_channel_id: args.external_channel_id,
+      });
+      const sleeping = result && typeof result === "object" && (result as Record<string, unknown>).policy === "SLEEPING";
+      return {
+        kind: "tool_result",
+        tool,
+        result,
+        message: sleeping
+          ? localized(context, "AI replies are currently sleeping for that channel; human takeover is active.", "ردود الذكاء الاصطناعي متوقفة حاليًا لهذه القناة؛ التحكم البشري نشط.")
+          : localized(context, "AI replies are currently enabled for that channel.", "ردود الذكاء الاصطناعي مفعلة حاليًا لهذه القناة."),
+      };
+    }
+
+    case "schedule_ai_sleep": {
+      const result = await rpc(client, "admin_create_ai_sleep_window", {
+        p_platform: args.platform,
+        p_external_channel_id: args.external_channel_id,
+        p_external_channel_name: args.external_channel_name,
+        p_starts_at: args.starts_at,
+        p_ends_at: args.ends_at,
+        p_reason: args.reason,
+      });
+      return {
+        kind: "tool_result", tool, result,
+        message: localized(context, "AI sleep was scheduled for that exact channel. Incoming messages will still be logged; automated replies must be suppressed by the connected messaging workflow during the window.", "تمت جدولة إيقاف الذكاء الاصطناعي لهذه القناة المحددة. ستستمر الرسائل الواردة في التسجيل؛ ويجب على سير عمل المنصة المتصل منع الردود الآلية خلال الفترة."),
+      };
+    }
+
+    case "cancel_ai_sleep": {
+      const result = await rpc(client, "admin_cancel_ai_sleep_window", { p_window_id: args.window_id });
+      return {
+        kind: "tool_result", tool, result,
+        message: localized(context, "The sleep window was cancelled. AI is eligible again for new inbound messages; sleeping-period messages are not replayed automatically.", "تم إلغاء فترة الإيقاف. أصبح الذكاء الاصطناعي مؤهلاً مجددًا للرسائل الواردة الجديدة؛ ولا تتم إعادة تشغيل رسائل فترة الإيقاف تلقائيًا."),
+      };
+    }
+
     case "create_knowledge_record": {
       const result = await rpc(client, "admin_create_knowledge_text_record", {
         p_title: args.title, p_category: args.category, p_language: args.language, p_content: args.content,
@@ -338,9 +390,10 @@ function publicError(error: unknown): { code: string; message: string; status: n
   if (raw === "agent_model_not_configured") return { code: raw, message: "The AI admin model is not configured on the secure backend.", status: 503 };
   if (raw === "confirmation_secret_not_configured") return { code: raw, message: "Secure write confirmation is not configured on the backend.", status: 503 };
   if (raw.startsWith("agent_model_request_failed_")) return { code: "agent_model_unavailable", message: "The AI admin model is temporarily unavailable.", status: 502 };
-  if (raw.startsWith("invalid_") || raw.startsWith("unsupported_") || raw === "unknown_tool" || raw === "multiple_tool_calls_not_allowed") {
+  if (raw.startsWith("invalid_") || raw.startsWith("unsupported_") || raw === "unknown_tool" || raw === "multiple_tool_calls_not_allowed" || raw === "sleep_window_too_long") {
     return { code: raw, message: "The requested admin action has invalid or unsupported parameters.", status: 400 };
   }
+  if (raw.includes("SLEEP_WINDOW_OVERLAP")) return { code: "sleep_window_overlap", message: "That channel already has an overlapping AI sleep window.", status: 409 };
   if (raw.includes("_failed:")) return { code: "tool_execution_failed", message: "The requested admin tool could not be completed.", status: 502 };
   return { code: "admin_agent_error", message: "The AI admin assistant could not complete that request.", status: 500 };
 }
