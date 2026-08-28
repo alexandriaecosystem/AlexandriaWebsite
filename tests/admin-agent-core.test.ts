@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildAdminPageContext } from '../src/agent/page-context';
 import { resolveVoiceNavigation } from '../src/agent/voice-commands';
+import edgeFunctionSource from '../supabase/functions/admin-agent/index.ts?raw';
 
 describe('voice navigation', () => {
   it('resolves English navigation commands without using the AI agent', () => {
@@ -59,10 +58,9 @@ describe('admin page context', () => {
 
 describe('secure write confirmation wiring', () => {
   it('consumes the confirmation nonce before executing a write tool', () => {
-    const source = readFileSync(resolve(process.cwd(), 'supabase/functions/admin-agent/index.ts'), 'utf8');
-    const start = source.indexOf('if (body.confirmation)');
-    const end = source.indexOf('const model = await callModel', start);
-    const confirmationBranch = source.slice(start, end);
+    const start = edgeFunctionSource.indexOf('if (body.confirmation)');
+    const end = edgeFunctionSource.indexOf('const model = await callModel', start);
+    const confirmationBranch = edgeFunctionSource.slice(start, end);
 
     expect(confirmationBranch).toContain('admin_consume_agent_confirmation');
     expect(confirmationBranch.indexOf('admin_consume_agent_confirmation'))
