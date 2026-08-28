@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
 import { getDashboardMetrics, listKnowledgeDocuments } from '../services/admin';
 import { getMessageTimeseries, listKnowledgeGaps, type MessageSeriesPoint } from '../services/admin-operations';
+import { getCommunityPlatformStats, type CommunityPlatform, type CommunityPlatformStats } from '../services/community-dashboard';
 import type { DashboardMetrics } from '../types/contracts';
 import { LoadingState, RetryableErrorState } from '../components/AsyncState';
+import { CommunityPieChart } from '../components/CommunityPieChart';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../dashboard-chart.css';
 
 const money = (value: number) => `$${value.toFixed(value < 1 ? 4 : 2)}`;
+const platformOrder: CommunityPlatform[] = ['TELEGRAM', 'DISCORD', 'WHATSAPP'];
 
 export function DashboardPage() {
   const { tr, isArabic } = useLanguage();
@@ -16,15 +19,18 @@ export function DashboardPage() {
   const [failedKnowledge, setFailedKnowledge] = useState(0);
   const [openGaps, setOpenGaps] = useState(0);
   const [messageSeries, setMessageSeries] = useState<MessageSeriesPoint[]>([]);
+  const [communityStats, setCommunityStats] = useState<CommunityPlatformStats | null>();
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
     setError(false);
+    setCommunityStats(undefined);
     getDashboardMetrics(getSupabaseClient()).then(setMetrics).catch(() => setError(true));
     void listKnowledgeDocuments(getSupabaseClient(), 'FAILED').then((result) => setFailedKnowledge(result.total)).catch(() => undefined);
     void listKnowledgeGaps(getSupabaseClient(), 'OPEN').then((result) => setOpenGaps(result.total)).catch(() => undefined);
     void getMessageTimeseries(getSupabaseClient(), 30).then(setMessageSeries).catch(() => setMessageSeries([]));
+    void getCommunityPlatformStats(getSupabaseClient()).then(setCommunityStats).catch(() => setCommunityStats(null));
   }, [reload]);
 
   const usageTrackingMissing = Boolean(
@@ -35,6 +41,15 @@ export function DashboardPage() {
   const maxDailyMessages = Math.max(1, ...messageSeries.map((point) => point.messages));
   const chartTotal = messageSeries.reduce((sum, point) => sum + point.messages, 0);
   const chartAverage = messageSeries.length ? chartTotal / messageSeries.length : 0;
+  const platformStats = platformOrder.map((platform) => communityStats?.platforms.find((item) => item.platform === platform) ?? {
+    platform,
+    knownUsers: 0,
+    generalMembers: 0,
+    vipMembers: 0,
+    verifiedMembers: 0,
+    lastVerifiedAt: null,
+    verificationConnected: false,
+  });
 
   return (
     <>
@@ -83,6 +98,77 @@ export function DashboardPage() {
             <Link className="metric-card metric-link" to="/messages"><span>{tr('Messages', 'الرسائل')}</span><strong>{metrics.totalMessages.toLocaleString()}</strong><small>{metrics.messagesToday.toLocaleString()} {tr('today', 'اليوم')} · {metrics.messagesLast7Days.toLocaleString()} {tr('last 7 days', 'آخر 7 أيام')}</small></Link>
             <Link className="metric-card metric-link" to="/analytics"><span>{tr('AI spend', 'تكلفة الذكاء الاصطناعي')}</span><strong>{usageTrackingMissing ? '—' : money(metrics.aiCostTotal)}</strong><small>{usageTrackingMissing ? tr('Cost tracking setup needed', 'يلزم إعداد تتبّع التكلفة') : `${money(metrics.aiCost30Days)} ${tr('last 30 days', 'آخر 30 يوماً')}`}</small></Link>
             <Link className="metric-card metric-link" to="/community"><span>{tr('Approved members', 'الأعضاء المقبولون')}</span><strong>{metrics.approvedUsers.toLocaleString()}</strong><small>{tr('Manage approved community', 'إدارة المجتمع المعتمد')}</small></Link>
+          </section>
+
+          <section className="panel community-membership-panel" aria-label={tr('Community by platform', 'المجتمع حسب المنصة')}>
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">{tr('Verified membership', 'العضوية الموثقة')}</p>
+                <h2>{tr('Community by platform', 'المجتمع حسب المنصة')}</h2>
+                <p className="muted">{tr('General and VIP group membership is shown separately from approval status.', 'يتم عرض عضوية المجموعات العامة وVIP بشكل منفصل عن حالة الموافقة.')}</p>
+              </div>
+              <Link className="inline-link" to="/users">{tr('View users', 'عرض المستخدمين')} →</Link>
+            </div>
+
+            {communityStats === undefined ? (
+              <div className="community-membership-loading">{tr('Loading community membership…', 'جارٍ تحميل عضوية المجتمع…')}</div>
+            ) : communityStats === null ? (
+              <div className="community-membership-unavailable" role="status">
+                <strong>{tr('Membership tracking needs the new backend migration', 'تتبّع العضوية يحتاج إلى ترحيل قاعدة البيانات الجديد')}</strong>
+                <span>{tr('Known user metrics remain available; verified General/VIP group counts will appear after the backend update is deployed.', 'تبقى إحصاءات المستخدمين المعروفة متاحة؛ وستظهر أعداد المجموعات العامة وVIP الموثقة بعد نشر تحديث الخلفية.')}</span>
+              </div>
+            ) : (
+              <>
+                <div className="community-overall">
+                  <CommunityPieChart
+                    label={tr('All platforms', 'كل المنصات')}
+                    general={communityStats.overall.generalMembers}
+                    vip={communityStats.overall.vipMembers}
+                    generalLabel={tr('General', 'عام')}
+                    vipLabel="VIP"
+                  />
+                  <div className="community-overall-copy">
+                    <span>{tr('Verified group memberships', 'عضويات المجموعات الموثقة')}</span>
+                    <strong>{communityStats.overall.verifiedMembers.toLocaleString()}</strong>
+                    <small>{communityStats.overall.knownUsers.toLocaleString()} {tr('known platform users', 'مستخدم معروف على المنصات')}</small>
+                  </div>
+                </div>
+
+                <div className="community-platform-grid">
+                  {platformStats.map((item) => {
+                    const platformLabel = item.platform === 'TELEGRAM' ? 'Telegram' : item.platform === 'DISCORD' ? 'Discord' : 'WhatsApp';
+                    return (
+                      <article className="community-platform-card" key={item.platform}>
+                        <div className="community-platform-head">
+                          <span className={`platform ${item.platform.toLowerCase()}`}>{platformLabel}</span>
+                          <span className={`status-pill ${item.verificationConnected ? 'positive' : 'neutral'}`}>
+                            {item.verificationConnected ? tr('Verified', 'موثق') : tr('Verification not connected', 'التحقق غير متصل')}
+                          </span>
+                        </div>
+                        <CommunityPieChart
+                          label={platformLabel}
+                          general={item.generalMembers}
+                          vip={item.vipMembers}
+                          generalLabel={tr('General', 'عام')}
+                          vipLabel="VIP"
+                          compact
+                        />
+                        <div className="community-platform-numbers">
+                          <span><small>{tr('Known users', 'المستخدمون المعروفون')}</small><strong>{item.knownUsers.toLocaleString()}</strong></span>
+                          <span><small>{tr('Verified members', 'الأعضاء الموثقون')}</small><strong>{item.verifiedMembers.toLocaleString()}</strong></span>
+                        </div>
+                        <small className="community-verified-at">
+                          {item.lastVerifiedAt
+                            ? `${tr('Last verified', 'آخر تحقق')}: ${new Date(item.lastVerifiedAt).toLocaleString(isArabic ? 'ar-LB' : undefined)}`
+                            : tr('No membership verification has been recorded yet.', 'لم يتم تسجيل تحقق من العضوية بعد.')}
+                        </small>
+                      </article>
+                    );
+                  })}
+                </div>
+                <p className="community-membership-note">{tr('These charts count verified group memberships. A person present in more than one external group can contribute to more than one membership count.', 'تحتسب هذه الرسوم عضويات المجموعات الموثقة. قد يُحتسب الشخص الموجود في أكثر من مجموعة خارجية في أكثر من عدد عضوية.')}</p>
+              </>
+            )}
           </section>
 
           <section className="panel dashboard-chart-panel" aria-label={tr('Messages trend', 'اتجاه الرسائل')}>
