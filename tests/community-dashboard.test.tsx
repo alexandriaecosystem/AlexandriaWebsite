@@ -46,15 +46,17 @@ describe('community platform stats', () => {
 });
 
 describe('CommunityPieChart', () => {
-  it('renders exact General and VIP values with an accessible text equivalent', () => {
+  it('renders exact values and visible General/VIP percentages with an accessible text equivalent', () => {
     render(<CommunityPieChart label="Telegram" general={18} vip={6} />);
-    expect(screen.getByRole('img', { name: 'Telegram: 18 General, 6 VIP' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Telegram: 18 General (75%), 6 VIP (25%)' })).toBeInTheDocument();
     expect(screen.getByText('18 General')).toBeInTheDocument();
     expect(screen.getByText('6 VIP')).toBeInTheDocument();
+    expect(screen.getByText('75%')).toBeInTheDocument();
+    expect(screen.getByText('25%')).toBeInTheDocument();
   });
 
   it('handles an empty membership total without invalid chart math', () => {
     render(<CommunityPieChart label="WhatsApp" general={0} vip={0} />);
-    expect(screen.getByRole('img', { name: 'WhatsApp: 0 General, 0 VIP' })).toHaveAttribute('data-vip-percent', '0');
+    expect(screen.getByRole('img', { name: 'WhatsApp: 0 General (0%), 0 VIP (0%)' })).toHaveAttribute('data-vip-percent', '0');
   });
 });
