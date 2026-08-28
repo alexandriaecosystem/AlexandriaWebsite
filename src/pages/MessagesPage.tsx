@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '../components/AsyncState';
+import { AiSleepPanel } from '../components/AiSleepPanel';
 import { getSupabaseClient } from '../services/supabase';
 import { listAdminUsers, type AdminUserListItem } from '../services/users-admin';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -31,6 +32,7 @@ export function MessagesPage() {
   const [view, setView] = useState<'all' | 'unread'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTakeovers, setActiveTakeovers] = useState(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -69,10 +71,13 @@ export function MessagesPage() {
           <p className="muted page-subtitle">{tr('See the latest private message first, spot new conversations, and open the full user history.', 'شاهد أحدث رسالة خاصة أولاً، وتعرّف على المحادثات الجديدة، وافتح سجل المستخدم الكامل.')}</p>
         </div>
         <div className="header-status-group">
+          {activeTakeovers > 0 && <span className="status-pill negative">☾ {activeTakeovers} {tr('human takeover', 'تحكم بشري')}</span>}
           {unreadCount > 0 && <span className="status-pill positive">{unreadCount} {tr('new', 'جديد')}</span>}
           <span className="status-pill neutral">{conversations.length.toLocaleString()} {tr('conversations', 'محادثة')}</span>
         </div>
       </header>
+
+      <AiSleepPanel onActiveCountChange={setActiveTakeovers} />
 
       <div className="toolbar messages-toolbar">
         <label className="search-field">

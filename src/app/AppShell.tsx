@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import { useLanguage } from '../i18n/LanguageContext';
+import { AdminAgentPanel } from '../components/AdminAgentPanel';
 import alexandriaLogo from '../assets/alexandria-logo.svg';
 import './AppShell.css';
 
@@ -110,6 +111,7 @@ export function AppShell() {
         </div>
       </aside>
       <main id="main-content" className="content" tabIndex={-1}><Outlet /></main>
+      <AdminAgentPanel />
     </div>
   );
 }

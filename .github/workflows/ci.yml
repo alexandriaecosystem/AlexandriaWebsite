@@ -31,5 +31,13 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check admin agent Edge Function
+        run: deno check --node-modules-dir=auto supabase/functions/admin-agent/index.ts
+
       - name: Build
         run: npm run build
