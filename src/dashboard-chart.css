@@ -1,3 +1,8 @@
+.dashboard-essential-metrics{margin-bottom:16px}
+.dashboard-platform-panel{margin-top:0}
+.dashboard-platform-chart{justify-content:center;min-height:230px}
+.dashboard-attention-panel{margin-top:16px}
+
 .dashboard-chart-panel { margin-top: 16px; }
 .dashboard-chart-panel .section-heading { align-items: end; gap: 18px; }
 .dashboard-chart-summary { text-align: right; }
@@ -79,6 +84,7 @@
   .dashboard-chart-summary { text-align: left; }
   [dir='rtl'] .dashboard-chart-summary{text-align:right}
   .community-platform-distribution{align-items:flex-start;flex-direction:column}
+  .dashboard-platform-chart{align-items:center}
   .community-overall{align-items:flex-start;flex-direction:column}
 }
 
