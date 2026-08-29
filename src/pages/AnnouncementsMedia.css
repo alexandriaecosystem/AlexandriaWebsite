@@ -1,0 +1,139 @@
+.announcement-content-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.announcement-media-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.announcement-media-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 84px;
+  padding: 14px;
+  border: 1px dashed #94a3b8;
+  border-radius: 13px;
+  background: #f8fafc;
+  color: var(--muted-strong);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .16s ease, background .16s ease;
+}
+
+.announcement-media-input:hover {
+  border-color: #60a5fa;
+  background: #eff6ff;
+}
+
+.announcement-media-input input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.announcement-media-input strong,
+.announcement-media-input small {
+  display: block;
+}
+
+.announcement-media-input strong {
+  font-size: .78rem;
+}
+
+.announcement-media-input small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.selected-announcement-image {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.selected-announcement-image img,
+.announcement-preview-image,
+.review-announcement-image {
+  display: block;
+  width: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #e2e8f0;
+}
+
+.selected-announcement-image img {
+  width: 84px;
+  height: 64px;
+}
+
+.selected-announcement-image-copy {
+  min-width: 0;
+}
+
+.selected-announcement-image-copy strong,
+.selected-announcement-image-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-announcement-image-copy strong {
+  font-size: .76rem;
+}
+
+.selected-announcement-image-copy small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .66rem;
+}
+
+.remove-announcement-image {
+  width: auto;
+  padding: 7px 10px;
+  font-size: .68rem;
+}
+
+.announcement-preview-image {
+  max-height: 240px;
+  margin: 8px 0 10px;
+}
+
+.review-announcement-image {
+  max-height: 360px;
+  margin-bottom: 10px;
+}
+
+.image-only-label {
+  color: var(--muted);
+  font-size: .76rem;
+  font-style: italic;
+}
+
+@media (max-width: 520px) {
+  .selected-announcement-image {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+
+  .selected-announcement-image img {
+    width: 70px;
+    height: 58px;
+  }
+
+  .remove-announcement-image {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
