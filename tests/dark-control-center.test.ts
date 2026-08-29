@@ -14,15 +14,18 @@ describe('dark control center architecture', () => {
     expect(main).not.toMatch(/admin-theme\.css|modern-ui\.css|mobile-shell\.css/);
   });
 
-  it('defines the canonical premium charcoal and gold tokens', () => {
-    const styles = source('src/styles.css');
-    expect(styles).toContain('--bg: #0b0d10');
-    expect(styles).toContain('--surface: #111418');
-    expect(styles).toContain('--surface-raised: #1c2128');
-    expect(styles).toContain('--accent: #d4a83f');
-    expect(styles).toContain('--accent-strong: #e4be61');
-    expect(styles).toContain('--secondary-accent: #c79a32');
-    expect(styles).toContain('color-scheme: dark');
+  it('loads one premium charcoal and gold theme layer last', () => {
+    const main = source('src/main.tsx');
+    expect(main).toContain("import './premium-palette.css';");
+    expect(main.trim()).toMatch(/import '\.\/premium-palette\.css';[\s\S]*const root/);
+
+    const palette = source('src/premium-palette.css');
+    expect(palette).toContain('--bg: #0b0d10');
+    expect(palette).toContain('--surface: #111418');
+    expect(palette).toContain('--surface-raised: #1c2128');
+    expect(palette).toContain('--accent: #d4a83f');
+    expect(palette).toContain('--accent-strong: #e4be61');
+    expect(palette).toContain('--secondary-accent: #c79a32');
   });
 
   it('keeps the responsive app shell dark and reduced-motion safe', () => {
@@ -43,10 +46,10 @@ describe('dark control center architecture', () => {
     expect(advanced).not.toMatch(/background:\s*#fff(?:;|\s)/);
   });
 
-  it('keeps purple and cyan out of the shared premium accent system', () => {
-    const styles = source('src/styles.css');
-    expect(styles).not.toContain('#806cff');
-    expect(styles).not.toContain('#50d9c1');
-    expect(styles).not.toContain('rgba(128,108,255');
+  it('keeps purple and cyan out of the final premium theme layer', () => {
+    const palette = source('src/premium-palette.css');
+    expect(palette).not.toContain('#806cff');
+    expect(palette).not.toContain('#50d9c1');
+    expect(palette).not.toContain('rgba(128,108,255');
   });
 });
