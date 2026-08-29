@@ -14,14 +14,18 @@ describe('dark control center architecture', () => {
     expect(main).not.toMatch(/admin-theme\.css|modern-ui\.css|mobile-shell\.css/);
   });
 
-  it('defines the canonical dark surface and accent tokens', () => {
-    const styles = source('src/styles.css');
-    expect(styles).toContain('--bg: #070b13');
-    expect(styles).toContain('--surface: #0d1420');
-    expect(styles).toContain('--surface-raised: #111a29');
-    expect(styles).toContain('--accent: #806cff');
-    expect(styles).toContain('--secondary-accent: #50d9c1');
-    expect(styles).toContain('color-scheme: dark');
+  it('loads one premium charcoal and gold theme layer last', () => {
+    const main = source('src/main.tsx');
+    expect(main).toContain("import './premium-palette.css';");
+    expect(main.trim()).toMatch(/import '\.\/premium-palette\.css';[\s\S]*const root/);
+
+    const palette = source('src/premium-palette.css');
+    expect(palette).toContain('--bg: #0b0d10');
+    expect(palette).toContain('--surface: #111418');
+    expect(palette).toContain('--surface-raised: #1c2128');
+    expect(palette).toContain('--accent: #d4a83f');
+    expect(palette).toContain('--accent-strong: #e4be61');
+    expect(palette).toContain('--secondary-accent: #c79a32');
   });
 
   it('keeps the responsive app shell dark and reduced-motion safe', () => {
@@ -40,5 +44,12 @@ describe('dark control center architecture', () => {
     expect(ux).not.toMatch(/background:\s*#f8fafc/);
     expect(knowledge).not.toMatch(/background:\s*#fff(?:;|\s)/);
     expect(advanced).not.toMatch(/background:\s*#fff(?:;|\s)/);
+  });
+
+  it('keeps purple and cyan out of the final premium theme layer', () => {
+    const palette = source('src/premium-palette.css');
+    expect(palette).not.toContain('#806cff');
+    expect(palette).not.toContain('#50d9c1');
+    expect(palette).not.toContain('rgba(128,108,255');
   });
 });

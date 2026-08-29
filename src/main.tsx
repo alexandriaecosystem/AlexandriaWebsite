@@ -8,6 +8,7 @@ import './ux-system.css';
 import './advanced-ux.css';
 import './qa-responsive.css';
 import './knowledge-analytics-ux.css';
+import './premium-palette.css';
 
 const root = document.getElementById('root');
 
