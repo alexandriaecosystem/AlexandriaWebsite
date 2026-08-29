@@ -12,7 +12,7 @@
   position: relative;
   overflow: hidden;
   border-radius: 999px;
-  background: #e8eef6;
+  background: #182334;
 }
 
 .skeleton-lines span {
@@ -29,7 +29,7 @@
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.78), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
   animation: skeleton-shimmer 1.35s ease-in-out infinite;
 }
 
@@ -65,9 +65,9 @@
   gap: 12px;
   margin: 0 0 14px;
   padding: 10px 12px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid rgba(128,108,255,.28);
   border-radius: 13px;
-  background: #eff6ff;
+  background: var(--accent-soft);
 }
 
 .bulk-toolbar-copy {
@@ -84,14 +84,14 @@
   height: 28px;
   padding: 0 8px;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--accent);
   color: #fff;
   font-size: .72rem;
   font-weight: 900;
 }
 
 .bulk-toolbar-copy span:last-child {
-  color: #1e3a5f;
+  color: var(--muted-strong);
   font-size: .82rem;
   font-weight: 750;
 }
@@ -115,7 +115,7 @@
   min-width: 18px;
   height: 18px;
   min-height: 18px;
-  accent-color: #2563eb;
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
@@ -129,8 +129,8 @@
 }
 
 .document-card.selected-document {
-  border-color: #93c5fd;
-  box-shadow: 0 8px 26px rgba(37, 99, 235, .09);
+  border-color: rgba(128,108,255,.46);
+  box-shadow: 0 12px 30px rgba(0,0,0,.18), inset 0 0 0 1px rgba(128,108,255,.08);
 }
 
 .table-tools {
@@ -152,8 +152,8 @@
   padding: 9px 10px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 3px 10px rgba(15,23,42,.035);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .review-nav-links {
@@ -193,7 +193,7 @@
   min-width: 18px;
   height: 18px;
   min-height: 18px;
-  accent-color: #2563eb;
+  accent-color: var(--accent);
 }
 
 .table-check-cell {
@@ -281,12 +281,12 @@ html[dir='rtl'] .bulk-actions {
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 14px;
-    background: #fff;
-    box-shadow: 0 5px 16px rgba(15,23,42,.045);
+    background: var(--surface);
+    box-shadow: var(--shadow-soft);
   }
 
   table.responsive-table tbody tr:hover {
-    background: #fff;
+    background: var(--surface-raised);
   }
 
   table.responsive-table td {
@@ -297,7 +297,7 @@ html[dir='rtl'] .bulk-actions {
     width: 100%;
     min-height: 48px;
     padding: 11px 13px;
-    border-bottom: 1px solid #eef2f7;
+    border-bottom: 1px solid var(--border);
     text-align: left;
   }
 
@@ -307,7 +307,7 @@ html[dir='rtl'] .bulk-actions {
 
   table.responsive-table td::before {
     content: attr(data-label);
-    color: #64748b;
+    color: var(--muted);
     font-size: .66rem;
     font-weight: 800;
     letter-spacing: .05em;
@@ -362,7 +362,7 @@ html[dir='rtl'] .bulk-actions {
     justify-content: center;
     width: 100%;
     min-height: 40px;
-    background: #eff6ff;
+    background: var(--accent-soft);
   }
 
   table.responsive-table .table-check-cell {
