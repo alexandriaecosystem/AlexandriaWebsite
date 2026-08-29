@@ -152,8 +152,12 @@ html[dir='rtl'] .responsive-table .row-link {
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 14px;
-    background: #fff;
-    box-shadow: 0 5px 16px rgba(15, 23, 42, .045);
+    background: var(--surface);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .announcement-history-card tbody tr:hover {
+    background: var(--surface-raised);
   }
 
   .announcement-history-card tbody td {
@@ -163,12 +167,12 @@ html[dir='rtl'] .responsive-table .row-link {
     align-items: start;
     min-height: 48px;
     padding: 11px 13px;
-    border-bottom: 1px solid #eef2f7;
+    border-bottom: 1px solid var(--border);
     text-align: left;
   }
 
   .announcement-history-card tbody td::before {
-    color: #64748b;
+    color: var(--muted);
     font-size: .66rem;
     font-weight: 800;
     letter-spacing: .05em;
