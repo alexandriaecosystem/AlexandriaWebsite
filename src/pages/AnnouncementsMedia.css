@@ -1,6 +1,6 @@
 .announcement-content-grid {
   display: grid;
-  gap: 12px;
+  gap: 11px;
 }
 
 .announcement-media-picker {
@@ -13,20 +13,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 84px;
+  min-height: 78px;
   padding: 14px;
-  border: 1px dashed #94a3b8;
-  border-radius: 13px;
-  background: #f8fafc;
+  border: 1px dashed rgba(212, 168, 63, .34);
+  border-radius: 12px;
+  background: var(--panel-soft);
   color: var(--muted-strong);
   cursor: pointer;
   text-align: center;
-  transition: border-color .16s ease, background .16s ease;
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
 }
 
 .announcement-media-input:hover {
-  border-color: #60a5fa;
-  background: #eff6ff;
+  transform: translateY(-1px);
+  border-color: rgba(228, 190, 97, .62);
+  background: rgba(212, 168, 63, .055);
 }
 
 .announcement-media-input input {
@@ -43,13 +44,14 @@
 }
 
 .announcement-media-input strong {
-  font-size: .78rem;
+  color: var(--accent-strong);
+  font-size: .77rem;
 }
 
 .announcement-media-input small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: .68rem;
+  font-size: .67rem;
 }
 
 .selected-announcement-image {
@@ -59,8 +61,8 @@
   align-items: center;
   padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 13px;
-  background: #fff;
+  border-radius: 12px;
+  background: var(--surface-raised);
 }
 
 .selected-announcement-image img,
@@ -69,8 +71,9 @@
   display: block;
   width: 100%;
   object-fit: cover;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #e2e8f0;
+  background: var(--surface);
 }
 
 .selected-announcement-image img {
@@ -91,19 +94,27 @@
 }
 
 .selected-announcement-image-copy strong {
-  font-size: .76rem;
+  font-size: .75rem;
 }
 
 .selected-announcement-image-copy small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: .66rem;
+  font-size: .65rem;
 }
 
 .remove-announcement-image {
   width: auto;
   padding: 7px 10px;
-  font-size: .68rem;
+  border-color: rgba(239, 116, 128, .20);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: .67rem;
+}
+
+.remove-announcement-image:hover:not(:disabled) {
+  border-color: rgba(239, 116, 128, .42);
+  background: rgba(239, 116, 128, .14);
 }
 
 .announcement-preview-image {
@@ -118,7 +129,7 @@
 
 .image-only-label {
   color: var(--muted);
-  font-size: .76rem;
+  font-size: .75rem;
   font-style: italic;
 }
 

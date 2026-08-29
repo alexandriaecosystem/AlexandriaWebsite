@@ -78,22 +78,22 @@ export function UsersPage() {
 
   return (
     <>
-      <header className="page-header">
+      <header className="page-header users-page-header">
         <div>
           <p className="eyebrow">{tr('Community', 'المجتمع')}</p>
           <h1>{tr('Users', 'المستخدمون')}</h1>
-          <p className="muted page-subtitle">{tr('View every known user and open their private conversation history across connected platforms.', 'اعرض جميع المستخدمين وافتح سجل المحادثات الخاصة بهم عبر المنصات المرتبطة.')}</p>
+          <p className="muted page-subtitle">{tr('Manage members and review activity across every connected community platform.', 'أدر الأعضاء وراجع النشاط عبر جميع منصات المجتمع المرتبطة.')}</p>
         </div>
-        <span className="status-pill neutral">{total.toLocaleString()} {tr('users', 'مستخدم')}</span>
+        <span className="status-pill neutral users-total-pill">{total.toLocaleString()} {tr('users', 'مستخدم')}</span>
       </header>
 
-      <div className="toolbar">
-        <label className="search-field">
+      <div className="toolbar users-toolbar">
+        <label className="search-field users-search-field">
           <span className="search-icon" aria-hidden="true">⌕</span>
           <span className="sr-only">{tr('Search users', 'بحث المستخدمين')}</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr('Search by name, username, phone or platform ID…', 'ابحث بالاسم أو اسم المستخدم أو الهاتف أو معرّف المنصة…')} />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr('Search name, username, phone or platform ID…', 'ابحث بالاسم أو اسم المستخدم أو الهاتف أو معرّف المنصة…')} />
         </label>
-        <div className="table-tools">
+        <div className="table-tools users-table-tools">
           <label className="select-field">
             <span className="sr-only">{tr('Sort users', 'ترتيب المستخدمين')}</span>
             <select value={sort} onChange={(event) => setSort(event.target.value as UserSort)}>
@@ -116,9 +116,9 @@ export function UsersPage() {
       )}
 
       {loading ? <TableSkeleton columns={8} rows={7} /> : (
-        <section className="table-card mobile-card-table">
+        <section className="table-card mobile-card-table users-table-card">
           <div className="table-scroll">
-            <table className="responsive-table">
+            <table className="responsive-table users-table">
               <thead>
                 <tr>
                   <th className="table-check-cell"><input className="row-select" type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label={tr('Select all visible users', 'تحديد جميع المستخدمين الظاهرين')} /></th>
@@ -128,15 +128,15 @@ export function UsersPage() {
                   <th>{tr('Score', 'النتيجة')}</th>
                   <th>{tr('Status', 'الحالة')}</th>
                   <th>{tr('Last message', 'آخر رسالة')}</th>
-                  <th />
+                  <th aria-label={tr('Actions', 'الإجراءات')} />
                 </tr>
               </thead>
               <tbody>
                 {visibleItems.map((user) => (
-                  <tr key={user.id}>
+                  <tr key={user.id} className="user-table-row">
                     <td className="table-check-cell" data-label={tr('Select', 'تحديد')}><input className="row-select" type="checkbox" checked={selected.includes(user.id)} onChange={() => toggleUser(user.id)} aria-label={tr(`Select ${user.name || 'user'}`, `تحديد ${user.name || 'المستخدم'}`)} /></td>
                     <td data-label={tr('User', 'المستخدم')}>
-                      <div className="identity-cell">
+                      <div className="identity-cell user-identity-cell">
                         <span className="avatar">{initials(user.name)}</span>
                         <span>
                           <strong>{user.name || tr('Unnamed user', 'مستخدم بدون اسم')}</strong>
@@ -148,8 +148,8 @@ export function UsersPage() {
                     <td data-label={tr('Messages', 'الرسائل')}><strong>{user.messageCount.toLocaleString()}</strong></td>
                     <td data-label={tr('Score', 'النتيجة')}>{user.finalScore == null ? '—' : <span className="score-cell"><strong>{Math.round(user.finalScore)}</strong><small>/100</small></span>}</td>
                     <td data-label={tr('Status', 'الحالة')}><span className={`status-pill ${user.status === 'ACTIVE' ? 'positive' : 'neutral'}`}>{user.applicationStatus || user.status}</span></td>
-                    <td data-label={tr('Last message', 'آخر رسالة')} className="muted">{formatDate(user.lastMessageAt)}</td>
-                    <td data-label="" className="table-action"><Link className="row-link" to={`/users/${user.id}`}>{tr('View messages', 'عرض الرسائل')} →</Link></td>
+                    <td data-label={tr('Last message', 'آخر رسالة')} className="muted user-last-message">{formatDate(user.lastMessageAt)}</td>
+                    <td data-label="" className="table-action users-action-cell"><Link className="user-row-action" to={`/users/${user.id}`} aria-label={tr('Open conversation', 'فتح المحادثة')} title={tr('Open conversation', 'فتح المحادثة')}>↗</Link></td>
                   </tr>
                 ))}
                 {!visibleItems.length && <tr><td colSpan={8} className="empty-row">{tr('No users found.', 'لم يتم العثور على مستخدمين.')}</td></tr>}

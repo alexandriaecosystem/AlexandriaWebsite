@@ -46,6 +46,30 @@ describe('dark control center architecture', () => {
     expect(advanced).not.toMatch(/background:\s*#fff(?:;|\s)/);
   });
 
+  it('keeps the announcement composer inside the dark premium surface system', () => {
+    const announcements = source('src/pages/AnnouncementsPage.css');
+    const media = source('src/pages/AnnouncementsMedia.css');
+    expect(announcements).not.toMatch(/background:\s*#fff(?:;|\s)/);
+    expect(announcements).not.toMatch(/background:\s*#f8fafc/);
+    expect(media).not.toMatch(/background:\s*#fff(?:;|\s)/);
+    expect(media).not.toMatch(/background:\s*#f8fafc/);
+    expect(announcements).toContain('background: var(--surface-raised)');
+    expect(media).toContain('background: var(--surface-raised)');
+    expect(announcements).toContain('.composer-step');
+  });
+
+  it('uses a compact users workspace and icon conversation actions', () => {
+    const usersPage = source('src/pages/UsersPage.tsx');
+    const usersStyles = source('src/users.css');
+    expect(usersPage).toContain('className="page-header users-page-header"');
+    expect(usersPage).toContain('className="toolbar users-toolbar"');
+    expect(usersPage).toContain('className="user-row-action"');
+    expect(usersPage).toContain("aria-label={tr('Open conversation', 'فتح المحادثة')}");
+    expect(usersStyles).toContain('.users-page-header');
+    expect(usersStyles).toContain('.users-toolbar');
+    expect(usersStyles).toContain('.user-row-action');
+  });
+
   it('keeps purple and cyan out of the final premium theme layer', () => {
     const palette = source('src/premium-palette.css');
     expect(palette).not.toContain('#806cff');
