@@ -43,6 +43,63 @@ describe('community platform stats', () => {
     });
     expect(client.rpc).toHaveBeenCalledWith('admin_get_community_platform_stats');
   });
+
+  it('falls back to the existing admin user list when the platform-stats RPC is unavailable', async () => {
+    const client = {
+      rpc: vi.fn()
+        .mockResolvedValueOnce({ data: null, error: { message: 'Could not find the function public.admin_get_community_platform_stats' } })
+        .mockResolvedValueOnce({
+          data: {
+            total: 3,
+            items: [
+              { id: 'user-1', platforms: ['TELEGRAM'] },
+              { id: 'user-2', platforms: ['TELEGRAM', 'WHATSAPP'] },
+              { id: 'user-3', platforms: ['DISCORD'] },
+            ],
+          },
+          error: null,
+        }),
+    };
+
+    await expect(getCommunityPlatformStats(client as never)).resolves.toEqual({
+      platforms: [
+        {
+          platform: 'TELEGRAM',
+          knownUsers: 2,
+          generalMembers: 0,
+          vipMembers: 0,
+          verifiedMembers: 0,
+          lastVerifiedAt: null,
+          verificationConnected: false,
+        },
+        {
+          platform: 'DISCORD',
+          knownUsers: 1,
+          generalMembers: 0,
+          vipMembers: 0,
+          verifiedMembers: 0,
+          lastVerifiedAt: null,
+          verificationConnected: false,
+        },
+        {
+          platform: 'WHATSAPP',
+          knownUsers: 1,
+          generalMembers: 0,
+          vipMembers: 0,
+          verifiedMembers: 0,
+          lastVerifiedAt: null,
+          verificationConnected: false,
+        },
+      ],
+      overall: { knownUsers: 3, generalMembers: 0, vipMembers: 0, verifiedMembers: 0 },
+    });
+    expect(client.rpc).toHaveBeenNthCalledWith(1, 'admin_get_community_platform_stats');
+    expect(client.rpc).toHaveBeenNthCalledWith(2, 'admin_list_users', {
+      p_limit: 200,
+      p_offset: 0,
+      p_search: null,
+    });
+  });
 });
 
 describe('CommunityPieChart', () => {

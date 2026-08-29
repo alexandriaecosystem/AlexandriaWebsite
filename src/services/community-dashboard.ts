@@ -22,17 +22,15 @@ export type CommunityPlatformStats = {
   };
 };
 
+const platforms: CommunityPlatform[] = ['TELEGRAM', 'DISCORD', 'WHATSAPP'];
+const fallbackPageSize = 200;
+
 const numberValue = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
 const nullableString = (value: unknown) => value == null ? null : String(value);
 
-export async function getCommunityPlatformStats(client: SupabaseClient): Promise<CommunityPlatformStats> {
-  const { data, error } = await client.rpc('admin_get_community_platform_stats');
-  if (error) throw new Error(error.message);
-  if (!data || typeof data !== 'object') throw new Error('The server returned no community membership data.');
-
-  const value = data as Record<string, unknown>;
-  const rawPlatforms = Array.isArray(value.platforms) ? value.platforms as Record<string, unknown>[] : [];
-  const overall = value.overall && typeof value.overall === 'object' ? value.overall as Record<string, unknown> : {};
+function normalizeStats(data: Record<string, unknown>): CommunityPlatformStats {
+  const rawPlatforms = Array.isArray(data.platforms) ? data.platforms as Record<string, unknown>[] : [];
+  const overall = data.overall && typeof data.overall === 'object' ? data.overall as Record<string, unknown> : {};
 
   return {
     platforms: rawPlatforms.map((item) => ({
@@ -51,4 +49,70 @@ export async function getCommunityPlatformStats(client: SupabaseClient): Promise
       verifiedMembers: numberValue(overall.verified_members),
     },
   };
+}
+
+async function getKnownUserPlatformFallback(client: SupabaseClient): Promise<CommunityPlatformStats> {
+  const usersByPlatform = new Map<CommunityPlatform, Set<string>>(
+    platforms.map((platform) => [platform, new Set<string>()] as const),
+  );
+  const knownUsers = new Set<string>();
+  let offset = 0;
+  let total = 0;
+
+  do {
+    const { data, error } = await client.rpc('admin_list_users', {
+      p_limit: fallbackPageSize,
+      p_offset: offset,
+      p_search: null,
+    });
+    if (error) throw new Error(error.message);
+    if (!data || typeof data !== 'object') throw new Error('The server returned no user data for platform distribution.');
+
+    const value = data as Record<string, unknown>;
+    const items = Array.isArray(value.items) ? value.items as Record<string, unknown>[] : [];
+    total = numberValue(value.total);
+
+    items.forEach((item, index) => {
+      const userId = item.id == null ? `fallback-${offset + index}` : String(item.id);
+      const userPlatforms = Array.isArray(item.platforms)
+        ? new Set(item.platforms.map((platform) => String(platform).toUpperCase()))
+        : new Set<string>();
+
+      let hasSupportedPlatform = false;
+      for (const platform of platforms) {
+        if (!userPlatforms.has(platform)) continue;
+        usersByPlatform.get(platform)?.add(userId);
+        hasSupportedPlatform = true;
+      }
+      if (hasSupportedPlatform) knownUsers.add(userId);
+    });
+
+    if (items.length === 0) break;
+    offset += items.length;
+  } while (offset < total);
+
+  return {
+    platforms: platforms.map((platform) => ({
+      platform,
+      knownUsers: usersByPlatform.get(platform)?.size ?? 0,
+      generalMembers: 0,
+      vipMembers: 0,
+      verifiedMembers: 0,
+      lastVerifiedAt: null,
+      verificationConnected: false,
+    })),
+    overall: {
+      knownUsers: knownUsers.size,
+      generalMembers: 0,
+      vipMembers: 0,
+      verifiedMembers: 0,
+    },
+  };
+}
+
+export async function getCommunityPlatformStats(client: SupabaseClient): Promise<CommunityPlatformStats> {
+  const { data, error } = await client.rpc('admin_get_community_platform_stats');
+  if (!error && data && typeof data === 'object') return normalizeStats(data as Record<string, unknown>);
+
+  return getKnownUserPlatformFallback(client);
 }
