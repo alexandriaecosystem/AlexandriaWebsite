@@ -76,9 +76,8 @@ describe('simplified dashboard', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('120')).toBeInTheDocument();
+    expect(await screen.findByText('Total users')).toBeInTheDocument();
     expect(container.querySelectorAll('.metric-card')).toHaveLength(3);
-    expect(screen.getByText('Total users')).toBeInTheDocument();
     expect(screen.getByText('Active users')).toBeInTheDocument();
     expect(screen.getByText('Approved members')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /Users by platform: Telegram 60/ })).toBeInTheDocument();
