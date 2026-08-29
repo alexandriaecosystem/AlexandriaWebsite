@@ -96,6 +96,7 @@
     height: 100dvh;
     display: flex;
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
     gap: 0;
     padding: 18px 16px 16px;
@@ -142,6 +143,8 @@
   }
 
   .app-shell .sidebar > nav {
+    order: 0;
+    flex: 1 1 auto;
     display: grid;
     width: 100%;
     margin: 0;
@@ -168,6 +171,7 @@
   }
 
   .app-shell .sidebar .sidebar-footer {
+    order: 1;
     display: grid;
     margin-top: auto;
     margin-left: 0;
