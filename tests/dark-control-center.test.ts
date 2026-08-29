@@ -14,13 +14,14 @@ describe('dark control center architecture', () => {
     expect(main).not.toMatch(/admin-theme\.css|modern-ui\.css|mobile-shell\.css/);
   });
 
-  it('defines the canonical dark surface and accent tokens', () => {
+  it('defines the canonical premium charcoal and gold tokens', () => {
     const styles = source('src/styles.css');
-    expect(styles).toContain('--bg: #070b13');
-    expect(styles).toContain('--surface: #0d1420');
-    expect(styles).toContain('--surface-raised: #111a29');
-    expect(styles).toContain('--accent: #806cff');
-    expect(styles).toContain('--secondary-accent: #50d9c1');
+    expect(styles).toContain('--bg: #0b0d10');
+    expect(styles).toContain('--surface: #111418');
+    expect(styles).toContain('--surface-raised: #1c2128');
+    expect(styles).toContain('--accent: #d4a83f');
+    expect(styles).toContain('--accent-strong: #e4be61');
+    expect(styles).toContain('--secondary-accent: #c79a32');
     expect(styles).toContain('color-scheme: dark');
   });
 
@@ -40,5 +41,12 @@ describe('dark control center architecture', () => {
     expect(ux).not.toMatch(/background:\s*#f8fafc/);
     expect(knowledge).not.toMatch(/background:\s*#fff(?:;|\s)/);
     expect(advanced).not.toMatch(/background:\s*#fff(?:;|\s)/);
+  });
+
+  it('keeps purple and cyan out of the shared premium accent system', () => {
+    const styles = source('src/styles.css');
+    expect(styles).not.toContain('#806cff');
+    expect(styles).not.toContain('#50d9c1');
+    expect(styles).not.toContain('rgba(128,108,255');
   });
 });
