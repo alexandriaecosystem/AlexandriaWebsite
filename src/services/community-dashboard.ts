@@ -52,7 +52,9 @@ function normalizeStats(data: Record<string, unknown>): CommunityPlatformStats {
 }
 
 async function getKnownUserPlatformFallback(client: SupabaseClient): Promise<CommunityPlatformStats> {
-  const usersByPlatform = new Map<CommunityPlatform, Set<string>>(platforms.map((platform) => [platform, new Set<string>()]));
+  const usersByPlatform = new Map<CommunityPlatform, Set<string>>(
+    platforms.map((platform) => [platform, new Set<string>()] as const),
+  );
   const knownUsers = new Set<string>();
   let offset = 0;
   let total = 0;
