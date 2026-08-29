@@ -10,6 +10,7 @@ import './advanced-ux.css';
 import './mobile-shell.css';
 import './qa-responsive.css';
 import './knowledge-analytics-ux.css';
+import './modern-ui.css';
 
 const root = document.getElementById('root');
 

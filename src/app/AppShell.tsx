@@ -4,33 +4,34 @@ import { getSupabaseClient } from '../services/supabase';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AdminAgentPanel } from '../components/AdminAgentPanel';
+import { NavIcon, type NavIconName } from '../components/NavIcon';
 import alexandriaLogo from '../assets/alexandria-logo.svg';
 import './AppShell.css';
 
-type NavItem = { to: string; en: string; ar: string; icon: string; end?: boolean };
+type NavItem = { to: string; en: string; ar: string; icon: NavIconName; end?: boolean };
 type NavGroup = { en: string; ar: string; items: NavItem[] };
 
 const navigation: NavGroup[] = [
   { en: 'Overview', ar: 'نظرة عامة', items: [
-    { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: '⌂', end: true },
+    { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: 'dashboard', end: true },
   ] },
   { en: 'Community', ar: 'المجتمع', items: [
-    { to: '/users', en: 'Users', ar: 'المستخدمون', icon: '◉' },
-    { to: '/messages', en: 'Messages', ar: 'الرسائل', icon: '✉' },
-    { to: '/reviews', en: 'Member reviews', ar: 'مراجعة الأعضاء', icon: '◎' },
-    { to: '/community', en: 'Approved community', ar: 'المجتمع المعتمد', icon: '✓' },
+    { to: '/users', en: 'Users', ar: 'المستخدمون', icon: 'users' },
+    { to: '/messages', en: 'Messages', ar: 'الرسائل', icon: 'messages' },
+    { to: '/reviews', en: 'Member reviews', ar: 'مراجعة الأعضاء', icon: 'reviews' },
+    { to: '/community', en: 'Approved community', ar: 'المجتمع المعتمد', icon: 'community' },
   ] },
   { en: 'Content', ar: 'المحتوى', items: [
-    { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: '◇' },
-    { to: '/knowledge-gaps', en: 'Knowledge gaps', ar: 'فجوات المعرفة', icon: '?' },
-    { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: '↗' },
+    { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: 'knowledge' },
+    { to: '/knowledge-gaps', en: 'Knowledge gaps', ar: 'فجوات المعرفة', icon: 'gaps' },
+    { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: 'announcements' },
   ] },
   { en: 'Insights', ar: 'المؤشرات', items: [
-    { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: '◫' },
-    { to: '/token-monitor', en: 'Token activity', ar: 'نشاط التوكن', icon: '◈' },
+    { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: 'analytics' },
+    { to: '/token-monitor', en: 'Token activity', ar: 'نشاط التوكن', icon: 'token' },
   ] },
   { en: 'Admin', ar: 'الإدارة', items: [
-    { to: '/account', en: 'Account & security', ar: 'الحساب والأمان', icon: '⚿' },
+    { to: '/account', en: 'Account & security', ar: 'الحساب والأمان', icon: 'account' },
   ] },
 ];
 
@@ -98,7 +99,7 @@ export function AppShell() {
               <div className="sidebar-section-label">{tr(group.en, group.ar)}</div>
               {group.items.map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMenuOpen(false)}>
-                  <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                  <span className="nav-icon"><NavIcon name={item.icon} /></span>
                   <span>{tr(item.en, item.ar)}</span>
                 </NavLink>
               ))}

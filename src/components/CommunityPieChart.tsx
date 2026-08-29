@@ -14,12 +14,44 @@ type PlatformUsersPieChartProps = {
   label?: string;
 };
 
+type Segment = {
+  value: number;
+  percent: number;
+  offset: number;
+  className: string;
+};
+
 function percentLabel(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 function safeCount(value: number): number {
   return Math.max(0, Number.isFinite(value) ? value : 0);
+}
+
+function percentage(value: number, total: number): number {
+  return total === 0 ? 0 : Math.round((value / total) * 1000) / 10;
+}
+
+function DonutSvg({ segments }: { segments: Segment[] }) {
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+  return (
+    <svg className="community-donut-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+      <circle className="community-donut-track" cx="60" cy="60" r="48" pathLength="100" />
+      {total > 0 && segments.map((segment) => (
+        <circle
+          key={segment.className}
+          className={`community-donut-segment ${segment.className}`}
+          cx="60"
+          cy="60"
+          r="48"
+          pathLength="100"
+          strokeDasharray={`${segment.percent} ${Math.max(0, 100 - segment.percent)}`}
+          strokeDashoffset={-segment.offset}
+        />
+      ))}
+    </svg>
+  );
 }
 
 export function CommunityPieChart({
@@ -33,13 +65,14 @@ export function CommunityPieChart({
   const safeGeneral = safeCount(general);
   const safeVip = safeCount(vip);
   const total = safeGeneral + safeVip;
-  const vipPercent = total === 0 ? 0 : Math.round((safeVip / total) * 1000) / 10;
+  const vipPercent = percentage(safeVip, total);
   const generalPercent = total === 0 ? 0 : Math.round((100 - vipPercent) * 10) / 10;
   const vipPercentText = percentLabel(vipPercent);
   const generalPercentText = percentLabel(generalPercent);
-  const chartBackground = total === 0
-    ? 'var(--border)'
-    : `conic-gradient(var(--accent) 0 ${generalPercent}%, var(--warning) ${generalPercent}% 100%)`;
+  const segments: Segment[] = [
+    { value: safeGeneral, percent: generalPercent, offset: 0, className: 'general-segment' },
+    { value: safeVip, percent: vipPercent, offset: generalPercent, className: 'vip-segment' },
+  ];
 
   return (
     <div className={`community-pie ${compact ? 'compact' : ''}`}>
@@ -48,8 +81,8 @@ export function CommunityPieChart({
         role="img"
         aria-label={`${label}: ${safeGeneral} ${generalLabel} (${generalPercentText}%), ${safeVip} ${vipLabel} (${vipPercentText}%)`}
         data-vip-percent={String(vipPercent)}
-        style={{ background: chartBackground }}
       >
+        <DonutSvg segments={segments} />
         <span aria-hidden="true" className="community-pie-center">
           <strong>{total.toLocaleString()}</strong>
           <small>{label}</small>
@@ -75,15 +108,14 @@ export function PlatformUsersPieChart({
   const whatsappCount = safeCount(whatsapp);
   const total = telegramCount + discordCount + whatsappCount;
 
-  const percentage = (value: number) => total === 0 ? 0 : Math.round((value / total) * 1000) / 10;
-  const telegramPercent = percentage(telegramCount);
-  const discordPercent = percentage(discordCount);
-  const whatsappPercent = percentage(whatsappCount);
-  const telegramEnd = total === 0 ? 0 : (telegramCount / total) * 100;
-  const discordEnd = total === 0 ? 0 : ((telegramCount + discordCount) / total) * 100;
-  const chartBackground = total === 0
-    ? 'var(--border)'
-    : `conic-gradient(#229ed9 0 ${telegramEnd}%, #5865f2 ${telegramEnd}% ${discordEnd}%, #25d366 ${discordEnd}% 100%)`;
+  const telegramPercent = percentage(telegramCount, total);
+  const discordPercent = percentage(discordCount, total);
+  const whatsappPercent = percentage(whatsappCount, total);
+  const segments: Segment[] = [
+    { value: telegramCount, percent: telegramPercent, offset: 0, className: 'telegram-segment' },
+    { value: discordCount, percent: discordPercent, offset: telegramPercent, className: 'discord-segment' },
+    { value: whatsappCount, percent: whatsappPercent, offset: telegramPercent + discordPercent, className: 'whatsapp-segment' },
+  ];
 
   return (
     <div className="community-pie platform-users-pie">
@@ -91,8 +123,8 @@ export function PlatformUsersPieChart({
         className="community-pie-visual"
         role="img"
         aria-label={`${label}: Telegram ${telegramCount} (${percentLabel(telegramPercent)}%), Discord ${discordCount} (${percentLabel(discordPercent)}%), WhatsApp ${whatsappCount} (${percentLabel(whatsappPercent)}%)`}
-        style={{ background: chartBackground }}
       >
+        <DonutSvg segments={segments} />
         <span aria-hidden="true" className="community-pie-center">
           <strong>{total.toLocaleString()}</strong>
           <small>{label}</small>
