@@ -6,7 +6,7 @@ import { getMessageTimeseries, listKnowledgeGaps, type MessageSeriesPoint } from
 import { getCommunityPlatformStats, type CommunityPlatform, type CommunityPlatformStats } from '../services/community-dashboard';
 import type { DashboardMetrics } from '../types/contracts';
 import { LoadingState, RetryableErrorState } from '../components/AsyncState';
-import { CommunityPieChart } from '../components/CommunityPieChart';
+import { CommunityPieChart, PlatformUsersPieChart } from '../components/CommunityPieChart';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../dashboard-chart.css';
 
@@ -119,6 +119,20 @@ export function DashboardPage() {
               </div>
             ) : (
               <>
+                <div className="community-platform-distribution">
+                  <div className="community-platform-distribution-copy">
+                    <p className="eyebrow">{tr('User distribution', 'توزيع المستخدمين')}</p>
+                    <h3>{tr('Users by platform', 'المستخدمون حسب المنصة')}</h3>
+                    <p className="muted">{tr('Known users split across Telegram, Discord and WhatsApp.', 'توزيع المستخدمين المعروفين بين Telegram وDiscord وWhatsApp.')}</p>
+                  </div>
+                  <PlatformUsersPieChart
+                    telegram={platformStats[0].knownUsers}
+                    discord={platformStats[1].knownUsers}
+                    whatsapp={platformStats[2].knownUsers}
+                    label={tr('Users by platform', 'المستخدمون حسب المنصة')}
+                  />
+                </div>
+
                 <div className="community-overall">
                   <CommunityPieChart
                     label={tr('All platforms', 'كل المنصات')}

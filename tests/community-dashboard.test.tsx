@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CommunityPieChart } from '../src/components/CommunityPieChart';
+import { CommunityPieChart, PlatformUsersPieChart } from '../src/components/CommunityPieChart';
 import { getCommunityPlatformStats } from '../src/services/community-dashboard';
 
 afterEach(() => cleanup());
@@ -58,5 +58,21 @@ describe('CommunityPieChart', () => {
   it('handles an empty membership total without invalid chart math', () => {
     render(<CommunityPieChart label="WhatsApp" general={0} vip={0} />);
     expect(screen.getByRole('img', { name: 'WhatsApp: 0 General (0%), 0 VIP (0%)' })).toHaveAttribute('data-vip-percent', '0');
+  });
+});
+
+describe('PlatformUsersPieChart', () => {
+  it('shows the known-user distribution across Telegram, Discord and WhatsApp', () => {
+    render(<PlatformUsersPieChart telegram={24} discord={12} whatsapp={4} />);
+
+    expect(
+      screen.getByRole('img', {
+        name: 'Users by platform: Telegram 24 (60%), Discord 12 (30%), WhatsApp 4 (10%)',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('24 Telegram')).toBeInTheDocument();
+    expect(screen.getByText('12 Discord')).toBeInTheDocument();
+    expect(screen.getByText('4 WhatsApp')).toBeInTheDocument();
+    expect(screen.getByText('40')).toBeInTheDocument();
   });
 });
