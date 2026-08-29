@@ -6,7 +6,7 @@ import { getCommunityPlatformStats } from '../src/services/community-dashboard';
 afterEach(() => cleanup());
 
 describe('community platform stats', () => {
-  it('normalizes known users and verified General/VIP membership counts', async () => {
+  it('normalizes known users, Telegram Premium users and verified General/VIP membership counts', async () => {
     const client = {
       rpc: vi.fn().mockResolvedValue({
         data: {
@@ -14,6 +14,7 @@ describe('community platform stats', () => {
             {
               platform: 'TELEGRAM',
               known_users: 24,
+              premium_users: 6,
               general_members: 18,
               vip_members: 6,
               verified_members: 24,
@@ -32,6 +33,7 @@ describe('community platform stats', () => {
         {
           platform: 'TELEGRAM',
           knownUsers: 24,
+          premiumUsers: 6,
           generalMembers: 18,
           vipMembers: 6,
           verifiedMembers: 24,
@@ -66,6 +68,7 @@ describe('community platform stats', () => {
         {
           platform: 'TELEGRAM',
           knownUsers: 2,
+          premiumUsers: 0,
           generalMembers: 0,
           vipMembers: 0,
           verifiedMembers: 0,
@@ -75,6 +78,7 @@ describe('community platform stats', () => {
         {
           platform: 'DISCORD',
           knownUsers: 1,
+          premiumUsers: 0,
           generalMembers: 0,
           vipMembers: 0,
           verifiedMembers: 0,
@@ -84,6 +88,7 @@ describe('community platform stats', () => {
         {
           platform: 'WHATSAPP',
           knownUsers: 1,
+          premiumUsers: 0,
           generalMembers: 0,
           vipMembers: 0,
           verifiedMembers: 0,
@@ -119,15 +124,16 @@ describe('CommunityPieChart', () => {
 });
 
 describe('PlatformUsersPieChart', () => {
-  it('shows the known-user distribution across Telegram, Discord and WhatsApp', () => {
-    render(<PlatformUsersPieChart telegram={24} discord={12} whatsapp={4} />);
+  it('splits Telegram into Premium and Regular while preserving the platform total', () => {
+    render(<PlatformUsersPieChart telegram={24} telegramPremium={6} discord={12} whatsapp={4} />);
 
     expect(
       screen.getByRole('img', {
-        name: 'Users by platform: Telegram 24 (60%), Discord 12 (30%), WhatsApp 4 (10%)',
+        name: 'Users by platform: Telegram Premium 6 (15%), Telegram Regular 18 (45%), Discord 12 (30%), WhatsApp 4 (10%)',
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText('24 Telegram')).toBeInTheDocument();
+    expect(screen.getByText('6 Telegram Premium')).toBeInTheDocument();
+    expect(screen.getByText('18 Telegram Regular')).toBeInTheDocument();
     expect(screen.getByText('12 Discord')).toBeInTheDocument();
     expect(screen.getByText('4 WhatsApp')).toBeInTheDocument();
     expect(screen.getByText('40')).toBeInTheDocument();

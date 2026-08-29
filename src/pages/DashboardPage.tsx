@@ -34,6 +34,7 @@ export function DashboardPage() {
   const platformStats = platformOrder.map((platform) => communityStats?.platforms.find((item) => item.platform === platform) ?? {
     platform,
     knownUsers: 0,
+    premiumUsers: 0,
     generalMembers: 0,
     vipMembers: 0,
     verifiedMembers: 0,
@@ -84,7 +85,7 @@ export function DashboardPage() {
               <div>
                 <p className="eyebrow">{tr('Platform mix', 'توزيع المنصات')}</p>
                 <h2>{tr('Users by platform', 'المستخدمون حسب المنصة')}</h2>
-                <p className="muted">{tr('Known users across Telegram, Discord and WhatsApp.', 'المستخدمون المعروفون عبر Telegram وDiscord وWhatsApp.')}</p>
+                <p className="muted">{tr('Known users across Telegram, Discord and WhatsApp, with Telegram Premium highlighted.', 'المستخدمون المعروفون عبر Telegram وDiscord وWhatsApp، مع إبراز مستخدمي Telegram Premium.')}</p>
               </div>
               <Link className="inline-link" to="/users">{tr('View users', 'عرض المستخدمين')} →</Link>
             </div>
@@ -100,6 +101,7 @@ export function DashboardPage() {
               <div className="community-platform-distribution dashboard-platform-chart">
                 <PlatformUsersPieChart
                   telegram={platformStats[0].knownUsers}
+                  telegramPremium={platformStats[0].premiumUsers}
                   discord={platformStats[1].knownUsers}
                   whatsapp={platformStats[2].knownUsers}
                   label={tr('Users by platform', 'المستخدمون حسب المنصة')}

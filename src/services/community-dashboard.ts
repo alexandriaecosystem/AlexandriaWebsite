@@ -5,6 +5,7 @@ export type CommunityPlatform = 'TELEGRAM' | 'DISCORD' | 'WHATSAPP';
 export type CommunityPlatformStat = {
   platform: CommunityPlatform;
   knownUsers: number;
+  premiumUsers: number;
   generalMembers: number;
   vipMembers: number;
   verifiedMembers: number;
@@ -36,6 +37,7 @@ function normalizeStats(data: Record<string, unknown>): CommunityPlatformStats {
     platforms: rawPlatforms.map((item) => ({
       platform: String(item.platform).toUpperCase() as CommunityPlatform,
       knownUsers: numberValue(item.known_users),
+      premiumUsers: numberValue(item.premium_users),
       generalMembers: numberValue(item.general_members),
       vipMembers: numberValue(item.vip_members),
       verifiedMembers: numberValue(item.verified_members),
@@ -95,6 +97,7 @@ async function getKnownUserPlatformFallback(client: SupabaseClient): Promise<Com
     platforms: platforms.map((platform) => ({
       platform,
       knownUsers: usersByPlatform.get(platform)?.size ?? 0,
+      premiumUsers: 0,
       generalMembers: 0,
       vipMembers: 0,
       verifiedMembers: 0,

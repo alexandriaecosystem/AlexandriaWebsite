@@ -60,7 +60,8 @@
 .community-pie-visual:hover .community-donut-segment{stroke-width:13;filter:brightness(1.08)}
 .general-segment{stroke:var(--accent)}
 .vip-segment{stroke:var(--warning)}
-.telegram-segment{stroke:#229ed9}
+.telegram-segment,.telegram-regular-segment{stroke:#229ed9}
+.telegram-premium-segment{stroke:var(--warning)}
 .discord-segment{stroke:#7582ff}
 .whatsapp-segment{stroke:#25d366}
 .community-pie-center{position:relative;z-index:1;width:58%;height:58%;display:grid;place-content:center;text-align:center;line-height:1.05;border:1px solid var(--border);border-radius:50%;background:rgba(10,17,28,.96);box-shadow:0 8px 20px rgba(0,0,0,.20)}
@@ -75,8 +76,9 @@
 .community-pie-legend .general i{background:var(--accent)}
 .community-pie-legend .vip i{background:var(--warning)}
 .platform-users-pie .community-pie-center small{max-width:96px}
-.platform-users-legend{min-width:170px}
-.platform-users-legend .telegram i{background:#229ed9}
+.platform-users-legend{min-width:190px}
+.platform-users-legend .telegram i,.platform-users-legend .telegram-regular i{background:#229ed9}
+.platform-users-legend .telegram-premium i{background:var(--warning);box-shadow:0 0 0 3px rgba(255,191,71,.10)}
 .platform-users-legend .discord i{background:#7582ff}
 .platform-users-legend .whatsapp i{background:#25d366}
 .community-pie.compact{display:grid;justify-items:center;gap:11px}

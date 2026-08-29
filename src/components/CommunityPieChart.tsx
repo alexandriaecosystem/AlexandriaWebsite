@@ -9,6 +9,7 @@ type CommunityPieChartProps = {
 
 type PlatformUsersPieChartProps = {
   telegram: number;
+  telegramPremium?: number;
   discord: number;
   whatsapp: number;
   label?: string;
@@ -99,22 +100,27 @@ export function CommunityPieChart({
 
 export function PlatformUsersPieChart({
   telegram,
+  telegramPremium = 0,
   discord,
   whatsapp,
   label = 'Users by platform',
 }: PlatformUsersPieChartProps) {
   const telegramCount = safeCount(telegram);
+  const telegramPremiumCount = Math.min(telegramCount, safeCount(telegramPremium));
+  const telegramRegularCount = Math.max(0, telegramCount - telegramPremiumCount);
   const discordCount = safeCount(discord);
   const whatsappCount = safeCount(whatsapp);
   const total = telegramCount + discordCount + whatsappCount;
 
-  const telegramPercent = percentage(telegramCount, total);
+  const telegramPremiumPercent = percentage(telegramPremiumCount, total);
+  const telegramRegularPercent = percentage(telegramRegularCount, total);
   const discordPercent = percentage(discordCount, total);
   const whatsappPercent = percentage(whatsappCount, total);
   const segments: Segment[] = [
-    { value: telegramCount, percent: telegramPercent, offset: 0, className: 'telegram-segment' },
-    { value: discordCount, percent: discordPercent, offset: telegramPercent, className: 'discord-segment' },
-    { value: whatsappCount, percent: whatsappPercent, offset: telegramPercent + discordPercent, className: 'whatsapp-segment' },
+    { value: telegramPremiumCount, percent: telegramPremiumPercent, offset: 0, className: 'telegram-premium-segment' },
+    { value: telegramRegularCount, percent: telegramRegularPercent, offset: telegramPremiumPercent, className: 'telegram-regular-segment' },
+    { value: discordCount, percent: discordPercent, offset: telegramPremiumPercent + telegramRegularPercent, className: 'discord-segment' },
+    { value: whatsappCount, percent: whatsappPercent, offset: telegramPremiumPercent + telegramRegularPercent + discordPercent, className: 'whatsapp-segment' },
   ];
 
   return (
@@ -122,7 +128,7 @@ export function PlatformUsersPieChart({
       <div
         className="community-pie-visual"
         role="img"
-        aria-label={`${label}: Telegram ${telegramCount} (${percentLabel(telegramPercent)}%), Discord ${discordCount} (${percentLabel(discordPercent)}%), WhatsApp ${whatsappCount} (${percentLabel(whatsappPercent)}%)`}
+        aria-label={`${label}: Telegram Premium ${telegramPremiumCount} (${percentLabel(telegramPremiumPercent)}%), Telegram Regular ${telegramRegularCount} (${percentLabel(telegramRegularPercent)}%), Discord ${discordCount} (${percentLabel(discordPercent)}%), WhatsApp ${whatsappCount} (${percentLabel(whatsappPercent)}%)`}
       >
         <DonutSvg segments={segments} />
         <span aria-hidden="true" className="community-pie-center">
@@ -131,7 +137,8 @@ export function PlatformUsersPieChart({
         </span>
       </div>
       <div className="community-pie-legend platform-users-legend">
-        <span className="telegram"><i aria-hidden="true" /><b>{telegramCount.toLocaleString()} Telegram</b><small>{percentLabel(telegramPercent)}%</small></span>
+        <span className="telegram-premium"><i aria-hidden="true" /><b>{telegramPremiumCount.toLocaleString()} Telegram Premium</b><small>{percentLabel(telegramPremiumPercent)}%</small></span>
+        <span className="telegram-regular"><i aria-hidden="true" /><b>{telegramRegularCount.toLocaleString()} Telegram Regular</b><small>{percentLabel(telegramRegularPercent)}%</small></span>
         <span className="discord"><i aria-hidden="true" /><b>{discordCount.toLocaleString()} Discord</b><small>{percentLabel(discordPercent)}%</small></span>
         <span className="whatsapp"><i aria-hidden="true" /><b>{whatsappCount.toLocaleString()} WhatsApp</b><small>{percentLabel(whatsappPercent)}%</small></span>
       </div>

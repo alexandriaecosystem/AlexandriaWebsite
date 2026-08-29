@@ -53,9 +53,9 @@ beforeEach(() => {
   mocks.listKnowledgeGaps.mockResolvedValue({ total: 3 });
   mocks.getCommunityPlatformStats.mockResolvedValue({
     platforms: [
-      { platform: 'TELEGRAM', knownUsers: 60, generalMembers: 40, vipMembers: 20, verifiedMembers: 60, lastVerifiedAt: null, verificationConnected: true },
-      { platform: 'DISCORD', knownUsers: 40, generalMembers: 30, vipMembers: 10, verifiedMembers: 40, lastVerifiedAt: null, verificationConnected: true },
-      { platform: 'WHATSAPP', knownUsers: 20, generalMembers: 15, vipMembers: 5, verifiedMembers: 20, lastVerifiedAt: null, verificationConnected: true },
+      { platform: 'TELEGRAM', knownUsers: 60, premiumUsers: 12, generalMembers: 40, vipMembers: 20, verifiedMembers: 60, lastVerifiedAt: null, verificationConnected: true },
+      { platform: 'DISCORD', knownUsers: 40, premiumUsers: 0, generalMembers: 30, vipMembers: 10, verifiedMembers: 40, lastVerifiedAt: null, verificationConnected: true },
+      { platform: 'WHATSAPP', knownUsers: 20, premiumUsers: 0, generalMembers: 15, vipMembers: 5, verifiedMembers: 20, lastVerifiedAt: null, verificationConnected: true },
     ],
     overall: { knownUsers: 120, generalMembers: 85, vipMembers: 35, verifiedMembers: 120 },
   });
@@ -80,7 +80,7 @@ describe('simplified dashboard', () => {
     expect(container.querySelectorAll('.metric-card')).toHaveLength(3);
     expect(screen.getByText('Active users')).toBeInTheDocument();
     expect(screen.getByText('Approved members')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Users by platform: Telegram 60/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Users by platform: Telegram Premium 12 .*Telegram Regular 48/ })).toBeInTheDocument();
     expect(screen.getByText('Needs attention')).toBeInTheDocument();
 
     expect(screen.queryByText('AI spend')).not.toBeInTheDocument();
