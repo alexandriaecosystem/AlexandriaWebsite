@@ -16,7 +16,7 @@ function normalizeTranscript(value: string): string {
     .trim()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
+    .replace(/\p{M}/gu, '')
     .replace(/[!?.,،؟؛:]/g, ' ')
     .replace(/\s+/g, ' ');
 }
