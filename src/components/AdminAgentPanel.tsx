@@ -46,6 +46,23 @@ const allowedAgentPaths = new Set([
   '/announcements', '/token-monitor', '/account', '/knowledge-gaps',
 ]);
 
+const voiceLocales = [
+  { value: 'browser', en: 'Browser language', ar: 'لغة المتصفح' },
+  { value: 'en-US', en: 'English', ar: 'الإنجليزية' },
+  { value: 'ar-LB', en: 'Arabic', ar: 'العربية' },
+  { value: 'es-ES', en: 'Spanish', ar: 'الإسبانية' },
+  { value: 'fr-FR', en: 'French', ar: 'الفرنسية' },
+  { value: 'de-DE', en: 'German', ar: 'الألمانية' },
+  { value: 'it-IT', en: 'Italian', ar: 'الإيطالية' },
+  { value: 'pt-BR', en: 'Portuguese', ar: 'البرتغالية' },
+  { value: 'tr-TR', en: 'Turkish', ar: 'التركية' },
+  { value: 'ru-RU', en: 'Russian', ar: 'الروسية' },
+  { value: 'hi-IN', en: 'Hindi', ar: 'الهندية' },
+  { value: 'zh-CN', en: 'Chinese', ar: 'الصينية' },
+  { value: 'ja-JP', en: 'Japanese', ar: 'اليابانية' },
+  { value: 'ko-KR', en: 'Korean', ar: 'الكورية' },
+] as const;
+
 function canNavigateTo(path: string): boolean {
   if (allowedAgentPaths.has(path)) return true;
   return /^\/users\/[^/]+$/.test(path) || /^\/reviews\/[^/]+$/.test(path);
@@ -67,6 +84,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
+  const [voiceLocale, setVoiceLocale] = useState('browser');
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const pageContext = buildAdminPageContext(location.pathname, language);
 
@@ -140,7 +158,10 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
     try {
       recognitionRef.current?.stop();
       const recognition = new Recognition();
-      recognition.lang = language === 'ar' ? 'ar-LB' : 'en-US';
+      const browserLanguage = typeof navigator !== 'undefined' && navigator.language
+        ? navigator.language
+        : language === 'ar' ? 'ar-LB' : 'en-US';
+      recognition.lang = voiceLocale === 'browser' ? browserLanguage : voiceLocale;
       recognition.interimResults = false;
       recognition.continuous = false;
       recognition.onresult = (event) => {
@@ -155,7 +176,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
         const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed';
         setError(denied
           ? tr('Microphone permission was denied. Allow microphone access and try again.', 'تم رفض إذن الميكروفون. اسمح بالوصول إلى الميكروفون وحاول مرة أخرى.')
-          : tr('I could not transcribe that voice command.', 'تعذر تحويل الأمر الصوتي إلى نص.'));
+          : tr('I could not transcribe that voice command. Check the spoken-language selector and try again.', 'تعذر تحويل الأمر الصوتي إلى نص. تحقق من لغة الصوت وحاول مرة أخرى.'));
         setStatus('idle');
       };
       recognition.onend = () => setStatus((current) => current === 'listening' ? 'idle' : current);
@@ -216,8 +237,8 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
               <div className="admin-agent-empty">
                 <span className="admin-agent-empty-icon" aria-hidden="true">✦</span>
                 <strong>{tr('Ask or speak an admin task', 'اكتب أو انطق مهمة إدارية')}</strong>
-                <span>{tr('Navigate, inspect community data, or schedule human takeover with your voice.', 'تنقّل، افحص بيانات المجتمع، أو جدوِل التحكم البشري باستخدام صوتك.')}</span>
-                <small>{tr('Example: “Put Telegram VIP to sleep until 9 AM tomorrow.”', 'مثال: «أوقف AI في Telegram VIP حتى التاسعة صباحًا غدًا».')}</small>
+                <span>{tr('Navigate, edit knowledge documents, inspect community data, or schedule human takeover with your voice.', 'تنقّل، عدّل مستندات المعرفة، افحص بيانات المجتمع، أو جدوِل التحكم البشري باستخدام صوتك.')}</span>
+                <small>{tr('Example: “In the White Paper, add this sentence after Token utility.”', 'مثال: «في الورقة البيضاء، أضف هذه الجملة بعد Token utility».')}</small>
               </div>
             ) : messages.map((message) => (
               <div className={`admin-agent-message ${message.role}`} key={message.id}>
@@ -242,16 +263,29 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
               disabled={status === 'thinking' || status === 'executing'}
             />
             <div className="admin-agent-actions">
-              <button
-                type="button"
-                className={`admin-agent-mic ${status === 'listening' ? 'listening' : ''}`}
-                aria-label={status === 'listening' ? tr('Listening for voice command', 'جارٍ الاستماع للأمر الصوتي') : tr('Start voice command', 'بدء أمر صوتي')}
-                onClick={startListening}
-                disabled={status === 'thinking' || status === 'executing'}
-              >
-                <span className="admin-agent-mic-dot" aria-hidden="true">◉</span>
-                <span>{status === 'listening' ? tr('Listening', 'استماع') : tr('Voice', 'صوت')}</span>
-              </button>
+              <div className="admin-agent-voice-controls">
+                <label className="sr-only" htmlFor="admin-agent-voice-language">{tr('Voice recognition language', 'لغة التعرف على الصوت')}</label>
+                <select
+                  id="admin-agent-voice-language"
+                  className="admin-agent-voice-language"
+                  aria-label={tr('Voice recognition language', 'لغة التعرف على الصوت')}
+                  value={voiceLocale}
+                  onChange={(event) => setVoiceLocale(event.target.value)}
+                  disabled={status === 'listening' || status === 'thinking' || status === 'executing'}
+                >
+                  {voiceLocales.map((locale) => <option value={locale.value} key={locale.value}>{language === 'ar' ? locale.ar : locale.en}</option>)}
+                </select>
+                <button
+                  type="button"
+                  className={`admin-agent-mic ${status === 'listening' ? 'listening' : ''}`}
+                  aria-label={status === 'listening' ? tr('Listening for voice command', 'جارٍ الاستماع للأمر الصوتي') : tr('Start voice command', 'بدء أمر صوتي')}
+                  onClick={startListening}
+                  disabled={status === 'thinking' || status === 'executing'}
+                >
+                  <span className="admin-agent-mic-dot" aria-hidden="true">◉</span>
+                  <span>{status === 'listening' ? tr('Listening', 'استماع') : tr('Voice', 'صوت')}</span>
+                </button>
+              </div>
               <button type="submit" className="primary-button" aria-label={tr('Send message', 'إرسال الرسالة')} disabled={!input.trim() || status === 'thinking' || status === 'executing'}>
                 {tr('Send', 'إرسال')}
               </button>
