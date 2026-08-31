@@ -19,6 +19,14 @@ describe('voice navigation', () => {
     expect(resolveVoiceNavigation('اذهب إلى لوحة التحكم')).toBe('/');
   });
 
+  it('resolves common multilingual navigation commands locally', () => {
+    expect(resolveVoiceNavigation('Abre analíticas')).toBe('/analytics');
+    expect(resolveVoiceNavigation('Ouvre la base de connaissances')).toBe('/knowledge');
+    expect(resolveVoiceNavigation('Öffne Benutzer')).toBe('/users');
+    expect(resolveVoiceNavigation('Apri annunci')).toBe('/announcements');
+    expect(resolveVoiceNavigation('Abra a base de conhecimento')).toBe('/knowledge');
+  });
+
   it('returns null for instructions that should be handled by the agent', () => {
     expect(resolveVoiceNavigation('How many Telegram VIP members do we have?')).toBeNull();
     expect(resolveVoiceNavigation('Create a pending knowledge record')).toBeNull();
