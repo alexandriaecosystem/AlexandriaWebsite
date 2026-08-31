@@ -14,6 +14,7 @@ describe('AI admin tool allowlist', () => {
       'list_ai_sleep_windows',
       'list_community_members',
       'navigate_to_page',
+      'patch_knowledge_document_text',
       'schedule_ai_sleep',
       'search_knowledge_base',
       'search_users',
@@ -24,6 +25,7 @@ describe('AI admin tool allowlist', () => {
       'approve_document',
       'cancel_ai_sleep',
       'create_knowledge_record',
+      'patch_knowledge_document_text',
       'schedule_ai_sleep',
       'send_announcement',
       'update_knowledge_record',
@@ -40,6 +42,38 @@ describe('AI admin tool allowlist', () => {
       language: 'en',
       content: '',
     });
+  });
+
+  it('normalizes a precise voice-style document patch request', () => {
+    const args = normalizeToolArgs('patch_knowledge_document_text', {
+      document_query: 'Alexandria White Paper',
+      operation: 'insert after',
+      anchor: 'Token utility',
+      text: ' New utility sentence.',
+      occurrence: 2,
+    });
+    expect(args).toEqual({
+      document_query: 'Alexandria White Paper',
+      operation: 'INSERT_AFTER',
+      anchor: 'Token utility',
+      text: 'New utility sentence.',
+      occurrence: 2,
+    });
+    expect(previewFor('patch_knowledge_document_text', args)).toMatchObject({
+      document: 'Alexandria White Paper',
+      operation: 'INSERT_AFTER',
+      anchor: 'Token utility',
+      text: 'New utility sentence.',
+      occurrence: 2,
+    });
+  });
+
+  it('requires an anchor for anchored document patches', () => {
+    expect(() => normalizeToolArgs('patch_knowledge_document_text', {
+      document_query: 'Alexandria White Paper',
+      operation: 'replace',
+      text: 'Replacement',
+    })).toThrow('invalid_anchor');
   });
 
   it('accepts READY as a real knowledge processing status and rejects invented statuses', () => {
