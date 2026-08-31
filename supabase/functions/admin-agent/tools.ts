@@ -15,6 +15,7 @@ export const NAVIGATION_PATHS: Record<string, string> = {
 export const WRITE_TOOLS = new Set([
   "create_knowledge_record",
   "update_knowledge_record",
+  "patch_knowledge_document_text",
   "approve_document",
   "send_announcement",
   "schedule_ai_sleep",
@@ -29,6 +30,7 @@ const KNOWLEDGE_CATEGORIES = new Set([
   "ADVERSARIAL_TESTING",
 ]);
 const SLEEP_STATUSES = new Set(["ACTIVE", "UPCOMING", "ENDED", "CANCELLED"]);
+const PATCH_OPERATIONS = new Set(["APPEND", "PREPEND", "INSERT_AFTER", "INSERT_BEFORE", "REPLACE"]);
 const MAX_SLEEP_MS = 30 * 24 * 60 * 60 * 1000;
 
 function record(value: unknown): Record<string, unknown> {
@@ -103,6 +105,19 @@ function category(value: unknown): string {
   const normalized = String(value ?? "INTERNAL_QA").trim().toUpperCase();
   if (!KNOWLEDGE_CATEGORIES.has(normalized)) throw new Error("invalid_category");
   return normalized;
+}
+
+function patchOperation(value: unknown): string {
+  const normalized = String(value ?? "APPEND").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  const aliases: Record<string, string> = {
+    AFTER: "INSERT_AFTER",
+    BEFORE: "INSERT_BEFORE",
+    INSERTAFTER: "INSERT_AFTER",
+    INSERTBEFORE: "INSERT_BEFORE",
+  };
+  const operation = aliases[normalized] ?? normalized;
+  if (!PATCH_OPERATIONS.has(operation)) throw new Error("invalid_patch_operation");
+  return operation;
 }
 
 function isoDate(value: unknown, name: string): string {
@@ -197,6 +212,18 @@ export function normalizeToolArgs(tool: string, value: unknown): Record<string, 
         expected_version: integer(raw.expected_version, 0, 0, 1000000),
       };
     }
+    case "patch_knowledge_document_text": {
+      const operation = patchOperation(raw.operation);
+      const anchor = optionalText(raw.anchor, 4000);
+      if (["INSERT_AFTER", "INSERT_BEFORE", "REPLACE"].includes(operation) && !anchor) throw new Error("invalid_anchor");
+      return {
+        document_query: text(raw.document_query, "document_query", 2, 180),
+        operation,
+        anchor,
+        text: text(raw.text, "patch_text", 1, 20000),
+        occurrence: integer(raw.occurrence, 1, 1, 20),
+      };
+    }
     case "approve_document":
       return { document_id: uuid(raw.document_id, "document_id") };
     case "send_announcement": {
@@ -231,6 +258,16 @@ export function previewFor(tool: string, args: Record<string, unknown>): Record<
         document_id: args.document_id,
         title: args.title,
         expected_version: args.expected_version,
+        status_after_save: "PENDING",
+        approved_after_save: false,
+      };
+    case "patch_knowledge_document_text":
+      return {
+        document: args.document_query,
+        operation: args.operation,
+        anchor: args.anchor,
+        text: args.text,
+        occurrence: args.occurrence,
         status_after_save: "PENDING",
         approved_after_save: false,
       };
@@ -304,13 +341,25 @@ export const modelTools = [
     required: ["title", "language"],
     additionalProperties: false,
   }),
-  functionTool("update_knowledge_record", "Propose updating an existing knowledge text record. Requires confirmation.", {
+  functionTool("update_knowledge_record", "Propose replacing the complete content of an existing knowledge text record when its id, current version and complete replacement text are already known. Requires confirmation.", {
     type: "object",
     properties: {
       document_id: { type: "string" }, title: { type: "string" }, content: { type: "string" },
       editor_html: { type: "string" }, expected_version: { type: "integer" },
     },
     required: ["document_id", "title", "content", "expected_version"],
+    additionalProperties: false,
+  }),
+  functionTool("patch_knowledge_document_text", "Propose a small safe edit to one existing knowledge document selected by title. Use this for voice requests such as add, append, insert, prepend or replace words without regenerating the whole document. The server requires one unambiguous document match and confirmation.", {
+    type: "object",
+    properties: {
+      document_query: { type: "string", description: "Document title or a distinctive part of the title" },
+      operation: { type: "string", enum: [...PATCH_OPERATIONS] },
+      anchor: { type: "string", description: "Exact text anchor required for insert-before, insert-after and replace" },
+      text: { type: "string", description: "Text to add or replacement text" },
+      occurrence: { type: "integer", minimum: 1, maximum: 20, description: "Which exact anchor occurrence to edit; defaults to 1" },
+    },
+    required: ["document_query", "operation", "text"],
     additionalProperties: false,
   }),
   functionTool("approve_document", "Propose approval of one knowledge document. Requires confirmation.", {
