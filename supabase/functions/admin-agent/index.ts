@@ -161,16 +161,16 @@ async function callModel(instruction: string, context: PageContext): Promise<{
   if (!MODEL_URL || !MODEL_API_KEY || !MODEL) throw new Error("agent_model_not_configured");
   const system = [
     "You are Alexandria's controlled admin assistant.",
+    "Understand administrator instructions in any language and preserve the administrator's intended text exactly when editing content.",
     "Use an allowlisted tool for any request that depends on current Alexandria data or changes admin data.",
     "Never invent current database results. Never request or output SQL, API keys, service-role keys, bot tokens, webhook secrets, or arbitrary URLs.",
     "Known platform users, approved users, and verified external-group members are different concepts. Never substitute one for another.",
     "AI sleep mode means human takeover for one exact external channel/group id between explicit timestamps. Incoming messages remain logged, automated AI replies are skipped, and messages received while sleeping are never replayed automatically after wake.",
     "Never schedule sleep from a display name alone; an exact external_channel_id is required.",
+    "For small edits to an existing knowledge document, use patch_knowledge_document_text. Never regenerate or invent the rest of a document just to add, insert, prepend or replace a few words.",
     "Write actions are proposals only; the server requires explicit human confirmation before execution.",
     `Current admin page: ${context.pageLabel} (${context.pathname}). UI language: ${context.language}.`,
-    context.language === "ar"
-      ? "Reply in Arabic unless the administrator clearly asks for another language."
-      : "Reply in English unless the administrator clearly asks for another language.",
+    "Reply in the language used by the administrator unless they clearly ask for another language. Use the UI language only as a fallback when the instruction language is unclear or mixed.",
   ].join("\n");
 
   const response = await fetch(MODEL_URL, {
@@ -211,6 +211,103 @@ function itemCount(value: unknown): number {
   const record = value as Record<string, unknown>;
   if (Number.isFinite(Number(record.total))) return Number(record.total);
   return Array.isArray(record.items) ? record.items.length : 0;
+}
+
+function normalizedDocumentKey(value: unknown): string {
+  return String(value ?? "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function nthIndexOf(value: string, search: string, occurrence: number): number {
+  let from = 0;
+  let index = -1;
+  for (let count = 0; count < occurrence; count++) {
+    index = value.indexOf(search, from);
+    if (index < 0) return -1;
+    from = index + search.length;
+  }
+  return index;
+}
+
+function escapeHtml(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function plainTextToHtml(value: string): string {
+  return value
+    .split(/\n{2,}/)
+    .filter((paragraph) => paragraph.length > 0)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`)
+    .join("");
+}
+
+function applyKnowledgePatch(
+  content: string,
+  operation: string,
+  patchText: string,
+  anchor: string | null,
+  occurrence: number,
+): string {
+  if (operation === "APPEND") return `${content.replace(/\s+$/g, "")}\n\n${patchText}`;
+  if (operation === "PREPEND") return `${patchText}\n\n${content.replace(/^\s+/g, "")}`;
+  if (!anchor) throw new Error("invalid_anchor");
+
+  const index = nthIndexOf(content, anchor, occurrence);
+  if (index < 0) throw new Error("knowledge_patch_anchor_not_found");
+  const before = content.slice(0, index);
+  const afterAnchor = index + anchor.length;
+  const after = content.slice(afterAnchor);
+
+  if (operation === "REPLACE") return `${before}${patchText}${after}`;
+  if (operation === "INSERT_BEFORE") {
+    const separator = /\s$/.test(patchText) || /^\s/.test(anchor) ? "" : " ";
+    return `${before}${patchText}${separator}${anchor}${after}`;
+  }
+  if (operation === "INSERT_AFTER") {
+    const separator = /\s$/.test(anchor) || /^\s/.test(patchText) || /^[,.;:!?،؛؟]/u.test(patchText) ? "" : " ";
+    return `${before}${anchor}${separator}${patchText}${after}`;
+  }
+  throw new Error("invalid_patch_operation");
+}
+
+async function resolveKnowledgeDocumentForPatch(client: SupabaseClient, queryValue: unknown): Promise<{
+  id: string;
+  title: string;
+  version: number;
+  content: string;
+  editorHtml: string;
+}> {
+  const result = await rpc(client, "admin_list_knowledge_documents", { p_limit: 100, p_offset: 0, p_status: null });
+  const raw = result && typeof result === "object" ? result as Record<string, unknown> : {};
+  const items = Array.isArray(raw.items) ? raw.items as Record<string, unknown>[] : [];
+  const query = normalizedDocumentKey(queryValue);
+  if (!query) throw new Error("invalid_document_query");
+
+  const exact = items.filter((item) => normalizedDocumentKey(item.title) === query);
+  const candidates = exact.length ? exact : items.filter((item) => normalizedDocumentKey(item.title).includes(query));
+  if (!candidates.length) throw new Error("knowledge_document_not_found");
+  if (candidates.length !== 1) throw new Error("knowledge_document_ambiguous");
+
+  const id = String(candidates[0].id ?? "");
+  if (!id) throw new Error("knowledge_document_not_found");
+  const editorRaw = await rpc(client, "admin_get_knowledge_document_editor", { p_document_id: id });
+  const editor = asRecord(editorRaw);
+  const chunks = Array.isArray(editor.chunks) ? editor.chunks as Record<string, unknown>[] : [];
+  const storedContent = typeof editor.content === "string" ? editor.content.trim() : "";
+  const fallbackContent = [...chunks]
+    .sort((a, b) => Number(a.chunk_index ?? 0) - Number(b.chunk_index ?? 0))
+    .map((chunk) => String(chunk.content ?? "").trim())
+    .filter(Boolean)
+    .join("\n\n");
+  const content = storedContent || fallbackContent;
+  if (!content) throw new Error("knowledge_document_empty");
+
+  return {
+    id,
+    title: String(editor.title ?? candidates[0].title ?? "Knowledge document"),
+    version: Number.isFinite(Number(editor.version)) ? Number(editor.version) : 0,
+    content,
+    editorHtml: typeof editor.editor_content_html === "string" ? editor.editor_content_html : "",
+  };
 }
 
 async function executeTool(
@@ -352,6 +449,52 @@ async function executeTool(
       return { kind: "tool_result", tool, result, message: localized(context, "Updated the knowledge record. It is pending and unapproved again until reviewed.", "تم تحديث سجل المعرفة. أصبح معلّقًا وغير معتمد مجددًا حتى تتم مراجعته.") };
     }
 
+    case "patch_knowledge_document_text": {
+      const document = await resolveKnowledgeDocumentForPatch(client, args.document_query);
+      const operation = String(args.operation);
+      const patchText = String(args.text);
+      const anchor = args.anchor == null ? null : String(args.anchor);
+      const occurrence = Number(args.occurrence ?? 1);
+      const nextContent = applyKnowledgePatch(document.content, operation, patchText, anchor, occurrence);
+      if (!nextContent.trim() || nextContent.length > 200000) throw new Error("invalid_patch_result");
+
+      const patchFragment = `<p>${escapeHtml(patchText).replaceAll("\n", "<br>")}</p>`;
+      const editorHtml = operation === "APPEND" && document.editorHtml
+        ? `${document.editorHtml}${patchFragment}`
+        : operation === "PREPEND" && document.editorHtml
+          ? `${patchFragment}${document.editorHtml}`
+          : plainTextToHtml(nextContent);
+
+      const update = await rpc(client, "admin_update_knowledge_document_content", {
+        p_document_id: document.id,
+        p_title: document.title,
+        p_content: nextContent,
+        p_editor_content_html: editorHtml,
+        p_expected_version: document.version,
+      });
+      const reprocessing = await rpc(client, "admin_request_knowledge_document_reprocessing", {
+        p_document_id: document.id,
+      });
+      return {
+        kind: "tool_result",
+        tool,
+        result: {
+          document_id: document.id,
+          title: document.title,
+          operation,
+          occurrence,
+          update,
+          reprocessing,
+          formatting_preserved: ["APPEND", "PREPEND"].includes(operation) && Boolean(document.editorHtml),
+        },
+        message: localized(
+          context,
+          `Updated “${document.title}” and queued it for reprocessing. It must be reviewed and approved again before the assistant uses the new text.`,
+          `تم تحديث «${document.title}» ووضعه في قائمة إعادة المعالجة. يجب مراجعته واعتماده من جديد قبل أن يستخدم المساعد النص الجديد.`,
+        ),
+      };
+    }
+
     case "approve_document": {
       const result = await rpc(client, "admin_approve_knowledge_document", { p_document_id: args.document_id });
       return { kind: "tool_result", tool, result, message: localized(context, "The knowledge document was approved.", "تم اعتماد مستند المعرفة.") };
@@ -387,6 +530,10 @@ function publicError(error: unknown): { code: string; message: string; status: n
   if (raw === "confirmation_expired" || raw.includes("CONFIRMATION_EXPIRED")) return { code: "confirmation_expired", message: "That confirmation expired. Please review the action again.", status: 409 };
   if (raw === "invalid_confirmation_token") return { code: raw, message: "That confirmation is invalid. Please review the action again.", status: 409 };
   if (raw.includes("CONFIRMATION_ALREADY_USED")) return { code: "confirmation_already_used", message: "That confirmed action has already been used. Please review it again before another write.", status: 409 };
+  if (raw === "knowledge_document_not_found") return { code: raw, message: "I could not find that knowledge document.", status: 404 };
+  if (raw === "knowledge_document_ambiguous") return { code: raw, message: "More than one knowledge document matches that name. Use a more specific document title.", status: 409 };
+  if (raw === "knowledge_patch_anchor_not_found") return { code: raw, message: "The exact text anchor was not found in that document, so nothing was changed.", status: 409 };
+  if (raw === "knowledge_document_empty") return { code: raw, message: "That knowledge document has no editable text.", status: 409 };
   if (raw === "agent_model_not_configured") return { code: raw, message: "The AI admin model is not configured on the secure backend.", status: 503 };
   if (raw === "confirmation_secret_not_configured") return { code: raw, message: "Secure write confirmation is not configured on the backend.", status: 503 };
   if (raw.startsWith("agent_model_request_failed_")) return { code: "agent_model_unavailable", message: "The AI admin model is temporarily unavailable.", status: 502 };
