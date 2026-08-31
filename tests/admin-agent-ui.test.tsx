@@ -53,6 +53,19 @@ describe('assistant interaction', () => {
     expect(requestAgent).not.toHaveBeenCalled();
   });
 
+  it('lets the administrator choose a spoken language independently from the UI language', () => {
+    const requestAgent = vi.fn();
+    renderPanel(requestAgent);
+    fireEvent.click(screen.getByRole('button', { name: 'Open AI admin assistant' }));
+    const selector = screen.getByLabelText('Voice recognition language') as HTMLSelectElement;
+    expect(selector.value).toBe('browser');
+    expect(screen.getByRole('option', { name: 'Spanish' })).toHaveValue('es-ES');
+    expect(screen.getByRole('option', { name: 'French' })).toHaveValue('fr-FR');
+    expect(screen.getByRole('option', { name: 'German' })).toHaveValue('de-DE');
+    fireEvent.change(selector, { target: { value: 'es-ES' } });
+    expect(selector.value).toBe('es-ES');
+  });
+
   it('sends non-navigation instructions to the agent with page context', async () => {
     const requestAgent = vi.fn().mockResolvedValue({ kind: 'message', message: 'There are 6 verified Telegram VIP members.' });
     renderPanel(requestAgent);
