@@ -1,0 +1,63 @@
+name: Apply admin agent KB wiring fix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-admin-agent-kb-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch admin-agent knowledge search wiring
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('supabase/functions/admin-agent/index.ts')
+          text = path.read_text()
+          old = '''    case "search_knowledge_base": {
+              const result = await rpc(client, "admin_list_knowledge_documents", {
+                p_limit: 100, p_offset: 0, p_status: args.status,
+              });
+              const raw = result && typeof result === "object" ? result as Record<string, unknown> : {};
+              const query = String(args.query ?? "").toLowerCase();
+              const items = (Array.isArray(raw.items) ? raw.items as Record<string, unknown>[] : [])
+                .filter((item) => !query || `${item.title ?? ""} ${item.category ?? ""}`.toLowerCase().includes(query))
+                .slice(0, Number(args.limit));
+              const filtered = { items, total: items.length };
+              return { kind: "tool_result", tool, result: filtered, message: localized(context, `I found ${items.length} matching knowledge document${items.length === 1 ? "" : "s"}.`, `وجدت ${items.length} مستند معرفة مطابق.`) };
+            }
+          '''
+          # The source is indented by four spaces, not fourteen. Normalize the fixture before matching.
+          old = old.replace('              ', '      ').replace('            }', '    }')
+          new = '''    case "search_knowledge_base": {
+              const result = await rpc(client, "admin_search_knowledge_documents", {
+                p_query: args.query || null,
+                p_status: args.status,
+                p_limit: args.limit,
+              });
+              const count = itemCount(result);
+              return { kind: "tool_result", tool, result, message: localized(context, `I found ${count} matching knowledge document${count === 1 ? "" : "s"}.`, `وجدت ${count} مستند معرفة مطابق.`) };
+            }
+          '''
+          new = new.replace('              ', '      ').replace('            }', '    }')
+
+          if old not in text:
+              raise SystemExit('Expected title-only search branch was not found; refusing to patch.')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-admin-agent-kb-fix.yml
+          git add supabase/functions/admin-agent/index.ts
+          git commit -m "fix: search admin knowledge content"
+          git push
