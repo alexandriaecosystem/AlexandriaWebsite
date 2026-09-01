@@ -71,7 +71,7 @@ export function AppShell() {
           <span aria-hidden="true">{menuOpen ? '×' : '☰'}</span>
           <span className="sr-only">{menuOpen ? tr('Close menu', 'إغلاق القائمة') : tr('Open menu', 'فتح القائمة')}</span>
         </button>
-        <div className="mobile-brand">
+        <div className="mobile-brand brand-lockup">
           <img src={alexandriaLogo} alt="" aria-hidden="true" />
           <span><strong>Alexandria</strong><small>{tr('Community admin', 'إدارة المجتمع')}</small></span>
         </div>
@@ -81,7 +81,7 @@ export function AppShell() {
 
       <aside id="admin-sidebar" className={`sidebar ${menuOpen ? 'open' : ''}`} aria-label={tr('Administration navigation', 'تنقل الإدارة')}>
         <div className="sidebar-mobile-head">
-          <div className="brand">
+          <div className="brand brand-lockup">
             <img className="brand-logo" src={alexandriaLogo} alt="" aria-hidden="true" />
             <div>
               <strong>Alexandria</strong>
