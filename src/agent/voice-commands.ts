@@ -55,6 +55,8 @@ const navigationPatterns: Array<{ route: string; patterns: RegExp[] }> = [
     patterns: [
       /^(?:go|take me|navigate) to (?:the )?knowledge(?: base)?$/,
       /^(?:open|show) (?:the )?knowledge(?: base)?$/,
+      /^(?:go|take me|navigate) to (?:the )?(?:knowledge bass|norwich bass)$/,
+      /^(?:open|show) (?:the )?(?:knowledge bass|norwich bass)$/,
       /^(?:اذهب|روح|انتقل)(?: إلى| الى)? قاعدة المعرفة$/,
       /^(?:افتح|اعرض) قاعدة المعرفة$/,
       /^(?:abre|muestra|ve a) (?:la )?(?:base de conocimientos|base de conocimiento)$/,
