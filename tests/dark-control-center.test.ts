@@ -28,6 +28,42 @@ describe('dark control center architecture', () => {
     expect(palette).toContain('--secondary-accent: #c79a32');
   });
 
+  it('uses Alexandria premium brand tokens and restrained hierarchy', () => {
+    const palette = source('src/premium-palette.css');
+    expect(palette).toContain('--brand-gold: #d7ae52');
+    expect(palette).toContain('--brand-gold-bright: #f0cf7a');
+    expect(palette).toContain('--brand-ink: #090b0e');
+    expect(palette).toContain('--radius-panel: 20px');
+    expect(palette).toContain('--shadow-panel:');
+    expect(palette).toContain('.brand-lockup');
+    expect(palette).toContain('.page-header::after');
+  });
+
+  it('keeps the global import chain intentionally small', () => {
+    const main = source('src/main.tsx');
+    const globalCssImports = main.match(/import '\.\/[a-z0-9-]+\.css';/g) ?? [];
+    expect(globalCssImports.length).toBeLessThanOrEqual(7);
+  });
+
+  it('exposes brand and dashboard hierarchy hooks without changing routes', () => {
+    const shell = source('src/app/AppShell.tsx');
+    const dashboard = source('src/pages/DashboardPage.tsx');
+    expect(shell).toContain('brand-lockup');
+    expect(dashboard).toContain('dashboard-hero-copy');
+    expect(shell).toContain("{ to: '/', en: 'Dashboard'");
+    expect(shell).toContain("{ to: '/users', en: 'Users'");
+  });
+
+  it('keeps shared operational surfaces in the premium system', () => {
+    const palette = source('src/premium-palette.css');
+    expect(palette).toContain('.table-card');
+    expect(palette).toContain('.status-pill');
+    expect(palette).toContain('.admin-agent');
+    expect(palette).toContain('.file-drop-zone');
+    expect(palette).toContain('.conversation-stream');
+    expect(palette).toContain('@media (prefers-reduced-motion: reduce)');
+  });
+
   it('keeps the responsive app shell dark and reduced-motion safe', () => {
     const shell = source('src/app/AppShell.css');
     expect(shell).toContain('background: var(--surface)');
