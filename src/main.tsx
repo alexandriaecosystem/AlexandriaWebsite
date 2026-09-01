@@ -5,7 +5,6 @@ import './styles.css';
 import './ui-overrides.css';
 import './i18n.css';
 import './ux-system.css';
-import './advanced-ux.css';
 import './qa-responsive.css';
 import './knowledge-analytics-ux.css';
 import './premium-palette.css';
