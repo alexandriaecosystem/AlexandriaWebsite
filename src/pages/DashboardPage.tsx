@@ -45,7 +45,7 @@ export function DashboardPage() {
   return (
     <>
       <header className="page-header hero-header">
-        <div>
+        <div className="dashboard-hero-copy">
           <p className="eyebrow">{tr('Dashboard', 'لوحة التحكم')}</p>
           <h1>{tr('Alexandria community', 'مجتمع Alexandria')}</h1>
           <p className="muted page-subtitle">
