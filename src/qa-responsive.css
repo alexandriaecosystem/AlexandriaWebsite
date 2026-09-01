@@ -1,3 +1,5 @@
+@import './advanced-ux.css';
+
 /* Cross-page QA hardening for long content, RTL, narrow screens and remaining data tables. */
 
 .content,
