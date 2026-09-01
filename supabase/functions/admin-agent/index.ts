@@ -340,16 +340,13 @@ async function executeTool(
     }
 
     case "search_knowledge_base": {
-      const result = await rpc(client, "admin_list_knowledge_documents", {
-        p_limit: 100, p_offset: 0, p_status: args.status,
+      const result = await rpc(client, "admin_search_knowledge_documents", {
+        p_query: args.query || null,
+        p_status: args.status,
+        p_limit: args.limit,
       });
-      const raw = result && typeof result === "object" ? result as Record<string, unknown> : {};
-      const query = String(args.query ?? "").toLowerCase();
-      const items = (Array.isArray(raw.items) ? raw.items as Record<string, unknown>[] : [])
-        .filter((item) => !query || `${item.title ?? ""} ${item.category ?? ""}`.toLowerCase().includes(query))
-        .slice(0, Number(args.limit));
-      const filtered = { items, total: items.length };
-      return { kind: "tool_result", tool, result: filtered, message: localized(context, `I found ${items.length} matching knowledge document${items.length === 1 ? "" : "s"}.`, `وجدت ${items.length} مستند معرفة مطابق.`) };
+      const count = itemCount(result);
+      return { kind: "tool_result", tool, result, message: localized(context, `I found ${count} matching knowledge document${count === 1 ? "" : "s"}.`, `وجدت ${count} مستند معرفة مطابق.`) };
     }
 
     case "get_analytics": {
