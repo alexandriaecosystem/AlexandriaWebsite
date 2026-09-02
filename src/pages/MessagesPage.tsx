@@ -50,7 +50,7 @@ export function MessagesPage() {
   const conversations = useMemo(() => {
     return items
       .filter((user) => user.messageCount > 0)
-      .filter((user) => platform === 'all' || user.platforms.some((value) => value.toLowerCase() === platform))
+      .filter((user) => platform === 'all' || user.platforms.some(value => value.toLowerCase() === platform))
       .filter((user) => view === 'all' || user.hasUnread)
       .sort((a, b) => {
         if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
