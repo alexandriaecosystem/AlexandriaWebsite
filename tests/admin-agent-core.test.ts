@@ -12,6 +12,11 @@ describe('voice navigation', () => {
     expect(resolveVoiceNavigation('Open announcements')).toBe('/announcements');
   });
 
+  it('recovers common speech-recognition mistakes for knowledge base navigation', () => {
+    expect(resolveVoiceNavigation('go to Norwich bass')).toBe('/knowledge');
+    expect(resolveVoiceNavigation('open knowledge bass')).toBe('/knowledge');
+  });
+
   it('resolves Arabic navigation commands', () => {
     expect(resolveVoiceNavigation('افتح التحليلات')).toBe('/analytics');
     expect(resolveVoiceNavigation('افتح قاعدة المعرفة')).toBe('/knowledge');
@@ -73,5 +78,16 @@ describe('secure write confirmation wiring', () => {
     expect(confirmationBranch).toContain('admin_consume_agent_confirmation');
     expect(confirmationBranch.indexOf('admin_consume_agent_confirmation'))
       .toBeLessThan(confirmationBranch.indexOf('executeTool'));
+  });
+});
+
+describe('knowledge search wiring', () => {
+  it('uses the admin content-search RPC instead of title-only filtering', () => {
+    const start = edgeFunctionSource.indexOf('case "search_knowledge_base"');
+    const end = edgeFunctionSource.indexOf('case "get_analytics"', start);
+    const searchBranch = edgeFunctionSource.slice(start, end);
+
+    expect(searchBranch).toContain('admin_search_knowledge_documents');
+    expect(searchBranch).not.toContain('item.title');
   });
 });
