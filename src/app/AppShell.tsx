@@ -31,6 +31,8 @@ const navigation: NavGroup[] = [
     { to: '/token-monitor', en: 'Token activity', ar: 'نشاط التوكن', icon: 'token' },
   ] },
   { en: 'Admin', ar: 'الإدارة', items: [
+    { to: '/settings', en: 'Settings', ar: 'الإعدادات', icon: 'settings' },
+    { to: '/operations', en: 'System & integrations', ar: 'النظام والتكاملات', icon: 'operations' },
     { to: '/account', en: 'Account & security', ar: 'الحساب والأمان', icon: 'account' },
   ] },
 ];

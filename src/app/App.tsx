@@ -14,6 +14,8 @@ import { UserConversationPage } from '../pages/UserConversationPage';
 import { MessagesPage } from '../pages/MessagesPage';
 import { TokenMonitorPage } from '../pages/TokenMonitorPage';
 import { AccountSecurityPage } from '../pages/AccountSecurityPage';
+import { OperationsPage } from '../pages/OperationsPage';
+import { SettingsPage } from '../pages/SettingsPage';
 import { ApprovedCommunityPage, KnowledgeGapsPage } from '../pages/AdminOperationsPages';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { ToastProvider } from '../components/Feedback';
@@ -36,8 +38,9 @@ export function App() {
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="token-monitor" element={<TokenMonitorPage />} />
+        <Route path="operations" element={<OperationsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="account" element={<AccountSecurityPage />} />
-        <Route path="settings" element={<Navigate to="/account" replace />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />

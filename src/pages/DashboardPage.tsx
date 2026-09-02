@@ -30,7 +30,8 @@ export function DashboardPage() {
     void getCommunityPlatformStats(getSupabaseClient()).then(setCommunityStats).catch(() => setCommunityStats(null));
   }, [reload]);
 
-  const attentionCount = (metrics?.pendingReviews ?? 0) + failedKnowledge + openGaps;
+  const attentionCount = (metrics?.pendingReviews ?? 0) + failedKnowledge + openGaps + (metrics?.failedOperations ?? 0);
+  const failedOperations = metrics?.failedOperations ?? 0;
   const platformStats = platformOrder.map((platform) => communityStats?.platforms.find((item) => item.platform === platform) ?? {
     platform,
     knownUsers: 0,
@@ -55,7 +56,9 @@ export function DashboardPage() {
             )}
           </p>
         </div>
-        <span className="status-pill healthy"><span className="pill-dot" /> {tr('Live', 'مباشر')}</span>
+        <Link className={`status-pill ${metrics ? (failedOperations === 0 ? 'healthy' : 'negative') : 'neutral'}`} to="/operations">
+          <span className="pill-dot" /> {metrics ? (failedOperations === 0 ? tr('Operationally healthy', 'الحالة التشغيلية سليمة') : tr(`${failedOperations} failed operations`, `${failedOperations} عمليات فاشلة`)) : tr('Checking status', 'جارٍ التحقق من الحالة')}
+        </Link>
       </header>
 
       {error ? <RetryableErrorState onRetry={() => { setError(false); setReload((n) => n + 1); }} /> : !metrics ? (
@@ -122,6 +125,7 @@ export function DashboardPage() {
               <Link to="/reviews"><span>{tr('Member reviews', 'مراجعة الأعضاء')}</span><strong>{metrics.pendingReviews}</strong><small>{tr('waiting for decision', 'بانتظار القرار')}</small></Link>
               <Link to="/knowledge"><span>{tr('Knowledge documents', 'مستندات المعرفة')}</span><strong>{failedKnowledge}</strong><small>{tr('need attention', 'تحتاج إلى متابعة')}</small></Link>
               <Link to="/knowledge-gaps"><span>{tr('Knowledge gaps', 'فجوات المعرفة')}</span><strong>{openGaps}</strong><small>{tr('unresolved questions', 'أسئلة غير محلولة')}</small></Link>
+              <Link to="/operations"><span>{tr('Failed operations', 'العمليات الفاشلة')}</span><strong>{failedOperations}</strong><small>{tr('dead letters and delivery failures', 'عمليات متوقفة وأخطاء إرسال')}</small></Link>
             </div>
           </section>
         </>

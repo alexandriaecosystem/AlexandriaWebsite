@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type NavIconName = 'dashboard' | 'users' | 'messages' | 'reviews' | 'community' | 'knowledge' | 'gaps' | 'announcements' | 'analytics' | 'token' | 'account';
+export type NavIconName = 'dashboard' | 'users' | 'messages' | 'reviews' | 'community' | 'knowledge' | 'gaps' | 'announcements' | 'analytics' | 'token' | 'operations' | 'settings' | 'account';
 
 const glyphs: Record<NavIconName, ReactNode> = {
   dashboard: <><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></>,
@@ -13,6 +13,8 @@ const glyphs: Record<NavIconName, ReactNode> = {
   announcements: <><path d="M3 11v2h3l7 5V6l-7 5z"/><path d="M16 8a5 5 0 0 1 0 8M18.5 5.5a9 9 0 0 1 0 13"/></>,
   analytics: <><path d="M4 20V10M10 20V4M16 20v-7M22 20V7"/></>,
   token: <><circle cx="12" cy="12" r="9"/><path d="M8 9.5c0-1.4 1.5-2.5 4-2.5s4 1.1 4 2.5-1.5 2.5-4 2.5-4 1.1-4 2.5S9.5 17 12 17s4-1.1 4-2.5M12 5v14"/></>,
+  operations: <><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18" cy="18" r="2"/></>,
+  settings: <><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="11" cy="18" r="2"/></>,
   account: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>,
 };
 

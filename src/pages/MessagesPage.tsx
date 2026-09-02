@@ -50,7 +50,7 @@ export function MessagesPage() {
   const conversations = useMemo(() => {
     return items
       .filter((user) => user.messageCount > 0)
-      .filter((user) => platform === 'all' || user.platforms.includes(platform))
+      .filter((user) => platform === 'all' || user.platforms.some((value) => value.toLowerCase() === platform))
       .filter((user) => view === 'all' || user.hasUnread)
       .sort((a, b) => {
         if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
@@ -93,6 +93,8 @@ export function MessagesPage() {
               <option value="whatsapp">WhatsApp</option>
               <option value="telegram">Telegram</option>
               <option value="discord">Discord</option>
+              <option value="x">X</option>
+              <option value="instagram">Instagram</option>
             </select>
           </label>
           <label className="conversation-filter messages-platform-filter">

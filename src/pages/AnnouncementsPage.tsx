@@ -11,7 +11,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import './AnnouncementsPage.css';
 import './AnnouncementsMedia.css';
 
-const allPlatforms: AnnouncementPlatform[] = ['telegram', 'discord', 'whatsapp', 'x'];
+const allPlatforms: AnnouncementPlatform[] = ['telegram', 'discord', 'whatsapp', 'x', 'instagram'];
 type AnnouncementAudience = 'GENERAL' | 'APPROVED' | 'BOTH';
 type SelectableAudience = Exclude<AnnouncementAudience, 'BOTH'>;
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleString() : '—';
@@ -174,7 +174,7 @@ export function AnnouncementsPage() {
                 <button type="button" className="inline-action" onClick={toggleAllPlatforms}>{platforms.length === allPlatforms.length ? tr('Clear', 'مسح') : tr('Select all', 'تحديد الكل')}</button>
               </div>
               <div className="selection-grid platform-selection-grid">
-                {allPlatforms.map((platform) => <label className={`selection-card platform-card ${platforms.includes(platform) ? 'selected' : ''}`} key={platform}><input type="checkbox" checked={platforms.includes(platform)} onChange={() => togglePlatform(platform)} /><span className="selection-check" aria-hidden="true">✓</span><span className={`platform ${platform}`} dir="ltr">{platform}</span></label>)}
+                {allPlatforms.map((platform) => <label className={`selection-card platform-card ${platforms.includes(platform) ? 'selected' : ''}`} key={platform}><input type="checkbox" checked={platforms.includes(platform)} onChange={() => togglePlatform(platform)} /><span className="selection-check" aria-hidden="true">✓</span><span className="selection-card-copy"><strong className={`platform ${platform}`} dir="ltr">{platform === 'x' ? 'X' : platform[0].toUpperCase() + platform.slice(1)}</strong><small>{platform === 'instagram' ? tr('Instagram announcement delivery', 'إرسال الإعلان عبر Instagram') : tr('Include this platform in delivery.', 'تضمين هذه المنصة في الإرسال.')}</small></span></label>)}
               </div>
             </fieldset>
 

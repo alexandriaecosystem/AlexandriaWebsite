@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type AnnouncementPlatform = 'telegram' | 'discord' | 'whatsapp' | 'x';
+export type AnnouncementPlatform = 'telegram' | 'discord' | 'whatsapp' | 'x' | 'instagram';
 export type AnnouncementAudience = 'GENERAL' | 'APPROVED' | 'BOTH';
 
 type AnnouncementImageLike = {
