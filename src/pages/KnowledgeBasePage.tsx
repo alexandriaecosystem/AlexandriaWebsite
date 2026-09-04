@@ -15,7 +15,6 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_EXTENSIONS = ['docx', 'txt', 'md'];
-const statusClass = (status: string) => status === 'READY' ? 'healthy' : status === 'FAILED' ? 'danger' : 'neutral';
 type ConfirmAction = { kind: 'delete'; id: string; title: string } | { kind: 'bulk-approve' } | { kind: 'bulk-reprocess' } | null;
 type LibraryFilter = 'ALL' | 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'APPROVED' | 'AVAILABLE';
 type UploadStage = 'idle' | 'uploading' | 'queued' | 'error';
@@ -32,13 +31,6 @@ function extensionOf(file: File) {
 
 function isAvailable(doc: KnowledgeDocumentSummary) {
   return doc.processingStatus === 'READY' && doc.isApproved && doc.chunkCount > 0;
-}
-
-function processingStep(status: string) {
-  if (status === 'READY') return 3;
-  if (status === 'PROCESSING') return 2;
-  if (status === 'FAILED') return 2;
-  return 1;
 }
 
 export function KnowledgeBasePage() {
@@ -65,6 +57,7 @@ export function KnowledgeBasePage() {
   const [language, setLanguage] = useState('en');
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadDetailsRef = useRef<HTMLDetailsElement>(null);
   const uploadPanelRef = useRef<HTMLFormElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -149,8 +142,9 @@ export function KnowledgeBasePage() {
   }
 
   function focusUpload() {
-    uploadPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.setTimeout(() => titleRef.current?.focus(), 350);
+    if (uploadDetailsRef.current) uploadDetailsRef.current.open = true;
+    titleRef.current?.focus({ preventScroll: true });
+    uploadPanelRef.current?.scrollIntoView({ block: 'nearest' });
   }
 
   async function uploadDocument(event: FormEvent) {
@@ -265,19 +259,28 @@ export function KnowledgeBasePage() {
 
   return (
     <>
-      <header className="page-header"><div><p className="eyebrow">{tr('Project knowledge', 'معرفة المشروع')}</p><h1>{tr('Knowledge base', 'قاعدة المعرفة')}</h1><p className="muted page-subtitle">{tr('Upload, process and approve verified sources before they become available to the assistant.', 'ارفع المصادر الموثوقة وعالجها واعتمدها قبل أن تصبح متاحة للمساعد.')}</p></div><span className="status-pill neutral">{total} {tr('documents', 'مستندات')}</span></header>
+      <header className="page-header">
+        <div>
+          <h1>{tr('Knowledge base', 'قاعدة المعرفة')}</h1>
+          <p className="muted page-subtitle">{tr('Manage the sources Alexandria uses to answer questions.', 'أدر المصادر التي يستخدمها Alexandria للإجابة عن الأسئلة.')}</p>
+        </div>
+        <button type="button" className="primary" onClick={focusUpload}>{tr('Upload document', 'رفع مستند')}</button>
+      </header>
+      {message && <p className={messageIsError ? 'form-error' : 'form-success'} role={messageIsError ? 'alert' : 'status'}>{message}</p>}
 
       <section className="knowledge-state-grid" aria-label={tr('Knowledge publishing stages', 'مراحل نشر المعرفة')}>
-        <article className="metric-card knowledge-stage-card"><span>{tr('Processed', 'تمت المعالجة')}</span><strong>{readyCount}</strong><small>{tr('Text extracted and indexing finished', 'اكتمل استخراج النص والفهرسة')}</small></article>
-        <article className="metric-card knowledge-stage-card"><span>{tr('Approved', 'معتمد')}</span><strong>{approvedCount}</strong><small>{tr('Human approval has been recorded', 'تم تسجيل اعتماد المسؤول')}</small></article>
-        <article className="metric-card knowledge-stage-card available-stage"><span>{tr('Available to assistant', 'متاح للمساعد')}</span><strong>{availableCount}</strong><small>{tr('Processed + approved + indexed', 'معالج + معتمد + مفهرس')}</small></article>
-        <article className="metric-card knowledge-stage-card"><span>{tr('Processing now', 'قيد المعالجة الآن')}</span><strong>{processingCount}</strong><small>{processingCount ? tr('Auto-refreshing every 5 seconds', 'يتم التحديث تلقائياً كل 5 ثوانٍ') : tr('No processing jobs active', 'لا توجد عمليات معالجة نشطة')}</small></article>
+        <article className="metric-card knowledge-stage-card"><span>{tr('Processed', 'تمت المعالجة')}</span><strong>{error || !allDocuments ? '—' : readyCount}</strong><small>{tr('Text extracted and indexing finished', 'اكتمل استخراج النص والفهرسة')}</small></article>
+        <article className="metric-card knowledge-stage-card"><span>{tr('Approved', 'معتمد')}</span><strong>{error || !allDocuments ? '—' : approvedCount}</strong><small>{tr('Human approval has been recorded', 'تم تسجيل اعتماد المسؤول')}</small></article>
+        <article className="metric-card knowledge-stage-card available-stage"><span>{tr('Available to assistant', 'متاح للمساعد')}</span><strong>{error || !allDocuments ? '—' : availableCount}</strong><small>{tr('Processed + approved + indexed', 'معالج + معتمد + مفهرس')}</small></article>
+        <article className="metric-card knowledge-stage-card"><span>{tr('Processing now', 'قيد المعالجة الآن')}</span><strong>{error || !allDocuments ? '—' : processingCount}</strong><small>{tr('Queued or being processed', 'في الانتظار أو قيد المعالجة')}</small></article>
       </section>
 
       <section className="knowledge-layout">
+        <details ref={uploadDetailsRef} className="knowledge-upload-disclosure">
+          <summary>{tr('Add a source', 'إضافة مصدر')}<span>{tr('DOCX, TXT or Markdown · up to 20 MB', 'DOCX أو TXT أو Markdown · حتى 20 ميغابايت')}</span></summary>
         <form ref={uploadPanelRef} id="knowledge-upload" className="panel upload-panel enhanced-upload-panel" onSubmit={uploadDocument}>
           <div className="upload-heading"><div><p className="eyebrow">{tr('Add source', 'إضافة مصدر')}</p><h2>{tr('Upload document', 'رفع مستند')}</h2></div><span className="status-pill neutral">{tr('Max 20 MB', 'الحد 20 م.ب')}</span></div>
-          <p className="muted upload-intro">{tr('Add a verified source. Uploading creates the document first; processing and approval happen as separate visible stages.', 'أضف مصدراً موثوقاً. ينشئ الرفع المستند أولاً، ثم تظهر المعالجة والاعتماد كمراحل منفصلة وواضحة.')}</p>
+          <p className="muted upload-intro">{tr('Upload a source, wait for processing, then review and approve it.', 'ارفع مصدراً وانتظر معالجته، ثم راجعه واعتمده.')}</p>
 
           <label>{tr('Title', 'العنوان')}<input ref={titleRef} value={title} onChange={(event) => setTitle(event.target.value)} required placeholder={tr('Alexandria White Paper', 'الورقة البيضاء لمشروع Alexandria')} /></label>
           <div className="upload-fields-row">
@@ -317,12 +320,12 @@ export function KnowledgeBasePage() {
           )}
 
           <button className="primary upload-submit" disabled={uploading || !file || !title.trim()}>{uploading ? tr('Uploading securely…', 'جارٍ الرفع بأمان…') : tr('Upload & start processing', 'رفع وبدء المعالجة')}</button>
-          <p className="muted form-note">{tr('Uploading does not make a source available immediately. It must finish processing, receive human approval, and contain indexed chunks.', 'لا يجعل الرفع المصدر متاحاً مباشرة. يجب أن تكتمل معالجته ويحصل على اعتماد يدوي ويحتوي على أجزاء مفهرسة.')}</p>
-          {message && <p className={messageIsError ? 'form-error' : 'form-success'} role={messageIsError ? 'alert' : 'status'}>{message}</p>}
+          <p className="muted form-note">{tr('Only processed, approved sources with indexed content are available for answers.', 'تُستخدم في الإجابات المصادر المعالجة والمعتمدة التي تحتوي على نص مفهرس فقط.')}</p>
         </form>
+        </details>
 
         <div className="knowledge-main">
-          <div className="toolbar-row knowledge-toolbar"><div><p className="eyebrow">{tr('Documents', 'المستندات')}</p><h2>{tr('Source library', 'مكتبة المصادر')}</h2>{processingCount > 0 && <small className="processing-live"><span aria-hidden="true" />{tr(`${processingCount} processing · auto-refresh on`, `${processingCount} قيد المعالجة · التحديث التلقائي يعمل`)}</small>}</div><div className="table-tools"><button type="button" className="compact-button" disabled={!documents?.length} onClick={toggleAllVisible}>{allVisibleSelected ? tr('Clear visible', 'مسح الظاهر') : tr('Select visible', 'تحديد الظاهر')}</button><select className="compact-select" value={filter} onChange={(event) => setFilter(event.target.value as LibraryFilter)}><option value="ALL">{tr('All documents', 'كل المستندات')}</option><option value="PENDING">{tr('Queued', 'في قائمة الانتظار')}</option><option value="PROCESSING">{tr('Processing', 'قيد المعالجة')}</option><option value="READY">{tr('Processed', 'تمت المعالجة')}</option><option value="APPROVED">{tr('Approved', 'معتمد')}</option><option value="AVAILABLE">{tr('Available to assistant', 'متاح للمساعد')}</option><option value="FAILED">{tr('Failed', 'فشل')}</option></select></div></div>
+          <div className="toolbar-row knowledge-toolbar"><div><h2>{tr('Source library', 'مكتبة المصادر')} <span className="library-total">{error || !allDocuments ? '—' : total}</span></h2>{processingCount > 0 && <small className="processing-live"><span aria-hidden="true" />{tr(`${processingCount} processing · auto-refresh on`, `${processingCount} قيد المعالجة · التحديث التلقائي يعمل`)}</small>}</div><div className="table-tools"><button type="button" className="compact-button" disabled={!documents?.length} onClick={toggleAllVisible}>{allVisibleSelected ? tr('Clear visible', 'مسح الظاهر') : tr('Select visible', 'تحديد الظاهر')}</button><select aria-label={tr('Filter documents', 'تصفية المستندات')} className="compact-select" value={filter} onChange={(event) => setFilter(event.target.value as LibraryFilter)}><option value="ALL">{tr('All documents', 'كل المستندات')}</option><option value="PENDING">{tr('Queued', 'في قائمة الانتظار')}</option><option value="PROCESSING">{tr('Processing', 'قيد المعالجة')}</option><option value="READY">{tr('Processed', 'تمت المعالجة')}</option><option value="APPROVED">{tr('Approved', 'معتمد')}</option><option value="AVAILABLE">{tr('Available to assistant', 'متاح للمساعد')}</option><option value="FAILED">{tr('Failed', 'فشل')}</option></select></div></div>
 
           {selectedIds.length > 0 && (
             <div className="bulk-toolbar" role="status">
@@ -336,25 +339,62 @@ export function KnowledgeBasePage() {
           ) : <div className="document-list">{documents.map((doc) => {
             const processed = doc.processingStatus === 'READY';
             const available = isAvailable(doc);
-            const step = processingStep(doc.processingStatus);
+            const indexed = processed && doc.chunkCount > 0;
+            const failed = doc.processingStatus === 'FAILED';
+            const label = available ? tr('Ready for answers', 'جاهز للإجابات')
+              : failed ? tr('Processing failed', 'فشلت المعالجة')
+              : processed && !indexed ? tr('No indexed content', 'لا يوجد محتوى مفهرس')
+              : processed ? tr('Needs approval', 'بانتظار الاعتماد')
+              : statusLabel(doc.processingStatus);
+            const busy = Boolean(busyId) || bulkBusy;
             return (
-              <article className={`panel document-card ${selectedIds.includes(doc.id) ? 'selected-document' : ''}`} key={doc.id}>
-                <div className="document-head"><div className="document-heading-copy"><label className="document-select"><input type="checkbox" checked={selectedIds.includes(doc.id)} onChange={() => toggleDocument(doc.id)} /><span>{tr('Select', 'تحديد')}</span></label><div className="chip-row"><span className={`status-pill ${statusClass(doc.processingStatus)}`}>{statusLabel(doc.processingStatus)}</span>{doc.isApproved && <span className="status-pill healthy">{tr('Approved', 'معتمد')}</span>}{available && <span className="status-pill available-pill">{tr('Available', 'متاح')}</span>}</div><h3>{doc.title}</h3><p className="muted">{categoryLabel(doc.category)} · <span dir="ltr">{doc.language.toUpperCase()} · v{doc.version}</span></p></div><strong className="chunk-count">{doc.chunkCount > 0 ? doc.chunkCount : '—'}<small>{doc.chunkCount > 0 ? tr('Indexed chunks', 'أجزاء مفهرسة') : tr('No chunks yet', 'لا توجد أجزاء بعد')}</small></strong></div>
-
-                <div className={`processing-pipeline ${doc.processingStatus === 'FAILED' ? 'failed' : ''}`}>
-                  <div className="pipeline-heading"><span>{tr('Processing progress', 'تقدم المعالجة')}</span><strong>{doc.processingStatus === 'FAILED' ? tr('Needs attention', 'يحتاج إلى مراجعة') : `${Math.min(step, 3)}/3`}</strong></div>
-                  <div className="pipeline-track" aria-label={tr('Document processing progress', 'تقدم معالجة المستند')}><span className="complete" /><span className={step >= 2 ? doc.processingStatus === 'FAILED' ? 'failed' : 'complete' : 'active'} /><span className={step >= 3 ? 'complete' : ''} /></div>
-                  <div className="pipeline-labels"><span>{tr('Uploaded', 'تم الرفع')}</span><span>{tr('Extract & index', 'استخراج وفهرسة')}</span><span>{tr('Processed', 'تمت المعالجة')}</span></div>
+              <article className={`panel document-card compact-document ${selectedIds.includes(doc.id) ? 'selected-document' : ''}`} key={doc.id}>
+                <div className="document-head">
+                  <label className="document-select">
+                    <input type="checkbox" checked={selectedIds.includes(doc.id)} onChange={() => toggleDocument(doc.id)} />
+                    <span className="sr-only">{tr('Select', 'تحديد')} {doc.title}</span>
+                  </label>
+                  <div className="document-heading-copy">
+                    <h3>{doc.title}</h3>
+                    <p className="muted">{categoryLabel(doc.category)} · <span dir="ltr">{doc.language.toUpperCase()}</span></p>
+                  </div>
+                  <span className={`status-pill ${available ? 'healthy' : failed ? 'negative' : 'neutral'}`}>{label}</span>
                 </div>
 
-                <div className="knowledge-readiness-strip" aria-label={tr('Assistant availability requirements', 'متطلبات الإتاحة للمساعد')}>
-                  <div className={processed ? 'done' : ''}><span aria-hidden="true">{processed ? '✓' : '1'}</span><strong>{tr('Processed', 'تمت المعالجة')}</strong><small>{processed ? tr('Indexing complete', 'اكتملت الفهرسة') : statusLabel(doc.processingStatus)}</small></div>
-                  <div className={doc.isApproved ? 'done' : ''}><span aria-hidden="true">{doc.isApproved ? '✓' : '2'}</span><strong>{tr('Approved', 'معتمد')}</strong><small>{doc.isApproved ? tr('Human approved', 'اعتماد يدوي مكتمل') : tr('Waiting for admin', 'بانتظار المسؤول')}</small></div>
-                  <div className={available ? 'done available' : ''}><span aria-hidden="true">{available ? '✓' : '3'}</span><strong>{tr('Available', 'متاح')}</strong><small>{available ? tr('Assistant can use it', 'يمكن للمساعد استخدامه') : tr('Not available yet', 'غير متاح بعد')}</small></div>
+                <ol className="document-readiness" aria-label={tr('Assistant availability requirements', 'متطلبات الإتاحة للمساعد')}>
+                  {[
+                    { done: indexed, text: tr('Indexed', 'مفهرس') },
+                    { done: doc.isApproved, text: tr('Approved', 'معتمد') },
+                    { done: available, text: tr('Available', 'متاح') },
+                  ].map((stage, index) => (
+                    <li className={stage.done ? 'done' : ''} key={index}>
+                      <span className="readiness-marker" aria-hidden="true">{stage.done ? '✓' : index + 1}</span>
+                      <span>{stage.text}<span className="sr-only">{stage.done ? tr(': complete', ': مكتمل') : tr(': pending', ': غير مكتمل')}</span></span>
+                    </li>
+                  ))}
+                </ol>
+
+                <div className="document-primary-actions">
+                  <button type="button" className="compact-button" disabled={busy || doc.processingStatus === 'PROCESSING'} onClick={() => setEditingId(doc.id)}>{tr('Open / Edit', 'فتح / تعديل')}</button>
+                  {processed && !doc.isApproved && <button type="button" className="compact-button primary" disabled={busy} onClick={() => void act(doc.id, 'approve')}>{tr('Approve', 'اعتماد')}</button>}
+                  {failed && <button type="button" className="compact-button" disabled={busy} onClick={() => void act(doc.id, 'reprocess')}>{tr('Retry processing', 'إعادة محاولة المعالجة')}</button>}
                 </div>
 
-                {doc.processingError && <p className="form-error">{doc.processingError}</p>}
-                <div className="document-footer"><small>{tr('Updated', 'آخر تحديث')} {new Date(doc.updatedAt).toLocaleString(isArabic ? 'ar-LB' : undefined)}</small><div className="decision-actions"><button type="button" className="compact-button" disabled={busyId === doc.id || doc.processingStatus === 'PROCESSING'} onClick={() => setEditingId(doc.id)}>{tr('Open / Edit', 'فتح / تعديل')}</button><button type="button" className="compact-button" disabled={busyId === doc.id || doc.processingStatus !== 'READY' || doc.isApproved} onClick={() => void act(doc.id, 'approve')}>{tr('Approve', 'اعتماد')}</button><button type="button" className="compact-button" disabled={busyId === doc.id} onClick={() => void act(doc.id, 'reprocess')}>{tr('Reprocess', 'إعادة المعالجة')}</button><button type="button" className="compact-button danger" disabled={busyId === doc.id} onClick={() => setConfirmAction({ kind: 'delete', id: doc.id, title: doc.title })}>{tr('Delete', 'حذف')}</button></div></div>
+                <details className="document-details">
+                  <summary>{tr('Document details', 'تفاصيل المستند')}<span className="sr-only">: {doc.title}</span></summary>
+                  <dl className="document-metadata">
+                    <div><dt>{tr('Version', 'الإصدار')}</dt><dd>{doc.version}</dd></div>
+                    <div><dt>{tr('Indexed chunks', 'أجزاء مفهرسة')}</dt><dd>{doc.chunkCount}</dd></div>
+                    <div><dt>{tr('Processing', 'المعالجة')}</dt><dd>{statusLabel(doc.processingStatus)}</dd></div>
+                    <div><dt>{tr('Updated', 'آخر تحديث')}</dt><dd>{new Date(doc.updatedAt).toLocaleString(isArabic ? 'ar-LB' : undefined)}</dd></div>
+                  </dl>
+                  {doc.processingError && <p className="form-error">{doc.processingError}</p>}
+                  {processed && !indexed && <p className="muted">{tr('This source has no indexed text. Review its contents and reprocess it before using it for answers.', 'لا يحتوي هذا المصدر على نص مفهرس. راجع محتواه وأعد معالجته قبل استخدامه في الإجابات.')}</p>}
+                  <div className="document-secondary-actions">
+                    {!failed && <button type="button" className="compact-button" disabled={busy} onClick={() => void act(doc.id, 'reprocess')}>{tr('Reprocess', 'إعادة المعالجة')}</button>}
+                    <button type="button" className="compact-button danger" disabled={busy} onClick={() => setConfirmAction({ kind: 'delete', id: doc.id, title: doc.title })}>{tr('Delete', 'حذف')}</button>
+                  </div>
+                </details>
               </article>
             );
           })}</div>}

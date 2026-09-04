@@ -12,7 +12,8 @@ type NavItem = { to: string; en: string; ar: string; icon: NavIconName; end?: bo
 type NavGroup = { en: string; ar: string; items: NavItem[] };
 
 const navigation: NavGroup[] = [
-  { en: 'Overview', ar: 'نظرة عامة', items: [
+  { en: 'Workspace', ar: 'مساحة العمل', items: [
+    { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: 'knowledge' },
     { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: 'dashboard', end: true },
   ] },
   { en: 'Community', ar: 'المجتمع', items: [
@@ -22,7 +23,6 @@ const navigation: NavGroup[] = [
     { to: '/community', en: 'Approved community', ar: 'المجتمع المعتمد', icon: 'community' },
   ] },
   { en: 'Content', ar: 'المحتوى', items: [
-    { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: 'knowledge' },
     { to: '/knowledge-gaps', en: 'Knowledge gaps', ar: 'فجوات المعرفة', icon: 'gaps' },
     { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: 'announcements' },
   ] },
@@ -77,6 +77,9 @@ export function AppShell() {
           <img src={alexandriaLogo} alt="" aria-hidden="true" />
           <span><strong>Alexandria</strong><small>{tr('Community admin', 'إدارة المجتمع')}</small></span>
         </div>
+        <NavLink className="mobile-knowledge-link" to="/knowledge" aria-label={tr('Knowledge base', 'قاعدة المعرفة')}>
+          <NavIcon name="knowledge" />
+        </NavLink>
       </header>
 
       <button type="button" className="sidebar-backdrop" aria-label={tr('Close navigation', 'إغلاق التنقل')} onClick={() => setMenuOpen(false)} tabIndex={menuOpen ? 0 : -1} />
