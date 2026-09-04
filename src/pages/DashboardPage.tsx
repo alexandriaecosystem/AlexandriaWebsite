@@ -51,13 +51,13 @@ export function DashboardPage() {
           <h1>{tr('Alexandria community', 'مجتمع Alexandria')}</h1>
           <p className="muted page-subtitle">
             {tr(
-              'See your key community numbers, platform mix and items that need attention.',
-              'اطّلع على أهم أرقام المجتمع وتوزيع المنصات والعناصر التي تحتاج إلى متابعة.',
+              'Review pending items and keep up with your community.',
+              'راجع العناصر المعلّقة وتابع نشاط مجتمعك.',
             )}
           </p>
         </div>
         <Link className={`status-pill ${metrics ? (failedOperations === 0 ? 'healthy' : 'negative') : 'neutral'}`} to="/operations">
-          <span className="pill-dot" /> {metrics ? (failedOperations === 0 ? tr('Operationally healthy', 'الحالة التشغيلية سليمة') : tr(`${failedOperations} failed operations`, `${failedOperations} عمليات فاشلة`)) : tr('Checking status', 'جارٍ التحقق من الحالة')}
+          <span className="pill-dot" /> {metrics ? (failedOperations === 0 ? tr('No failed operations', 'لا توجد عمليات فاشلة') : tr(`${failedOperations} failed operations`, `${failedOperations} عمليات فاشلة`)) : tr('Checking status', 'جارٍ التحقق من الحالة')}
         </Link>
       </header>
 
@@ -83,10 +83,25 @@ export function DashboardPage() {
             </Link>
           </section>
 
+          <section className="panel attention-panel dashboard-attention-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">{tr('Needs attention', 'يحتاج إلى متابعة')}</p>
+                <h2>{attentionCount ? tr('Items waiting for you', 'عناصر بانتظارك') : tr('Nothing urgent right now', 'لا يوجد شيء عاجل حالياً')}</h2>
+              </div>
+              <span className={`status-pill ${attentionCount ? 'negative' : 'positive'}`}>{attentionCount}</span>
+            </div>
+            <div className="attention-grid">
+              <Link to="/reviews"><span>{tr('Member reviews', 'مراجعة الأعضاء')}</span><strong>{metrics.pendingReviews}</strong><small>{tr('waiting for decision', 'بانتظار القرار')}</small></Link>
+              <Link to="/knowledge"><span>{tr('Knowledge documents', 'مستندات المعرفة')}</span><strong>{failedKnowledge}</strong><small>{tr('need attention', 'تحتاج إلى متابعة')}</small></Link>
+              <Link to="/knowledge-gaps"><span>{tr('Knowledge gaps', 'فجوات المعرفة')}</span><strong>{openGaps}</strong><small>{tr('unresolved questions', 'أسئلة غير محلولة')}</small></Link>
+              <Link to="/operations"><span>{tr('Failed operations', 'العمليات الفاشلة')}</span><strong>{failedOperations}</strong><small>{tr('review delivery issues', 'مراجعة مشكلات الإرسال')}</small></Link>
+            </div>
+          </section>
+
           <section className="panel community-membership-panel dashboard-platform-panel" aria-label={tr('Users by platform', 'المستخدمون حسب المنصة')}>
             <div className="section-heading">
               <div>
-                <p className="eyebrow">{tr('Platform mix', 'توزيع المنصات')}</p>
                 <h2>{tr('Users by platform', 'المستخدمون حسب المنصة')}</h2>
                 <p className="muted">{tr('Known users across Telegram, Discord and WhatsApp, with Telegram Premium highlighted.', 'المستخدمون المعروفون عبر Telegram وDiscord وWhatsApp، مع إبراز مستخدمي Telegram Premium.')}</p>
               </div>
@@ -113,21 +128,7 @@ export function DashboardPage() {
             )}
           </section>
 
-          <section className="panel attention-panel dashboard-attention-panel">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{tr('Needs attention', 'يحتاج إلى متابعة')}</p>
-                <h2>{attentionCount ? tr('Items waiting for you', 'عناصر بانتظارك') : tr('Nothing urgent right now', 'لا يوجد شيء عاجل حالياً')}</h2>
-              </div>
-              <span className={`status-pill ${attentionCount ? 'negative' : 'positive'}`}>{attentionCount}</span>
-            </div>
-            <div className="attention-grid">
-              <Link to="/reviews"><span>{tr('Member reviews', 'مراجعة الأعضاء')}</span><strong>{metrics.pendingReviews}</strong><small>{tr('waiting for decision', 'بانتظار القرار')}</small></Link>
-              <Link to="/knowledge"><span>{tr('Knowledge documents', 'مستندات المعرفة')}</span><strong>{failedKnowledge}</strong><small>{tr('need attention', 'تحتاج إلى متابعة')}</small></Link>
-              <Link to="/knowledge-gaps"><span>{tr('Knowledge gaps', 'فجوات المعرفة')}</span><strong>{openGaps}</strong><small>{tr('unresolved questions', 'أسئلة غير محلولة')}</small></Link>
-              <Link to="/operations"><span>{tr('Failed operations', 'العمليات الفاشلة')}</span><strong>{failedOperations}</strong><small>{tr('dead letters and delivery failures', 'عمليات متوقفة وأخطاء إرسال')}</small></Link>
-            </div>
-          </section>
+
         </>
       )}
     </>

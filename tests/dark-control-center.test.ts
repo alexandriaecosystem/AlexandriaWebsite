@@ -33,7 +33,7 @@ describe('dark control center architecture', () => {
     expect(palette).toContain('--brand-gold: #d7ae52');
     expect(palette).toContain('--brand-gold-bright: #f0cf7a');
     expect(palette).toContain('--brand-ink: #090b0e');
-    expect(palette).toContain('--radius-panel: 20px');
+    expect(palette).toContain('--radius-panel: 14px');
     expect(palette).toContain('--shadow-panel:');
     expect(palette).toContain('.brand-lockup');
     expect(palette).toContain('.page-header::after');
