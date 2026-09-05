@@ -79,11 +79,21 @@ export type AdminUserItem = {
   isCurrentUser: boolean;
 };
 
+export type AnnouncementTarget = {
+  id: string;
+  name: string;
+  platform: string;
+  communityLevel: 'GENERAL' | 'APPROVED';
+  targetKind: 'GROUP' | 'ACCOUNT';
+  isActive: boolean;
+};
+
 export type AnnouncementHistoryItem = {
   id: string;
   content: string;
   destinationLevel: string;
   selectedPlatforms: string[];
+  selectedCommunities: Array<{ id: string; name: string; platform: string; communityLevel: string }>;
   status: string;
   scheduledFor: string | null;
   approvedAt: string | null;
@@ -157,12 +167,28 @@ export async function listAdminUsers(client: SupabaseClient): Promise<AdminUserI
   return (value.items ?? []).map((item) => ({ userId: String(item.user_id), email: nullable(item.email), isActive: item.is_active === true, createdAt: String(item.created_at), createdBy: nullable(item.created_by), isCurrentUser: item.is_current_user === true }));
 }
 
+export async function listAnnouncementTargets(client: SupabaseClient): Promise<AnnouncementTarget[]> {
+  const { data, error } = await client.rpc('admin_list_announcement_targets');
+  const value = assertData(data as { items?: Record<string, unknown>[] } | null, error);
+  return (value.items ?? []).map((item) => ({
+    id: String(item.id),
+    name: String(item.name ?? 'Unnamed destination'),
+    platform: String(item.platform),
+    communityLevel: String(item.community_level ?? 'GENERAL') as AnnouncementTarget['communityLevel'],
+    targetKind: String(item.target_kind ?? 'GROUP') as AnnouncementTarget['targetKind'],
+    isActive: item.is_active !== false,
+  }));
+}
+
 export async function listAnnouncementHistory(client: SupabaseClient): Promise<AnnouncementHistoryItem[]> {
   const { data, error } = await client.rpc('admin_list_announcements', { p_limit: 100 });
   const value = assertData(data as { items?: Record<string, unknown>[] } | null, error);
   return (value.items ?? []).map((item) => ({
     id: String(item.id), content: String(item.content ?? ''), destinationLevel: String(item.destination_level ?? 'GENERAL'),
     selectedPlatforms: Array.isArray(item.selected_platforms) ? item.selected_platforms.map(String) : [], status: String(item.status ?? 'DRAFT'),
+    selectedCommunities: Array.isArray(item.selected_communities) ? (item.selected_communities as Record<string, unknown>[]).map((community) => ({
+      id: String(community.id), name: String(community.name ?? 'Unnamed destination'), platform: String(community.platform), communityLevel: String(community.community_level ?? 'GENERAL'),
+    })) : [],
     scheduledFor: nullable(item.scheduled_for), approvedAt: nullable(item.approved_at), publishedAt: nullable(item.published_at), createdAt: String(item.created_at),
     deliveryCount: Number(item.delivery_count ?? 0), sentCount: Number(item.sent_count ?? 0), failedCount: Number(item.failed_count ?? 0),
     deliveries: Array.isArray(item.deliveries) ? (item.deliveries as Record<string, unknown>[]).map((delivery) => ({ platform: String(delivery.platform), status: String(delivery.status), attemptCount: Number(delivery.attempt_count ?? 0), sentAt: nullable(delivery.sent_at), error: nullable(delivery.error) })) : [],

@@ -29,12 +29,14 @@ export async function createAnnouncementWithMedia(client: SupabaseClient, input:
   content: string;
   destination: AnnouncementAudience;
   platforms: AnnouncementPlatform[];
+  communityIds: string[];
   image?: File | null;
 }) {
   const content = input.content.trim();
   const image = input.image ?? null;
   const validationError = validateAnnouncementDraft(content, image);
   if (validationError) throw new Error(validationError);
+  if (!input.communityIds.length) throw new Error('Choose at least one target group or account.');
   if (!input.platforms.length) throw new Error('Choose at least one platform.');
 
   let mediaPath: string | null = null;
@@ -58,6 +60,7 @@ export async function createAnnouncementWithMedia(client: SupabaseClient, input:
       p_media_path: mediaPath,
       p_media_mime_type: image?.type ?? null,
       p_media_filename: image?.name ?? null,
+      p_community_ids: input.communityIds,
     });
 
     if (created.error) throw new Error(created.error.message);
