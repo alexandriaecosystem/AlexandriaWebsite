@@ -9,6 +9,7 @@ import { LoadingState, RetryableErrorState } from '../components/AsyncState';
 import { CommunityPieChart } from '../components/CommunityPieChart';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../dashboard-chart.css';
+import '../dashboard-usability.css';
 
 const platformOrder: CommunityPlatform[] = ['TELEGRAM', 'DISCORD', 'WHATSAPP'];
 
