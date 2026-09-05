@@ -1,0 +1,45 @@
+/*
+ * Alexandria global stylesheet manifest.
+ *
+ * Keep this file as the single global CSS entrypoint. The import order
+ * preserves the existing cascade while making it explicit and testable:
+ * foundation -> compatibility -> locale -> UX system -> responsive QA ->
+ * workflow UX -> final premium theme.
+ *
+ * Component/page-owned styles continue to be imported by their components.
+ */
+@import './styles.css';
+@import './ui-overrides.css';
+@import './i18n.css';
+@import './ux-system.css';
+@import './qa-responsive.css';
+@import './knowledge-analytics-ux.css';
+@import './premium-palette.css';
+
+/* Normalize legacy UX aliases against the final Alexandria design tokens. */
+:root {
+  --ux-radius-sm: var(--radius-control, 10px);
+  --ux-radius-md: var(--radius-card, 14px);
+  --ux-radius-lg: var(--radius-panel, 14px);
+  --ux-shadow-sm: var(--shadow-soft);
+  --ux-shadow-md: var(--shadow-panel);
+}
+
+.panel,
+.table-card,
+.decision-panel,
+.login-card {
+  border-radius: var(--radius-panel);
+}
+
+.metric-card,
+.stat-card {
+  border-radius: var(--radius-card);
+}
+
+button,
+input,
+select,
+textarea {
+  border-radius: var(--radius-control);
+}
