@@ -1,0 +1,382 @@
+.takeover-shell {
+  display: contents;
+}
+
+.takeover-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+}
+
+.takeover-status-dot {
+  width: .48rem;
+  height: .48rem;
+  border-radius: 999px;
+  background: currentColor;
+  display: inline-block;
+  margin-inline-end: .25rem;
+}
+
+.takeover-manage-button {
+  min-height: 2.55rem;
+  white-space: nowrap;
+}
+
+.takeover-summary {
+  width: 100%;
+  margin: 0 0 1rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--border, #293241);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(232, 184, 79, .08), rgba(18, 25, 34, .96) 44%);
+  color: inherit;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .8rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.takeover-summary:hover {
+  border-color: rgba(232, 184, 79, .48);
+}
+
+.takeover-summary-icon {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(232, 184, 79, .12);
+  color: #e8b84f;
+}
+
+.takeover-summary-copy {
+  min-width: 0;
+  display: grid;
+  gap: .18rem;
+}
+
+.takeover-summary-copy strong {
+  font-size: .92rem;
+}
+
+.takeover-summary-copy small {
+  color: var(--muted, #8f9bad);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.takeover-summary-link {
+  color: #e8b84f;
+  font-size: .83rem;
+  font-weight: 700;
+}
+
+.takeover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(3, 6, 10, .68);
+  backdrop-filter: blur(3px);
+}
+
+.takeover-drawer {
+  width: min(610px, 100vw);
+  height: 100%;
+  overflow-y: auto;
+  background: #151d28;
+  border-inline-start: 1px solid #354252;
+  box-shadow: -24px 0 70px rgba(0, 0, 0, .34);
+  padding: 1.7rem;
+}
+
+.takeover-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #293241;
+}
+
+.takeover-drawer-head h2 {
+  margin: .2rem 0 .35rem;
+  font-size: clamp(1.35rem, 2vw, 1.75rem);
+}
+
+.takeover-drawer-head p:last-child {
+  margin: 0;
+}
+
+.takeover-close {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #8f9bad;
+  font-size: 1.65rem;
+  cursor: pointer;
+}
+
+.takeover-close:hover {
+  background: #202936;
+  color: #edf2f7;
+}
+
+.takeover-form {
+  display: grid;
+  gap: 1.05rem;
+  padding-top: 1.2rem;
+}
+
+.takeover-section {
+  display: grid;
+  gap: .55rem;
+}
+
+.takeover-section > .eyebrow {
+  margin: 0;
+  color: #e8b84f;
+}
+
+.takeover-section label {
+  display: grid;
+  gap: .42rem;
+  font-size: .84rem;
+  font-weight: 650;
+}
+
+.takeover-section label small {
+  color: #8f9bad;
+  font-weight: 500;
+}
+
+.takeover-section input,
+.takeover-section select {
+  width: 100%;
+  min-height: 3.15rem;
+  border: 1px solid #344154;
+  border-radius: 11px;
+  background: #0f1621;
+  color: #edf2f7;
+  padding: 0 .9rem;
+  outline: none;
+}
+
+.takeover-section input:focus,
+.takeover-section select:focus {
+  border-color: rgba(232, 184, 79, .72);
+  box-shadow: 0 0 0 3px rgba(232, 184, 79, .1);
+}
+
+.takeover-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: .25rem;
+  border: 1px solid #293241;
+  border-radius: 12px;
+  background: #0f1621;
+}
+
+.takeover-mode-switch button {
+  min-height: 2.65rem;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #9ba7b8;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.takeover-mode-switch button.active {
+  background: #30291b;
+  color: #e8b84f;
+}
+
+.takeover-time-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .8rem;
+}
+
+.takeover-quick-block {
+  display: grid;
+  gap: .55rem;
+  color: #c5cfdb;
+  font-size: .84rem;
+  font-weight: 650;
+}
+
+.takeover-duration-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.takeover-duration-chips button {
+  min-height: 2.35rem;
+  padding: 0 .8rem;
+  border: 1px solid #344154;
+  border-radius: 9px;
+  background: #0f1621;
+  color: #9ba7b8;
+  cursor: pointer;
+}
+
+.takeover-duration-chips button.active {
+  border-color: #6e5c2a;
+  background: #30291b;
+  color: #e8b84f;
+}
+
+.takeover-explainer {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .7rem;
+  padding: .9rem 1rem;
+  border: 1px solid #24423a;
+  border-radius: 12px;
+  background: #111b1a;
+}
+
+.takeover-explainer > span {
+  color: #55d6a7;
+  font-weight: 800;
+}
+
+.takeover-explainer strong {
+  display: block;
+  margin-bottom: .35rem;
+  font-size: .86rem;
+}
+
+.takeover-explainer p {
+  margin: .14rem 0;
+  color: #9ba7b8;
+  font-size: .8rem;
+  line-height: 1.45;
+}
+
+.takeover-alert {
+  padding: .75rem .9rem;
+  border-radius: 10px;
+  font-size: .84rem;
+}
+
+.takeover-alert.error {
+  border: 1px solid rgba(255, 123, 114, .35);
+  background: rgba(255, 123, 114, .08);
+  color: #ffaaa4;
+}
+
+.takeover-alert.success {
+  border: 1px solid rgba(85, 214, 167, .32);
+  background: rgba(85, 214, 167, .08);
+  color: #79e4bb;
+}
+
+.takeover-drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: .7rem;
+  padding-top: .3rem;
+}
+
+.takeover-current-list {
+  margin-top: 1.35rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid #293241;
+}
+
+.takeover-current-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .7rem;
+}
+
+.takeover-current-head h3 {
+  margin: 0;
+  font-size: .95rem;
+}
+
+.takeover-current-head span {
+  min-width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #202936;
+  color: #c5cfdb;
+  font-size: .72rem;
+}
+
+.takeover-current-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+  padding: .85rem 0;
+  border-bottom: 1px solid #222c38;
+}
+
+.takeover-current-card > div {
+  min-width: 0;
+  display: grid;
+  gap: .17rem;
+}
+
+.takeover-current-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .88rem;
+}
+
+.takeover-current-card span {
+  color: #8f9bad;
+  font-size: .75rem;
+}
+
+.takeover-platform-label {
+  color: #e8b84f;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .takeover-toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .takeover-drawer {
+    width: 100%;
+    padding: 1.1rem;
+  }
+
+  .takeover-time-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .takeover-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .takeover-summary-link {
+    display: none;
+  }
+
+  .takeover-current-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
