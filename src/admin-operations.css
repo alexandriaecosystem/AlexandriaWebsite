@@ -33,6 +33,21 @@
 .settings-list > div:last-child { border-bottom:0; }
 .settings-list span { color:var(--muted); }
 .settings-list strong { text-align:end; }
+
+.knowledge-gaps-header { align-items:flex-start; flex-wrap:nowrap; }
+.knowledge-gaps-heading {
+  flex: 1 1 520px;
+  min-width:280px;
+  max-width:min(920px, 100%);
+}
+.knowledge-gaps-heading h1 { overflow-wrap:normal; word-break:normal; }
+.knowledge-gaps-status-filter {
+  width: auto;
+  min-width:150px;
+  max-width:220px;
+  flex:0 0 auto;
+}
+
 .question-cell { min-width:320px; max-width:640px; }
 .error-text { color:var(--danger, #ff7777) !important; max-width:260px; white-space:normal; }
 .announcement-history-card { margin-top:18px; }
@@ -49,4 +64,7 @@
   .health-list > div > strong { text-align:start; }
   .settings-list > div { flex-direction:column; gap:5px; }
   .settings-list strong { text-align:start; }
+  .knowledge-gaps-header { flex-direction:column; align-items:stretch; gap:14px; }
+  .knowledge-gaps-heading { flex:0 1 auto; width:100%; min-width:0; max-width:none; }
+  .knowledge-gaps-status-filter { width:100%; min-width:0; max-width:none; align-self:stretch; }
 }

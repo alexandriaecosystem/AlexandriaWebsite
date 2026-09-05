@@ -53,4 +53,19 @@ describe('responsive collision hardening', () => {
     expect(css).toContain('canvas');
     expect(css).toContain('max-width: 100%;');
   });
+
+  it('prevents the knowledge gaps filter from collapsing its page title', () => {
+    const page = source('src/pages/AdminOperationsPages.tsx');
+    const css = source('src/admin-operations.css');
+
+    expect(page).toContain('className="page-header knowledge-gaps-header"');
+    expect(page).toContain('className="knowledge-gaps-heading"');
+    expect(page).toContain('className="compact-select knowledge-gaps-status-filter"');
+    expect(css).toContain('.knowledge-gaps-heading');
+    expect(css).toContain('flex: 1 1 520px;');
+    expect(css).toContain('.knowledge-gaps-status-filter');
+    expect(css).toContain('width: auto;');
+    expect(css).toContain('@media (max-width: 720px)');
+    expect(css).toContain('.knowledge-gaps-header');
+  });
 });
