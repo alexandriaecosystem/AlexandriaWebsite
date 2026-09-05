@@ -146,7 +146,7 @@ describe('AI sleep operator panel', () => {
     expect(screen.getByText('Human takeover active')).toBeInTheDocument();
     expect(screen.getByText('VIP Community')).toBeInTheDocument();
     expect(screen.getByText(/Wakes in 2h/)).toBeInTheDocument();
-    expect(onActiveCountChange).toHaveBeenCalledWith(1);
+    await waitFor(() => expect(onActiveCountChange).toHaveBeenCalledWith(1));
 
     fireEvent.click(screen.getByRole('button', { name: 'Wake AI now for VIP Community' }));
     await waitFor(() => expect(cancelWindow).toHaveBeenCalledWith(activeWindow.id));

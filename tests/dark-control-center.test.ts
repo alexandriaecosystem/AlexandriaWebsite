@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -7,17 +7,56 @@ function source(path: string): string {
 }
 
 describe('dark control center architecture', () => {
-  it('removes the light-theme collision from the global import chain', () => {
+  it('uses one global stylesheet entrypoint with a deliberate cascade manifest', () => {
     const main = source('src/main.tsx');
-    expect(main).toContain("import './styles.css';");
-    expect(main).toContain("import './i18n.css';");
-    expect(main).not.toMatch(/admin-theme\.css|modern-ui\.css|mobile-shell\.css/);
+    expect(main).toContain("import './app.css';");
+    expect(main).not.toMatch(/import '\.\/(?:styles|ui-overrides|i18n|ux-system|qa-responsive|knowledge-analytics-ux|premium-palette)\.css';/);
+
+    const app = source('src/app.css');
+    const orderedImports = [
+      './styles.css',
+      './ui-overrides.css',
+      './i18n.css',
+      './ux-system.css',
+      './qa-responsive.css',
+      './knowledge-analytics-ux.css',
+      './premium-palette.css',
+    ];
+
+    let lastIndex = -1;
+    orderedImports.forEach((path) => {
+      const index = app.indexOf(`@import '${path}';`);
+      expect(index).toBeGreaterThan(lastIndex);
+      lastIndex = index;
+    });
   });
 
-  it('loads one premium charcoal and gold theme layer last', () => {
-    const main = source('src/main.tsx');
-    expect(main).toContain("import './premium-palette.css';");
-    expect(main.trim()).toMatch(/import '\.\/premium-palette\.css';[\s\S]*const root/);
+  it('normalizes shared primitive tokens after the compatibility layers', () => {
+    const app = source('src/app.css');
+    expect(app).toContain('--ux-radius-sm: var(--radius-control, 10px)');
+    expect(app).toContain('--ux-radius-md: var(--radius-card, 14px)');
+    expect(app).toContain('--ux-radius-lg: var(--radius-panel, 14px)');
+    expect(app).toContain('--ux-shadow-sm: var(--shadow-soft)');
+    expect(app).toContain('--ux-shadow-md: var(--shadow-panel)');
+    expect(app).toContain('.panel,');
+    expect(app).toContain('.metric-card,');
+    expect(app).toContain('border-radius: var(--radius-panel)');
+    expect(app).toContain('border-radius: var(--radius-card)');
+    expect(app).toContain('border-radius: var(--radius-control)');
+  });
+
+  it('removes obsolete duplicate theme and mobile-shell files', () => {
+    expect(existsSync(resolve(process.cwd(), 'src/admin-theme.css'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'src/modern-ui.css'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'src/mobile-shell.css'))).toBe(false);
+  });
+
+  it('loads the premium charcoal and gold theme last in the global manifest', () => {
+    const app = source('src/app.css');
+    expect(app).toContain("@import './premium-palette.css';");
+    const premiumIndex = app.indexOf("@import './premium-palette.css';");
+    const knowledgeIndex = app.indexOf("@import './knowledge-analytics-ux.css';");
+    expect(premiumIndex).toBeGreaterThan(knowledgeIndex);
 
     const palette = source('src/premium-palette.css');
     expect(palette).toContain('--bg: #0b0d10');
@@ -39,10 +78,10 @@ describe('dark control center architecture', () => {
     expect(palette).toContain('.page-header::after');
   });
 
-  it('keeps the global import chain intentionally small', () => {
+  it('keeps the application entrypoint intentionally small', () => {
     const main = source('src/main.tsx');
     const globalCssImports = main.match(/import '\.\/[a-z0-9-]+\.css';/g) ?? [];
-    expect(globalCssImports.length).toBeLessThanOrEqual(7);
+    expect(globalCssImports).toEqual(["import './app.css';"]);
   });
 
   it('exposes brand and dashboard hierarchy hooks without changing routes', () => {
