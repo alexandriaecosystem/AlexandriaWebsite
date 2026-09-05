@@ -13,8 +13,8 @@ type NavGroup = { en: string; ar: string; items: NavItem[] };
 
 const navigation: NavGroup[] = [
   { en: 'Workspace', ar: 'مساحة العمل', items: [
-    { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: 'knowledge' },
     { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: 'dashboard', end: true },
+    { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: 'knowledge' },
   ] },
   { en: 'Community', ar: 'المجتمع', items: [
     { to: '/users', en: 'Users', ar: 'المستخدمون', icon: 'users' },

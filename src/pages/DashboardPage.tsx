@@ -6,7 +6,6 @@ import { listKnowledgeGaps } from '../services/admin-operations';
 import { getCommunityPlatformStats, type CommunityPlatform, type CommunityPlatformStats } from '../services/community-dashboard';
 import type { DashboardMetrics } from '../types/contracts';
 import { LoadingState, RetryableErrorState } from '../components/AsyncState';
-import { PlatformUsersPieChart } from '../components/CommunityPieChart';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../dashboard-chart.css';
 
@@ -32,6 +31,7 @@ export function DashboardPage() {
 
   const attentionCount = (metrics?.pendingReviews ?? 0) + failedKnowledge + openGaps + (metrics?.failedOperations ?? 0);
   const failedOperations = metrics?.failedOperations ?? 0;
+  const activeRate = metrics && metrics.totalUsers > 0 ? Math.round((metrics.activeUsers / metrics.totalUsers) * 100) : 0;
   const platformStats = platformOrder.map((platform) => communityStats?.platforms.find((item) => item.platform === platform) ?? {
     platform,
     knownUsers: 0,
@@ -42,6 +42,7 @@ export function DashboardPage() {
     lastVerifiedAt: null,
     verificationConnected: false,
   });
+  const maxPlatformUsers = Math.max(1, ...platformStats.map((item) => item.knownUsers));
 
   return (
     <>
@@ -51,8 +52,8 @@ export function DashboardPage() {
           <h1>{tr('Alexandria community', 'مجتمع Alexandria')}</h1>
           <p className="muted page-subtitle">
             {tr(
-              'Review pending items and keep up with your community.',
-              'راجع العناصر المعلّقة وتابع نشاط مجتمعك.',
+              'See what needs attention, jump to common tasks, and track community health at a glance.',
+              'شاهد ما يحتاج إلى متابعة، وانتقل إلى المهام الشائعة، وتابع حالة المجتمع بنظرة سريعة.',
             )}
           </p>
         </div>
@@ -65,6 +66,13 @@ export function DashboardPage() {
         <LoadingState label={tr('Loading dashboard', 'جارٍ تحميل لوحة التحكم')} />
       ) : (
         <>
+          <section className="dashboard-quick-actions" aria-label={tr('Quick actions', 'إجراءات سريعة')}>
+            <Link to="/knowledge"><strong>{tr('Knowledge base', 'قاعدة المعرفة')}</strong><small>{tr('Upload and manage knowledge', 'رفع وإدارة المعرفة')}</small></Link>
+            <Link to="/reviews"><strong>{tr('Review members', 'مراجعة الأعضاء')}</strong><small>{tr(`${metrics.pendingReviews} pending`, `${metrics.pendingReviews} معلّق`)}</small></Link>
+            <Link to="/announcements"><strong>{tr('Create announcement', 'إنشاء إعلان')}</strong><small>{tr('Draft community updates', 'صياغة تحديثات المجتمع')}</small></Link>
+            <Link to="/messages"><strong>{tr('Open messages', 'فتح الرسائل')}</strong><small>{tr('Check conversations and takeover', 'مراجعة المحادثات والتدخل البشري')}</small></Link>
+          </section>
+
           <section className="metric-grid dashboard-essential-metrics" aria-label={tr('Community summary', 'ملخص المجتمع')}>
             <Link className="metric-card metric-link" to="/users">
               <span>{tr('Total users', 'إجمالي المستخدمين')}</span>
@@ -74,7 +82,7 @@ export function DashboardPage() {
             <Link className="metric-card metric-link" to="/users">
               <span>{tr('Active users', 'المستخدمون النشطون')}</span>
               <strong>{metrics.activeUsers.toLocaleString()}</strong>
-              <small>{metrics.blockedUsers.toLocaleString()} {tr('blocked', 'محظور')}</small>
+              <small>{activeRate}% {tr('of total users active', 'من إجمالي المستخدمين نشطون')}</small>
             </Link>
             <Link className="metric-card metric-link" to="/community">
               <span>{tr('Approved members', 'الأعضاء المقبولون')}</span>
@@ -103,7 +111,7 @@ export function DashboardPage() {
             <div className="section-heading">
               <div>
                 <h2>{tr('Users by platform', 'المستخدمون حسب المنصة')}</h2>
-                <p className="muted">{tr('Known users across Telegram, Discord and WhatsApp, with Telegram Premium highlighted.', 'المستخدمون المعروفون عبر Telegram وDiscord وWhatsApp، مع إبراز مستخدمي Telegram Premium.')}</p>
+                <p className="muted">{tr('Compare known users directly across Telegram, Discord and WhatsApp.', 'قارن المستخدمين المعروفين مباشرة عبر Telegram وDiscord وWhatsApp.')}</p>
               </div>
               <Link className="inline-link" to="/users">{tr('View users', 'عرض المستخدمين')} →</Link>
             </div>
@@ -116,19 +124,26 @@ export function DashboardPage() {
                 <span>{tr('Your core user totals are still available above.', 'لا تزال أرقام المستخدمين الأساسية متاحة أعلاه.')}</span>
               </div>
             ) : (
-              <div className="community-platform-distribution dashboard-platform-chart">
-                <PlatformUsersPieChart
-                  telegram={platformStats[0].knownUsers}
-                  telegramPremium={platformStats[0].premiumUsers}
-                  discord={platformStats[1].knownUsers}
-                  whatsapp={platformStats[2].knownUsers}
-                  label={tr('Users by platform', 'المستخدمون حسب المنصة')}
-                />
+              <div className="platform-comparison" role="img" aria-label={platformStats.map((item) => `${item.platform} ${item.knownUsers}`).join(', ')}>
+                {platformStats.map((item) => (
+                  <div className={`platform-comparison-row ${item.platform.toLowerCase()}`} key={item.platform}>
+                    <div className="platform-comparison-label">
+                      <strong>{item.platform.charAt(0) + item.platform.slice(1).toLowerCase()}</strong>
+                      <span>{item.knownUsers.toLocaleString()}</span>
+                    </div>
+                    <div className="platform-comparison-track" aria-hidden="true">
+                      <i style={{ width: `${(item.knownUsers / maxPlatformUsers) * 100}%` }} />
+                    </div>
+                    <small>
+                      {item.platform === 'TELEGRAM' && item.premiumUsers > 0
+                        ? tr(`${item.premiumUsers.toLocaleString()} Premium`, `${item.premiumUsers.toLocaleString()} Premium`)
+                        : tr('Known users', 'مستخدمون معروفون')}
+                    </small>
+                  </div>
+                ))}
               </div>
             )}
           </section>
-
-
         </>
       )}
     </>
