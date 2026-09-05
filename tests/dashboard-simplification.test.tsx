@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 describe('simplified dashboard', () => {
-  it('shows only the essential KPI, platform distribution and attention layers', async () => {
+  it('shows essential KPIs, an activity donut, platform comparison and attention layers', async () => {
     const { container } = render(
       <MemoryRouter>
         <LanguageProvider>
@@ -80,12 +80,13 @@ describe('simplified dashboard', () => {
     expect(container.querySelectorAll('.metric-card')).toHaveLength(3);
     expect(screen.getByText('Active users')).toBeInTheDocument();
     expect(screen.getByText('Approved members')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Users by platform: Telegram Premium 12 .*Telegram Regular 48/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Users: 94 Active \(78\.3%\), 26 Inactive \(21\.7%\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /TELEGRAM 60, DISCORD 40, WHATSAPP 20/ })).toBeInTheDocument();
+    expect(container.querySelector('.platform-comparison')).toBeInTheDocument();
     expect(screen.getByText('Needs attention')).toBeInTheDocument();
 
     expect(screen.queryByText('AI spend')).not.toBeInTheDocument();
     expect(screen.queryByText('Messages trend')).not.toBeInTheDocument();
-    expect(screen.queryByText('Quick actions')).not.toBeInTheDocument();
     expect(screen.queryByText('Verified group memberships')).not.toBeInTheDocument();
     expect(screen.queryByText('General')).not.toBeInTheDocument();
   });

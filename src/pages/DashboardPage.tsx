@@ -6,6 +6,7 @@ import { listKnowledgeGaps } from '../services/admin-operations';
 import { getCommunityPlatformStats, type CommunityPlatform, type CommunityPlatformStats } from '../services/community-dashboard';
 import type { DashboardMetrics } from '../types/contracts';
 import { LoadingState, RetryableErrorState } from '../components/AsyncState';
+import { CommunityPieChart } from '../components/CommunityPieChart';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../dashboard-chart.css';
 
@@ -32,6 +33,7 @@ export function DashboardPage() {
   const attentionCount = (metrics?.pendingReviews ?? 0) + failedKnowledge + openGaps + (metrics?.failedOperations ?? 0);
   const failedOperations = metrics?.failedOperations ?? 0;
   const activeRate = metrics && metrics.totalUsers > 0 ? Math.round((metrics.activeUsers / metrics.totalUsers) * 100) : 0;
+  const inactiveUsers = metrics ? Math.max(0, metrics.totalUsers - metrics.activeUsers) : 0;
   const platformStats = platformOrder.map((platform) => communityStats?.platforms.find((item) => item.platform === platform) ?? {
     platform,
     knownUsers: 0,
@@ -73,23 +75,47 @@ export function DashboardPage() {
             <Link to="/messages"><strong>{tr('Open messages', 'فتح الرسائل')}</strong><small>{tr('Check conversations and takeover', 'مراجعة المحادثات والتدخل البشري')}</small></Link>
           </section>
 
-          <section className="metric-grid dashboard-essential-metrics" aria-label={tr('Community summary', 'ملخص المجتمع')}>
-            <Link className="metric-card metric-link" to="/users">
-              <span>{tr('Total users', 'إجمالي المستخدمين')}</span>
-              <strong>{metrics.totalUsers.toLocaleString()}</strong>
-              <small>{tr('Known community users', 'المستخدمون المعروفون في المجتمع')}</small>
-            </Link>
-            <Link className="metric-card metric-link" to="/users">
-              <span>{tr('Active users', 'المستخدمون النشطون')}</span>
-              <strong>{metrics.activeUsers.toLocaleString()}</strong>
-              <small>{activeRate}% {tr('of total users active', 'من إجمالي المستخدمين نشطون')}</small>
-            </Link>
-            <Link className="metric-card metric-link" to="/community">
-              <span>{tr('Approved members', 'الأعضاء المقبولون')}</span>
-              <strong>{metrics.approvedUsers.toLocaleString()}</strong>
-              <small>{tr('Manage approved community', 'إدارة المجتمع المعتمد')}</small>
-            </Link>
-          </section>
+          <div className="dashboard-summary-row">
+            <section className="metric-grid dashboard-essential-metrics" aria-label={tr('Community summary', 'ملخص المجتمع')}>
+              <Link className="metric-card metric-link" to="/users">
+                <span>{tr('Total users', 'إجمالي المستخدمين')}</span>
+                <strong>{metrics.totalUsers.toLocaleString()}</strong>
+                <small>{tr('Known community users', 'المستخدمون المعروفون في المجتمع')}</small>
+              </Link>
+              <Link className="metric-card metric-link" to="/users">
+                <span>{tr('Active users', 'المستخدمون النشطون')}</span>
+                <strong>{metrics.activeUsers.toLocaleString()}</strong>
+                <small>{activeRate}% {tr('of total users active', 'من إجمالي المستخدمين نشطون')}</small>
+              </Link>
+              <Link className="metric-card metric-link" to="/community">
+                <span>{tr('Approved members', 'الأعضاء المقبولون')}</span>
+                <strong>{metrics.approvedUsers.toLocaleString()}</strong>
+                <small>{tr('Manage approved community', 'إدارة المجتمع المعتمد')}</small>
+              </Link>
+            </section>
+
+            <section className="panel dashboard-activity-panel" aria-label={tr('User activity distribution', 'توزيع نشاط المستخدمين')}>
+              <div className="section-heading dashboard-activity-heading">
+                <div>
+                  <p className="eyebrow">{tr('Engagement', 'التفاعل')}</p>
+                  <h2>{tr('User activity', 'نشاط المستخدمين')}</h2>
+                </div>
+                <Link className="inline-link" to="/users">{tr('View users', 'عرض المستخدمين')} →</Link>
+              </div>
+              <CommunityPieChart
+                compact
+                label={tr('Users', 'المستخدمون')}
+                general={metrics.activeUsers}
+                vip={inactiveUsers}
+                generalLabel={tr('Active', 'نشط')}
+                vipLabel={tr('Inactive', 'غير نشط')}
+              />
+              <p className="dashboard-activity-note">
+                <strong>{activeRate}% {tr('active', 'نشط')}</strong>
+                <span>{tr('Share of known users currently active.', 'نسبة المستخدمين المعروفين النشطين حالياً.')}</span>
+              </p>
+            </section>
+          </div>
 
           <section className="panel attention-panel dashboard-attention-panel">
             <div className="section-heading">
