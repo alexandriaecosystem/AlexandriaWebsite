@@ -9,6 +9,7 @@ import { ReviewDetailPage } from '../pages/ReviewDetailPage';
 import { AnnouncementsPage } from '../pages/AnnouncementsPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
+import { KnowledgeGapsPage } from '../pages/KnowledgeGapsPage';
 import { UsersPage } from '../pages/UsersPage';
 import { UserConversationPage } from '../pages/UserConversationPage';
 import { MessagesPage } from '../pages/MessagesPage';
@@ -16,7 +17,7 @@ import { TokenMonitorPage } from '../pages/TokenMonitorPage';
 import { AccountSecurityPage } from '../pages/AccountSecurityPage';
 import { OperationsPage } from '../pages/OperationsPage';
 import { SettingsPage } from '../pages/SettingsPage';
-import { ApprovedCommunityPage, KnowledgeGapsPage } from '../pages/AdminOperationsPages';
+import { ApprovedCommunityPage } from '../pages/AdminOperationsPages';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { ToastProvider } from '../components/Feedback';
 

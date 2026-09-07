@@ -1,0 +1,111 @@
+.knowledge-answer-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+}
+
+.knowledge-answer-note span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: end;
+}
+
+.knowledge-gaps-table .knowledge-answer-cell {
+  min-width: 380px;
+  max-width: 680px;
+}
+
+.trusted-answer-preview {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--accent) 18%);
+}
+
+.trusted-answer-preview > span,
+.knowledge-answer-editor > label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trusted-answer-preview p {
+  margin: 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.trusted-answer-preview small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.knowledge-answer-editor {
+  margin-top: 12px;
+}
+
+.knowledge-answer-editor textarea {
+  width: 100%;
+  min-height: 118px;
+  resize: vertical;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.5;
+}
+
+.knowledge-answer-editor textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.knowledge-answer-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.knowledge-answer-editor-footer small {
+  color: var(--muted);
+}
+
+.primary-inline {
+  font-weight: 700;
+}
+
+.knowledge-gap-actions {
+  min-width: 132px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .knowledge-answer-note,
+  .knowledge-answer-editor-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .knowledge-answer-note span {
+    text-align: start;
+  }
+
+  .knowledge-gaps-table .knowledge-answer-cell {
+    min-width: 0;
+    max-width: none;
+  }
+}
