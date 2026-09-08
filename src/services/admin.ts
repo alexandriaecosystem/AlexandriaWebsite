@@ -5,10 +5,17 @@ import type {
   ApplicationAuditDetail,
   DashboardMetrics,
   DeadLetterOperation,
+  KnowledgeApprovalResult,
+  KnowledgeCandidate,
+  KnowledgeConflict,
   KnowledgeDocumentDetail,
   KnowledgeDocumentSummary,
+  KnowledgeIntelligenceStatus,
   MessagingPlatform,
   ModelUsageStat,
+  OfficialCrawlRunSummary,
+  OfficialSourceChange,
+  OfficialSourceHealth,
   PlatformStat,
   Recommendation,
   ReviewCounts,
@@ -29,8 +36,172 @@ function assertRpc<T>(data: T | null, error: { message: string; code?: string } 
 }
 
 const asNumber = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
+const asNullableNumber = (value: unknown) => value == null || !Number.isFinite(Number(value)) ? null : Number(value);
 const asStrings = (value: unknown) => Array.isArray(value) ? value.map(String) : [];
 const asNullableString = (value: unknown) => value == null ? null : String(value);
+const asObject = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+
+function mapKnowledgeConflict(item: Record<string, unknown>): KnowledgeConflict {
+  return {
+    id: String(item.id ?? ''),
+    sourceAKind: asNullableString(item.source_a_kind),
+    sourceADocumentId: asNullableString(item.source_a_document_id),
+    sourceAOfficialSourceId: asNullableString(item.source_a_official_source_id),
+    sourceAVersion: asNullableNumber(item.source_a_version),
+    sourceATitle: String(item.source_a_title ?? 'Source A'),
+    claimA: String(item.claim_a ?? ''),
+    authorityACode: asNullableString(item.authority_a_code),
+    authorityALabel: asNullableString(item.authority_a_label ?? item.authority_a),
+    authorityAPriority: asNumber(item.authority_a_priority),
+    sourceAUrl: asNullableString(item.source_a_url),
+    sourceBKind: asNullableString(item.source_b_kind),
+    sourceBDocumentId: asNullableString(item.source_b_document_id),
+    sourceBOfficialSourceId: asNullableString(item.source_b_official_source_id),
+    sourceBVersion: asNullableNumber(item.source_b_version),
+    sourceBTitle: String(item.source_b_title ?? 'Source B'),
+    claimB: String(item.claim_b ?? ''),
+    authorityBCode: asNullableString(item.authority_b_code),
+    authorityBLabel: asNullableString(item.authority_b_label ?? item.authority_b),
+    authorityBPriority: asNumber(item.authority_b_priority),
+    sourceBUrl: asNullableString(item.source_b_url),
+    explanation: asNullableString(item.explanation),
+    category: asNullableString(item.category),
+    topic: asNullableString(item.topic),
+    conflictType: asNullableString(item.conflict_type),
+    timeScope: asNullableString(item.time_scope),
+    severity: String(item.severity ?? 'UNKNOWN'),
+    confidence: asNumber(item.confidence),
+    blocking: item.blocking === true,
+    status: String(item.status ?? 'OPEN'),
+    detectedAt: asNullableString(item.detected_at),
+    resolvedAt: asNullableString(item.resolved_at),
+    resolution: asNullableString(item.resolution),
+    relatedKnowledgeDocumentId: asNullableString(item.related_knowledge_document_id),
+    relatedWebsiteSourceId: asNullableString(item.related_website_source_id),
+  };
+}
+
+function mapKnowledgeDocument(item: Record<string, unknown>): KnowledgeDocumentSummary {
+  const processingStatus = String(item.processing_status ?? 'PENDING');
+  const version = asNumber(item.version);
+  const conflictScanStatus = String(item.conflict_scan_status ?? 'PENDING');
+  const conflictScannedVersion = asNullableNumber(item.conflict_scanned_version);
+  const blockingConflictCount = asNumber(item.blocking_conflict_count);
+  const computedApprovalBlocked = processingStatus !== 'READY'
+    || conflictScanStatus !== 'READY'
+    || conflictScannedVersion !== version
+    || blockingConflictCount > 0;
+
+  return {
+    id: String(item.id),
+    title: String(item.title),
+    category: String(item.category),
+    language: String(item.language),
+    isApproved: item.is_approved === true,
+    processingStatus,
+    processingError: asNullableString(item.processing_error),
+    version,
+    approvedBy: asNullableString(item.approved_by),
+    approvedAt: asNullableString(item.approved_at),
+    createdAt: String(item.created_at),
+    updatedAt: String(item.updated_at),
+    chunkCount: asNumber(item.chunk_count),
+    conflictScanStatus,
+    conflictScannedVersion,
+    conflictScannedAt: asNullableString(item.conflict_scanned_at),
+    conflictScanError: asNullableString(item.conflict_scan_error),
+    openConflictCount: asNumber(item.open_conflict_count),
+    blockingConflictCount,
+    approvalBlocked: typeof item.approval_blocked === 'boolean' ? item.approval_blocked : computedApprovalBlocked,
+  };
+}
+
+function mapOfficialSourceHealth(item: Record<string, unknown>): OfficialSourceHealth {
+  return {
+    sourceId: String(item.source_id ?? ''),
+    familyId: asNullableString(item.family_id),
+    pageTitle: String(item.page_title ?? item.canonical_url ?? 'Official source'),
+    canonicalUrl: String(item.canonical_url ?? ''),
+    language: String(item.language ?? ''),
+    canonicalLanguage: asNullableString(item.canonical_language),
+    isFamilyCanonical: item.is_family_canonical === true,
+    sourceType: String(item.source_type ?? ''),
+    authorityCode: String(item.authority_code ?? ''),
+    authorityPriority: asNumber(item.authority_priority),
+    extractionStatus: String(item.extraction_status ?? 'PENDING'),
+    currentVersion: asNumber(item.current_version),
+    conflictScanStatus: String(item.conflict_scan_status ?? 'PENDING'),
+    conflictScannedVersion: asNullableNumber(item.conflict_scanned_version),
+    lastFetchedAt: asNullableString(item.last_fetched_at),
+    lastSuccessfulFetch: asNullableString(item.last_successful_fetch),
+    lastChangedAt: asNullableString(item.last_changed_at),
+    freshnessTtlSeconds: asNumber(item.freshness_ttl_seconds),
+    isStale: item.is_stale === true,
+    hasBlockingConflict: item.has_blocking_conflict === true,
+    lastError: asNullableString(item.last_error),
+    isActive: item.is_active !== false,
+    removedAt: asNullableString(item.removed_at),
+    nextCrawlAt: asNullableString(item.next_crawl_at),
+  };
+}
+
+function mapCrawlRun(item: Record<string, unknown>): OfficialCrawlRunSummary {
+  return {
+    id: String(item.id ?? ''),
+    syncType: String(item.sync_type ?? ''),
+    status: String(item.status ?? ''),
+    startedAt: asNullableString(item.started_at),
+    finishedAt: asNullableString(item.finished_at),
+    fetchedCount: asNumber(item.fetched_count),
+    unchangedCount: asNumber(item.unchanged_count),
+    changedCount: asNumber(item.changed_count),
+    newCount: asNumber(item.new_count),
+    removedCount: asNumber(item.removed_count),
+    failedCount: asNumber(item.failed_count),
+    blockedCount: asNumber(item.blocked_count),
+    unsupportedCount: asNumber(item.unsupported_count),
+    errorSummary: asNullableString(item.error_summary),
+  };
+}
+
+function mapSourceChange(item: Record<string, unknown>): OfficialSourceChange {
+  return {
+    id: String(item.id ?? ''),
+    sourceId: String(item.source_id ?? ''),
+    sourceTitle: String(item.source_title ?? item.source_url ?? 'Official source'),
+    sourceUrl: String(item.source_url ?? ''),
+    previousVersion: asNullableNumber(item.previous_version),
+    currentVersion: asNumber(item.current_version),
+    changeKind: String(item.change_kind ?? 'CHANGED'),
+    detectedAt: String(item.detected_at ?? ''),
+    changeSummary: asNullableString(item.change_summary),
+    important: item.important === true,
+    conflictCount: asNumber(item.conflict_count),
+    reviewStatus: String(item.review_status ?? 'PENDING'),
+  };
+}
+
+function mapCandidate(item: Record<string, unknown>): KnowledgeCandidate {
+  return {
+    id: String(item.id ?? ''),
+    originalQuestion: String(item.original_question ?? ''),
+    proposedAnswer: String(item.proposed_answer ?? ''),
+    extractedClaim: asNullableString(item.extracted_claim),
+    officialSourceId: String(item.official_source_id ?? ''),
+    sourceVersion: asNumber(item.source_version),
+    sourceUrl: String(item.source_url ?? ''),
+    sourceTitle: String(item.source_title ?? item.source_url ?? 'Official source'),
+    language: String(item.language ?? ''),
+    proposedCategory: String(item.proposed_category ?? 'PROJECT_OFFICIAL'),
+    authorityCode: asNullableString(item.authority_code),
+    authorityPriority: asNumber(item.authority_priority),
+    status: String(item.status ?? 'PENDING'),
+    discoveryCount: asNumber(item.discovery_count),
+    firstDiscoveredAt: String(item.first_discovered_at ?? ''),
+    lastDiscoveredAt: String(item.last_discovered_at ?? ''),
+    promotedDocumentId: asNullableString(item.promoted_document_id),
+  };
+}
 
 export async function getReviewCounts(client: SupabaseClient): Promise<ReviewCounts> {
   const { data, error } = await client.rpc('admin_get_review_counts');
@@ -84,6 +255,9 @@ export async function getAiUsageSummary(client: SupabaseClient, days = 30): Prom
     totalTokens: asNumber(value.total_tokens),
     costUsd: asNumber(value.cost_usd),
     avgCostPerCall: asNumber(value.avg_cost_per_call),
+    trackingHasEvents: value.tracking_has_events === true,
+    trackingLastRecordedAt: asNullableString(value.tracking_last_recorded_at),
+    trackingMissing: value.tracking_missing === true,
     byPurpose: Object.fromEntries(Object.entries(purposes).map(([purpose, item]) => [purpose, {
       calls: asNumber(item.calls), inputTokens: asNumber(item.input_tokens), outputTokens: asNumber(item.output_tokens),
       totalTokens: asNumber(item.total_tokens), costUsd: asNumber(item.cost_usd), cacheHitCount: asNumber(item.cache_hit_count),
@@ -196,13 +370,7 @@ export async function listKnowledgeDocuments(client: SupabaseClient, status?: st
   const value = assertRpc(data as { items?: Record<string, unknown>[]; total?: number } | null, error);
   return {
     total: asNumber(value.total),
-    items: (value.items ?? []).map((item) => ({
-      id: String(item.id), title: String(item.title), category: String(item.category), language: String(item.language),
-      isApproved: item.is_approved === true, processingStatus: String(item.processing_status ?? 'PENDING'),
-      processingError: asNullableString(item.processing_error), version: asNumber(item.version), approvedBy: asNullableString(item.approved_by),
-      approvedAt: asNullableString(item.approved_at), createdAt: String(item.created_at), updatedAt: String(item.updated_at),
-      chunkCount: asNumber(item.chunk_count),
-    })),
+    items: (value.items ?? []).map(mapKnowledgeDocument),
   };
 }
 
@@ -211,11 +379,7 @@ export async function getKnowledgeDocument(client: SupabaseClient, documentId: s
   const value = assertRpc(data as Record<string, unknown> | null, error);
   const chunks = Array.isArray(value.chunks) ? value.chunks as Record<string, unknown>[] : [];
   return {
-    id: String(value.id), title: String(value.title), category: String(value.category), language: String(value.language),
-    isApproved: value.is_approved === true, processingStatus: String(value.processing_status ?? 'PENDING'),
-    processingError: asNullableString(value.processing_error), version: asNumber(value.version), approvedBy: asNullableString(value.approved_by),
-    approvedAt: asNullableString(value.approved_at), createdAt: String(value.created_at), updatedAt: String(value.updated_at),
-    chunkCount: asNumber(value.chunk_count),
+    ...mapKnowledgeDocument({ ...value, chunk_count: value.chunk_count ?? chunks.length }),
     chunks: chunks.map((chunk) => ({ id: String(chunk.id), chunkIndex: asNumber(chunk.chunk_index), content: String(chunk.content ?? ''), version: asNumber(chunk.version) })),
   };
 }
@@ -237,9 +401,18 @@ export async function createKnowledgeDocument(client: SupabaseClient, input: { t
   return { id, storagePath, bucket };
 }
 
-export async function approveKnowledgeDocument(client: SupabaseClient, documentId: string) {
+export async function approveKnowledgeDocument(client: SupabaseClient, documentId: string): Promise<KnowledgeApprovalResult> {
   const { data, error } = await client.rpc('admin_approve_knowledge_document', { p_document_id: documentId });
-  return assertRpc(data, error);
+  const raw = assertRpc(data as unknown, error);
+  const value = asObject(Array.isArray(raw) ? raw[0] : raw);
+  const conflicts = Array.isArray(value.conflicts) ? value.conflicts.map((item) => mapKnowledgeConflict(asObject(item))) : [];
+  return {
+    blocked: value.blocked === true,
+    code: asNullableString(value.code),
+    isApproved: value.is_approved === true,
+    conflictCount: asNumber(value.conflict_count ?? conflicts.length),
+    conflicts,
+  };
 }
 
 export async function requestKnowledgeDocumentReprocessing(client: SupabaseClient, documentId: string) {
@@ -255,6 +428,67 @@ export async function deleteKnowledgeDocument(client: SupabaseClient, documentId
     if (removal.error) throw new AdminApiError(`Document row deleted, but storage cleanup failed: ${removal.error.message}`);
   }
   return value;
+}
+
+export async function getKnowledgeIntelligenceStatus(client: SupabaseClient): Promise<KnowledgeIntelligenceStatus> {
+  const { data, error } = await client.rpc('admin_get_knowledge_intelligence_status');
+  const value = assertRpc(data as Record<string, unknown> | null, error);
+  const sources = Array.isArray(value.official_source_health) ? value.official_source_health as Record<string, unknown>[] : [];
+  const runs = Array.isArray(value.recent_crawl_runs) ? value.recent_crawl_runs as Record<string, unknown>[] : [];
+  const changes = Array.isArray(value.recent_source_changes) ? value.recent_source_changes as Record<string, unknown>[] : [];
+  return {
+    openConflicts: asNumber(value.open_conflicts),
+    blockingConflicts: asNumber(value.blocking_conflicts),
+    staleSources: asNumber(value.stale_sources),
+    failedSources: asNumber(value.failed_sources),
+    pendingCandidates: asNumber(value.pending_candidates),
+    lastSuccessfulSync: asNullableString(value.last_successful_sync),
+    officialSourceVersion: asNumber(value.official_source_version),
+    officialSourceHealth: sources.map(mapOfficialSourceHealth),
+    recentCrawlRuns: runs.map(mapCrawlRun),
+    recentSourceChanges: changes.map(mapSourceChange),
+  };
+}
+
+export async function listKnowledgeConflicts(client: SupabaseClient, documentId?: string, status?: string): Promise<{ items: KnowledgeConflict[]; total: number }> {
+  const { data, error } = await client.rpc('admin_list_knowledge_conflicts', {
+    p_document_id: documentId ?? null,
+    p_status: status ?? null,
+    p_limit: 100,
+    p_offset: 0,
+  });
+  const value = assertRpc(data as { items?: Record<string, unknown>[]; total?: number } | null, error);
+  return { items: (value.items ?? []).map(mapKnowledgeConflict), total: asNumber(value.total) };
+}
+
+export async function getKnowledgeConflict(client: SupabaseClient, conflictId: string): Promise<KnowledgeConflict> {
+  const { data, error } = await client.rpc('admin_get_knowledge_conflict', { p_conflict_id: conflictId });
+  return mapKnowledgeConflict(assertRpc(data as Record<string, unknown> | null, error));
+}
+
+export async function resolveKnowledgeConflict(client: SupabaseClient, conflictId: string, action: 'RESOLVE' | 'DISMISS', note: string) {
+  const { data, error } = await client.rpc('admin_resolve_knowledge_conflict', {
+    p_conflict_id: conflictId,
+    p_action: action,
+    p_note: note.trim(),
+  });
+  return assertRpc(data, error);
+}
+
+export async function listKnowledgeCandidates(client: SupabaseClient, status = 'PENDING'): Promise<{ items: KnowledgeCandidate[]; total: number }> {
+  const { data, error } = await client.rpc('admin_list_knowledge_candidates', { p_status: status, p_limit: 100, p_offset: 0 });
+  const value = assertRpc(data as { items?: Record<string, unknown>[]; total?: number } | null, error);
+  return { items: (value.items ?? []).map(mapCandidate), total: asNumber(value.total) };
+}
+
+export async function promoteKnowledgeCandidate(client: SupabaseClient, candidateId: string) {
+  const { data, error } = await client.rpc('admin_promote_knowledge_candidate', { p_candidate_id: candidateId });
+  return assertRpc(data, error);
+}
+
+export async function rejectKnowledgeCandidate(client: SupabaseClient, candidateId: string, note: string) {
+  const { data, error } = await client.rpc('admin_reject_knowledge_candidate', { p_candidate_id: candidateId, p_note: note.trim() });
+  return assertRpc(data, error);
 }
 
 export async function listDeadLetterOperations(client: SupabaseClient, offset = 0): Promise<DeadLetterOperation[]> {
