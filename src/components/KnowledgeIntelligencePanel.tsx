@@ -74,7 +74,7 @@ export function KnowledgeIntelligencePanel({ refreshKey = 0 }: { refreshKey?: nu
         await resolveKnowledgeConflict(
           client,
           reviewAction.conflict.id,
-          reviewAction.action as unknown as 'RESOLVE',
+          reviewAction.action,
           'Reviewed and explicitly confirmed by an administrator in Knowledge Intelligence.',
         );
         notify({ tone: 'success', title: tr('Conflict review saved', 'تم حفظ مراجعة التعارض') });
@@ -172,12 +172,12 @@ export function KnowledgeIntelligencePanel({ refreshKey = 0 }: { refreshKey?: nu
               <div className="document-list">{conflicts.slice(0, 20).map((conflict) => (
                 <article className="document-card compact-document" key={conflict.id}>
                   <div className="document-head"><div className="document-heading-copy"><h3>{conflict.topic || tr('Knowledge contradiction', 'تعارض معرفي')}</h3><p className="muted">{tr('Severity', 'الخطورة')}: {conflict.severity} · {tr('Confidence', 'الثقة')}: {Math.round(conflict.confidence * 100)}%</p></div><span className={`status-pill ${conflict.blocking ? 'negative' : 'neutral'}`}>{conflict.blocking ? tr('Approval blocked', 'الاعتماد محجوب') : tr('Review', 'مراجعة')}</span></div>
-                  <div className="document-metadata">
+                  <dl className="document-metadata">
                     <div><dt>{tr('Source A', 'المصدر أ')}</dt><dd>{conflict.sourceATitle}<br /><small>{conflict.authorityALabel || conflict.authorityACode || tr('Authority unavailable', 'المرجعية غير متاحة')}</small></dd></div>
                     <div><dt>{tr('Claim A', 'الادعاء أ')}</dt><dd>{conflict.claimA}</dd></div>
                     <div><dt>{tr('Source B', 'المصدر ب')}</dt><dd>{conflict.sourceBTitle}<br /><small>{conflict.authorityBLabel || conflict.authorityBCode || tr('Authority unavailable', 'المرجعية غير متاحة')}</small></dd></div>
                     <div><dt>{tr('Claim B', 'الادعاء ب')}</dt><dd>{conflict.claimB}</dd></div>
-                  </div>
+                  </dl>
                   {conflict.explanation && <p className="muted">{conflict.explanation}</p>}
                   <div className="document-primary-actions">
                     <button type="button" className="compact-button" disabled={busy} onClick={() => setReviewAction({ kind: 'conflict', conflict, action: 'KEEP_SOURCE_A' })}>{tr('Keep Source A', 'اعتماد المصدر أ')}</button>
