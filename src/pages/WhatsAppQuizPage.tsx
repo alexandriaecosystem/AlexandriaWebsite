@@ -140,6 +140,9 @@ export function WhatsAppQuizPage() {
   const schedule = data?.schedule;
   const statusActive = schedule?.enabled === true && schedule.status !== 'ERROR';
   const selectedTarget = targets.find((target) => target.communityId === communityId);
+  const previewQuestions = data?.questions ?? [];
+  const questionStats = data?.questionStats ?? null;
+  const previewUnavailable = data?.questionPreviewStatus === 'ERROR';
 
   return <>
     <header className="page-header quiz-page-header">
@@ -232,5 +235,43 @@ export function WhatsAppQuizPage() {
         <p className="quiz-rule-note">{tr('Qualification stays unchanged: exactly 10 questions are sent and only 10/10 creates the Approved Community access request.', 'يبقى التأهيل دون تغيير: يتم إرسال 10 أسئلة بالضبط، وفقط نتيجة 10/10 تنشئ طلب دخول المجتمع المعتمد.')}</p>
       </aside>
     </div>
+
+    <section className="panel quiz-question-preview" aria-labelledby="quiz-question-preview-title">
+      <div className="section-heading quiz-preview-heading">
+        <div>
+          <p className="eyebrow">{tr('Question bank', 'بنك الأسئلة')}</p>
+          <h2 id="quiz-question-preview-title">{tr('Question preview', 'معاينة الأسئلة')}</h2>
+        </div>
+        {questionStats && <span className="status-pill neutral">{tr(`${questionStats.active} active questions`, `${questionStats.active} سؤالًا نشطًا`)}</span>}
+      </div>
+
+      {previewUnavailable ? (
+        <div className="quiz-preview-empty" role="status">
+          <strong>{tr('Question preview unavailable', 'معاينة الأسئلة غير متاحة')}</strong>
+          <span>{tr('The quiz bank is still protected. Refresh to try loading the preview again.', 'يبقى بنك الأسئلة محميًا. حدّث الصفحة لمحاولة تحميل المعاينة مرة أخرى.')}</span>
+        </div>
+      ) : previewQuestions.length ? (
+        <>
+          <p className="muted quiz-preview-note">{tr('This is a read-only sample of eligible questions. The actual WhatsApp round still selects exactly 10 questions at send time.', 'هذه عينة للقراءة فقط من الأسئلة المؤهلة. ما زالت جولة WhatsApp الفعلية تختار 10 أسئلة بالضبط عند الإرسال.')}</p>
+          {questionStats && <p className="quiz-preview-stats">{tr(`${questionStats.total} total · ${questionStats.active} active · ${questionStats.excluded} excluded`, `${questionStats.total} إجمالي · ${questionStats.active} نشط · ${questionStats.excluded} مستبعد`)}</p>}
+          <ol className="quiz-preview-list">
+            {previewQuestions.map((question) => <li key={question.id} className="quiz-preview-question">
+              <div className="quiz-preview-question-title">
+                <span>{tr(`Question ${question.sourceQuestionNo}`, `السؤال ${question.sourceQuestionNo}`)}</span>
+                <strong>{question.prompt}</strong>
+              </div>
+              <div className="quiz-preview-options">
+                {question.options.map((option, index) => <span key={`${question.id}-${index}`}><b>{String.fromCharCode(65 + index)}</b>{option}</span>)}
+              </div>
+            </li>)}
+          </ol>
+        </>
+      ) : (
+        <div className="quiz-preview-empty" role="status">
+          <strong>{tr('No active questions are available', 'لا توجد أسئلة نشطة متاحة')}</strong>
+          <span>{tr('Activate eligible questions before scheduling a quiz.', 'فعّل الأسئلة المؤهلة قبل جدولة الاختبار.')}</span>
+        </div>
+      )}
+    </section>
   </>;
 }

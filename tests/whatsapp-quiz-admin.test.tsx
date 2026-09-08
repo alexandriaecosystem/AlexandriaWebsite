@@ -30,6 +30,23 @@ beforeEach(() => {
       { communityId: generalId, name: 'WhatsApp General Community', communityLevel: 'GENERAL' },
       { communityId: approvedId, name: 'WhatsApp Approved Community', communityLevel: 'APPROVED' },
     ],
+    questions: [
+      {
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        sourceQuestionNo: 1,
+        prompt: 'What blockchain network is the Alexandria token built on?',
+        options: ['TRON', 'Ethereum', 'Solana', 'BNB Smart Chain'],
+        rewardCredits: 50,
+      },
+      {
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        sourceQuestionNo: 3,
+        prompt: 'What is the maximum total supply of Alexandria?',
+        options: ['100,000,000', '10,000,000', '1,000,000,000', 'Unlimited'],
+        rewardCredits: 50,
+      },
+    ],
+    questionStats: { total: 100, active: 96, excluded: 4 },
     schedule: {
       enabled: true,
       communityId: null,
@@ -73,6 +90,17 @@ describe('WhatsApp Quiz admin page', () => {
     expect(screen.getByLabelText('Community')).toHaveValue(generalId);
     expect(screen.getByText('Asia/Beirut')).toBeInTheDocument();
     expect(screen.queryByText(/120363|@g\.us|webhook|cron|n8n|secret/i)).not.toBeInTheDocument();
+  });
+
+  it('shows a real preview from the active question bank', async () => {
+    render(<LanguageProvider><WhatsAppQuizPage /></LanguageProvider>);
+
+    expect(await screen.findByRole('heading', { name: 'Question preview' })).toBeInTheDocument();
+    expect(screen.getByText('96 active questions')).toBeInTheDocument();
+    expect(screen.getByText('What blockchain network is the Alexandria token built on?')).toBeInTheDocument();
+    expect(screen.getByText('TRON')).toBeInTheDocument();
+    expect(screen.getByText('Ethereum')).toBeInTheDocument();
+    expect(screen.getByText('What is the maximum total supply of Alexandria?')).toBeInTheDocument();
   });
 
   it('can save Daily at 7 PM, Weekly, and Custom days', async () => {
