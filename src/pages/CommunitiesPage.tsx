@@ -22,7 +22,7 @@ export function CommunitiesPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTakeovers, setActiveTakeovers] = useState(0);
+
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -49,14 +49,14 @@ export function CommunitiesPage() {
         <h1>{tr('Communities', 'المجتمعات')}</h1>
         <p className="muted page-subtitle">{tr('Manage community access and take over AI replies when a human should respond.', 'أدر دخول المجتمع وتولَّ الردود بدل الذكاء الاصطناعي عند الحاجة.')}</p>
       </div>
-      <span className={`status-pill ${activeTakeovers ? 'negative' : 'positive'}`}>{activeTakeovers ? tr('Human Takeover Active', 'التحكم البشري نشط') : tr('AI Active', 'الذكاء الاصطناعي نشط')}</span>
+
     </header>
 
     <section className="panel community-ai-control" aria-label={tr('AI Control', 'التحكم بالذكاء الاصطناعي')}>
       <div className="section-heading">
         <div><p className="eyebrow">{tr('AI Control', 'التحكم بالذكاء الاصطناعي')}</p><h2>{tr('Human Takeover', 'التحكم البشري')}</h2><p className="muted">{tr('Pause automated replies for a community now or schedule a takeover for later.', 'أوقف الردود التلقائية لمجتمع الآن أو جدوِل تحكمًا بشريًا لاحقًا.')}</p></div>
       </div>
-      <TakeoverManager onActiveCountChange={setActiveTakeovers} />
+      <TakeoverManager />
     </section>
 
     <section className="metric-grid compact-metrics communities-metrics" aria-label={tr('Community access summary', 'ملخص دخول المجتمع')}>

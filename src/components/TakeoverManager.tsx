@@ -77,6 +77,7 @@ export function TakeoverManager({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
   const [notice, setNotice] = useState('');
   const [clock, setClock] = useState(now ?? new Date());
   const [mode, setMode] = useState<TakeoverMode>('SCHEDULE');
@@ -89,6 +90,7 @@ export function TakeoverManager({
 
   const load = async () => {
     setLoading(true);
+    setLoadFailed(false);
     setError('');
     try {
       const [loadedTargets, loadedWindows] = await Promise.all([
@@ -98,8 +100,9 @@ export function TakeoverManager({
       setTargets(loadedTargets);
       setWindows(loadedWindows.items);
       setCommunityId((current) => current || loadedTargets[0]?.communityId || '');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : tr('Could not load takeovers.', 'تعذر تحميل عمليات التحكم البشري.'));
+    } catch {
+      setLoadFailed(true);
+      setError(tr('Could not load takeovers. Please retry.', 'تعذر تحميل عمليات التحكم البشري. أعد المحاولة.'));
     } finally {
       setLoading(false);
     }
@@ -126,7 +129,7 @@ export function TakeoverManager({
   const nextWindow = active[0] ?? upcoming[0] ?? null;
   const locale = isArabic ? 'ar-LB' : undefined;
 
-  useEffect(() => { onActiveCountChange?.(active.length); }, [active.length, onActiveCountChange]);
+  useEffect(() => { if (!loading && !loadFailed) onActiveCountChange?.(active.length); }, [active.length, loading, loadFailed, onActiveCountChange]);
 
   function chooseMode(nextMode: TakeoverMode) {
     setMode(nextMode);
@@ -192,8 +195,8 @@ export function TakeoverManager({
         ? tr('Human takeover started.', 'بدأ التحكم البشري.')
         : tr('Human takeover scheduled.', 'تمت جدولة التحكم البشري.'));
       await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : tr('Could not save the takeover.', 'تعذر حفظ التحكم البشري.'));
+    } catch {
+      setError(tr('Could not save the takeover. Check the time window and try again.', 'تعذر حفظ التحكم البشري. تحقق من الفترة الزمنية وحاول مجددًا.'));
     } finally {
       setSubmitting(false);
     }
@@ -206,10 +209,10 @@ export function TakeoverManager({
       setSubmitting(true);
       if (cancelWindow) await cancelWindow(windowId);
       else await cancelAiSleepWindow(getSupabaseClient(), windowId);
-      setNotice(tr('AI replies are enabled again for new messages.', 'تمت إعادة تفعيل ردود الذكاء الاصطناعي للرسائل الجديدة.'));
+      setNotice(tr('This takeover ended. Any other active takeover still applies.', 'انتهى هذا التحكم البشري. تظل أي فترة تحكم أخرى نشطة سارية.'));
       await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : tr('Could not return to AI.', 'تعذر إعادة التحكم للذكاء الاصطناعي.'));
+    } catch {
+      setError(tr('Could not return to AI. Refresh the status and try again.', 'تعذر إعادة التحكم للذكاء الاصطناعي. حدّث الحالة وحاول مجددًا.'));
     } finally {
       setSubmitting(false);
     }
@@ -218,9 +221,9 @@ export function TakeoverManager({
   return (
     <section className="takeover-shell" aria-label={tr('Human Takeover', 'التحكم البشري')}>
       <div className="takeover-toolbar-actions">
-        <span className={`status-pill ${active.length ? 'negative' : 'positive'}`}>
+        <span className={`status-pill ${loading || loadFailed ? 'neutral' : active.length ? 'negative' : 'positive'}`}>
           <span className="takeover-status-dot" aria-hidden="true" />
-          {active.length ? tr('Human Takeover Active', 'التحكم البشري نشط') : tr('AI Active', 'الذكاء الاصطناعي نشط')}
+          {loading ? tr('Checking reply status…', 'جارٍ التحقق من حالة الردود…') : loadFailed ? tr('Reply status unavailable', 'حالة الردود غير متاحة') : active.length ? tr('Human Takeover Active', 'التحكم البشري نشط') : tr('AI Active', 'الذكاء الاصطناعي نشط')}
         </span>
         <div className="takeover-primary-actions">
           <button type="button" className="primary-button takeover-manage-button" aria-label="Take Over Now" onClick={() => openDrawer('NOW')}>
@@ -235,12 +238,13 @@ export function TakeoverManager({
         </div>
       </div>
 
-      {nextWindow && (
+      {loadFailed && <button type="button" className="compact-button" onClick={() => void load()}>{tr('Retry status check', 'إعادة التحقق من الحالة')}</button>}
+      {!loading && !loadFailed && nextWindow && (
         <button type="button" className="takeover-summary" onClick={() => openDrawer()}>
           <span className="takeover-summary-icon" aria-hidden="true">◉</span>
           <span className="takeover-summary-copy">
             <strong>{nextWindow.status === 'ACTIVE' ? tr('Human takeover active', 'التحكم البشري نشط') : tr('Scheduled takeover', 'تحكم بشري مجدول')}</strong>
-            <small>{nextWindow.externalChannelName || tr('Community', 'المجتمع')} · {localDateTime(nextWindow.startsAt, locale)}–{new Date(nextWindow.endsAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })}</small>
+            <small>{nextWindow.externalChannelName || tr('Community', 'المجتمع')} · {localDateTime(nextWindow.startsAt, locale)}–{localDateTime(nextWindow.endsAt, locale)}</small>
           </span>
           <span className="takeover-summary-link">{tr('View', 'عرض')} →</span>
         </button>

@@ -15,14 +15,15 @@ const navigation: NavGroup[] = [
   { en: 'Overview', ar: 'نظرة عامة', items: [
     { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: 'dashboard', end: true },
   ] },
+  { en: 'Knowledge & publishing', ar: 'المعرفة والنشر', items: [
+    { to: '/knowledge', en: 'Knowledge Base', ar: 'قاعدة المعرفة', icon: 'knowledge' },
+    { to: '/knowledge-gaps', en: 'Knowledge Gaps', ar: 'فجوات المعرفة', icon: 'knowledge' },
+    { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: 'announcements' },
+  ] },
   { en: 'Community', ar: 'المجتمع', items: [
     { to: '/users', en: 'Members', ar: 'الأعضاء', icon: 'users' },
     { to: '/community', en: 'Communities', ar: 'المجتمعات', icon: 'community' },
     { to: '/messages', en: 'Messages', ar: 'الرسائل', icon: 'messages' },
-  ] },
-  { en: 'Content', ar: 'المحتوى', items: [
-    { to: '/knowledge', en: 'Knowledge', ar: 'المعرفة', icon: 'knowledge' },
-    { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: 'announcements' },
     { to: '/whatsapp-quiz', en: 'WhatsApp Quiz', ar: 'اختبار WhatsApp', icon: 'reviews' },
   ] },
   { en: 'Admin', ar: 'الإدارة', items: [

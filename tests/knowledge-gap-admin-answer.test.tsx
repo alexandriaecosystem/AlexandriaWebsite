@@ -39,6 +39,13 @@ function renderPage() {
 }
 
 describe('knowledge gap admin answers', () => {
+  it('distinguishes an answer still processing from a resolved gap', async () => {
+    mocks.listKnowledgeGaps.mockResolvedValueOnce({ total: 1, items: [{ ...openGap, adminAnswer: 'Draft answer', answerProcessingStatus: 'PROCESSING' }] });
+    renderPage();
+    expect(await screen.findByText('Processing')).toBeInTheDocument();
+    expect(screen.getByText(/approved before the assistant uses them/)).toBeInTheDocument();
+  });
+
   it('lets an admin enter and save the trusted answer instead of blindly resolving the gap', async () => {
     renderPage();
     expect(await screen.findByText(openGap.question)).toBeInTheDocument();

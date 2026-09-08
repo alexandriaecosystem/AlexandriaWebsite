@@ -244,7 +244,7 @@ export async function getDashboardMetrics(client: SupabaseClient): Promise<Dashb
   return {
     totalUsers: asNumber(value.total_users),
     activeUsers: asNumber(value.active_users),
-    activeUsers7Days: asNumber(value.active_users_7_days),
+    activeUsers7Days: value.active_users_7_days == null ? null : asNumber(value.active_users_7_days),
     approvedUsers: asNumber(value.approved_users),
     pendingReviews: asNumber(value.pending_reviews),
     blockedUsers: asNumber(value.blocked_users),

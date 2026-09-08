@@ -21,16 +21,17 @@ describe('admin control-center completeness', () => {
     expect(page).toMatch(/\.some\([^)]*toLowerCase\(\)[^)]*platform/);
   });
 
-  it('keeps exactly nine nontechnical primary destinations in the sidebar', () => {
+  it('keeps the requested ten primary destinations with knowledge and publishing first', () => {
     const shell = source('src/app/AppShell.tsx');
     const navPaths = [...shell.matchAll(/\{ to: '([^']+)'/g)].map((match) => match[1]);
     expect(navPaths).toEqual([
       '/',
+      '/knowledge',
+      '/knowledge-gaps',
+      '/announcements',
       '/users',
       '/community',
       '/messages',
-      '/knowledge',
-      '/announcements',
       '/whatsapp-quiz',
       '/analytics',
       '/settings',
@@ -39,7 +40,7 @@ describe('admin control-center completeness', () => {
     expect(shell).not.toContain("to: '/token-monitor'");
     expect(shell).not.toContain("to: '/account'");
     expect(shell).not.toContain("to: '/reviews'");
-    expect(shell).not.toContain("to: '/knowledge-gaps'");
+    expect(shell).toContain("to: '/knowledge-gaps'");
   });
 
   it('keeps technical operations reachable contextually without dominating the dashboard', () => {

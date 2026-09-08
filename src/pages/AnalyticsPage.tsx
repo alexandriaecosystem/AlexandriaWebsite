@@ -175,7 +175,7 @@ export function AnalyticsPage() {
           {noTelemetry && (
             <EmptyState
               title={tr('No provider usage recorded for this period', 'لم يتم تسجيل استخدام من المزوّد خلال هذه الفترة')}
-              message={tr('AI cost and token analytics appear after n8n forwards provider usage responses to the usage logger. Try another period or refresh after traffic is processed.', 'تظهر تحليلات التكلفة والرموز بعد أن يرسل n8n بيانات استخدام المزوّد إلى سجل الاستخدام. جرّب فترة أخرى أو حدّث بعد معالجة حركة جديدة.')}
+              message={tr('Cost and usage appear only after real provider activity is recorded. No records does not mean zero cost. Try another period or refresh after new activity.', 'تظهر التكلفة والاستخدام فقط بعد تسجيل نشاط حقيقي من المزوّد. عدم وجود سجلات لا يعني أن التكلفة صفر. جرّب فترة أخرى أو حدّث بعد نشاط جديد.')}
               action={<div className="empty-state-actions"><button type="button" onClick={() => setDays(30)}>{tr('Show last 30 days', 'عرض آخر 30 يوماً')}</button><button type="button" className="primary" onClick={() => setReload((value) => value + 1)}>{tr('Refresh telemetry', 'تحديث البيانات')}</button></div>}
             />
           )}

@@ -1,0 +1,35 @@
+/* Operational data, not decorative statistics. Logical properties support RTL. */
+.dashboard-visual-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-block: 1rem; }
+.dashboard-visual-grid > .panel { min-width: 0; margin-block: 0; }
+.dashboard-visual-grid .dashboard-activity-simple { grid-template-columns: 1fr; gap: 1rem; }
+.dashboard-visual-grid .dashboard-activity-definition { max-width: none; }
+.account-composition { display: grid; grid-template-columns: minmax(110px, 170px) minmax(0, 1fr); align-items: center; gap: 1.25rem; padding-block: .8rem; }
+.account-donut { position: relative; width: 100%; aspect-ratio: 1; max-width: 190px; justify-self: center; }
+.account-donut svg { display: block; width: 100%; height: 100%; }
+.account-track, .account-segment { fill: none; stroke-width: 13; }
+.account-track { stroke: #373737; }
+.account-segment { stroke: var(--account-color); }
+.account-telegram_premium { --account-color: #c6a566; }
+.account-telegram_regular { --account-color: #52aad5; }
+.account-telegram_unknown { --account-color: #81939d; }
+.account-whatsapp { --account-color: #70b493; }
+.account-discord { --account-color: #9c92d8; }
+.account-other { --account-color: #bf9885; }
+.account-donut > span { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: none; }
+.account-donut strong { font-size: 1.8rem; line-height: 1.15; }
+.account-donut small { font-size: .8rem; color: #bcb8af; }
+.account-legend { margin: 0; min-width: 0; }
+.account-legend > div { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding-block: .6rem; }
+.account-legend dt { display: flex; align-items: center; gap: .5rem; font-size: .85rem; min-width: 0; overflow-wrap: anywhere; }
+.account-key { width: .65rem; height: .65rem; background: var(--account-color); border-radius: 50%; flex-shrink: 0; }
+.account-legend dd { margin: 0; display: grid; text-align: end; flex-shrink: 0; }
+.account-legend dd small { color: #bcb8af; }
+.account-explanation { font-size: .83rem; line-height: 1.55; margin-block-end: .35rem; }
+.dashboard-partial { padding-block: 1rem; }
+.operational-flow { display: flex; flex-wrap: wrap; gap: .5rem .8rem; padding: .8rem 0; margin: 0; list-style: none; font-size: .82rem; color: #c9c5bc; }
+.operational-flow li:not(:last-child)::after { content: '→'; margin-inline-start: .8rem; color: #c6a566; }
+[dir='rtl'] .operational-flow li:not(:last-child)::after { content: '←'; }
+.telegram-unknown-segment { stroke: #81939d; }
+.telegram-unknown i { background: #81939d; }
+@media (max-width: 1150px) { .dashboard-visual-grid { grid-template-columns: 1fr; } }
+@media (max-width: 420px) { .account-composition { grid-template-columns: 1fr; gap: .5rem; } .account-donut { max-width: 160px; } }

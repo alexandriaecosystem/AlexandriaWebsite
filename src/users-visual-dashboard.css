@@ -556,3 +556,12 @@ html[dir='rtl'] .users-platform-row > small {
     transform: none;
   }
 }
+
+/* Card-mode tables must not retain the desktop table's intrinsic width. */
+@media (max-width: 760px) {
+  .users-table-card, .users-table-card .table-scroll { min-width: 0; max-width: 100%; }
+  .users-table-card .users-table { min-width: 0; width: 100%; }
+  .users-filter-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .users-filter-toolbar .users-table-tools { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+  .users-filter-toolbar select { min-width: 0; max-width: 100%; width: 100%; }
+}

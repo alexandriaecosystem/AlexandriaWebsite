@@ -1,3 +1,4 @@
+import '../operational-ux.css';
 import { useEffect, useMemo, useState } from 'react';
 import { approveAnnouncement } from '../services/admin';
 import {
@@ -180,6 +181,9 @@ export function AnnouncementsPage() {
           ◷ {historyOpen ? tr('Hide history', 'إخفاء السجل') : tr('View history', 'عرض السجل')}
         </button>
       </header>
+      <ol className="operational-flow" aria-label={tr('Announcement delivery process', 'مسار إرسال الإعلان')}>
+        <li>{tr('Compose', 'كتابة')}</li><li>{tr('Choose destinations', 'اختيار الوجهات')}</li><li>{tr('Preview', 'معاينة')}</li><li>{tr('Send', 'إرسال')}</li><li>{tr('Delivery status', 'حالة التسليم')}</li>
+      </ol>
 
       <section className="announcement-metrics" aria-label={tr('Announcement summary', 'ملخص الإعلانات')}>
         <article className="announcement-metric-card"><span className="metric-icon gold">◖</span><div><strong>{totalAnnouncements}</strong><span>{tr('Announcements', 'إعلانات')}</span><small>{tr('Total created', 'إجمالي المنشأ')}</small></div></article>

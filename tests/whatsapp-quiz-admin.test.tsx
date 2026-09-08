@@ -55,6 +55,14 @@ afterEach(() => {
 });
 
 describe('WhatsApp Quiz admin page', () => {
+  it('does not call an unavailable scheduler active or paused', async () => {
+    mocks.loadWhatsappQuizAdmin.mockResolvedValueOnce({ targets: [], schedule: { enabled: false, status: 'ERROR', lastError: 'secret raw transport detail' } });
+    render(<LanguageProvider><WhatsAppQuizPage /></LanguageProvider>);
+    expect(await screen.findByRole('heading', { name: 'Schedule status unavailable' })).toBeInTheDocument();
+    expect(screen.queryByText('Automatic Quiz is paused')).not.toBeInTheDocument();
+    expect(screen.queryByText(/secret raw transport detail/)).not.toBeInTheDocument();
+  });
+
   it('shows a nontechnical fixed-10 schedule and defaults to the real General Community', async () => {
     render(<LanguageProvider><WhatsAppQuizPage /></LanguageProvider>);
 
@@ -129,6 +137,6 @@ describe('WhatsApp Quiz admin page', () => {
     });
 
     render(<LanguageProvider><WhatsAppQuizPage /></LanguageProvider>);
-    expect(await screen.findByText('Quiz delivery failed. Please check the connection and try again.')).toBeInTheDocument();
+    expect(await screen.findByText('The quiz needs attention. Refresh its status before changing the schedule or sending questions.')).toBeInTheDocument();
   });
 });

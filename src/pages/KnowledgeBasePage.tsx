@@ -29,8 +29,16 @@ function extensionOf(file: File) {
   return file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : '';
 }
 
+function scanPassed(doc: KnowledgeDocumentSummary) {
+  return doc.conflictScanStatus === 'READY' && doc.conflictScannedVersion === doc.version && !doc.approvalBlocked && doc.blockingConflictCount === 0;
+}
+
+function canApprove(doc: KnowledgeDocumentSummary) {
+  return doc.processingStatus === 'READY' && doc.chunkCount > 0 && scanPassed(doc);
+}
+
 function isAvailable(doc: KnowledgeDocumentSummary) {
-  return doc.processingStatus === 'READY' && doc.isApproved && doc.chunkCount > 0;
+  return canApprove(doc) && doc.isApproved;
 }
 
 export function KnowledgeBasePage() {
@@ -80,7 +88,7 @@ export function KnowledgeBasePage() {
       .catch(() => setError(true));
   }, [reload]);
 
-  const processingCount = useMemo(() => allDocuments?.filter((item) => ['PENDING', 'PROCESSING'].includes(item.processingStatus)).length ?? 0, [allDocuments]);
+  const processingCount = useMemo(() => allDocuments?.filter((item) => (['PENDING', 'PROCESSING'].includes(item.processingStatus) || (item.processingStatus === 'READY' && ['PENDING', 'PROCESSING'].includes(item.conflictScanStatus)))).length ?? 0, [allDocuments]);
 
   useEffect(() => {
     if (!processingCount) return undefined;
@@ -100,7 +108,7 @@ export function KnowledgeBasePage() {
   const approvedCount = useMemo(() => allDocuments?.filter((item) => item.isApproved).length ?? 0, [allDocuments]);
   const availableCount = useMemo(() => allDocuments?.filter(isAvailable).length ?? 0, [allDocuments]);
   const selectedDocuments = useMemo(() => allDocuments?.filter((item) => selectedIds.includes(item.id)) ?? [], [allDocuments, selectedIds]);
-  const approvableSelected = selectedDocuments.filter((item) => item.processingStatus === 'READY' && !item.isApproved);
+  const approvableSelected = selectedDocuments.filter((item) => canApprove(item) && !item.isApproved);
   const allVisibleSelected = Boolean(documents?.length && documents.every((item) => selectedIds.includes(item.id)));
 
   function chooseFile(nextFile: File | null) {
@@ -271,7 +279,7 @@ export function KnowledgeBasePage() {
       <section className="knowledge-state-grid" aria-label={tr('Knowledge publishing stages', 'مراحل نشر المعرفة')}>
         <article className="metric-card knowledge-stage-card"><span>{tr('Processed', 'تمت المعالجة')}</span><strong>{error || !allDocuments ? '—' : readyCount}</strong><small>{tr('Text extracted and indexing finished', 'اكتمل استخراج النص والفهرسة')}</small></article>
         <article className="metric-card knowledge-stage-card"><span>{tr('Approved', 'معتمد')}</span><strong>{error || !allDocuments ? '—' : approvedCount}</strong><small>{tr('Human approval has been recorded', 'تم تسجيل اعتماد المسؤول')}</small></article>
-        <article className="metric-card knowledge-stage-card available-stage"><span>{tr('Available to assistant', 'متاح للمساعد')}</span><strong>{error || !allDocuments ? '—' : availableCount}</strong><small>{tr('Processed + approved + indexed', 'معالج + معتمد + مفهرس')}</small></article>
+        <article className="metric-card knowledge-stage-card available-stage"><span>{tr('Available to assistant', 'متاح للمساعد')}</span><strong>{error || !allDocuments ? '—' : availableCount}</strong><small>{tr('Indexed, checked and approved', 'مفهرس ومفحوص ومعتمد')}</small></article>
         <article className="metric-card knowledge-stage-card"><span>{tr('Processing now', 'قيد المعالجة الآن')}</span><strong>{error || !allDocuments ? '—' : processingCount}</strong><small>{tr('Queued or being processed', 'في الانتظار أو قيد المعالجة')}</small></article>
       </section>
 
@@ -341,7 +349,7 @@ export function KnowledgeBasePage() {
             const available = isAvailable(doc);
             const indexed = processed && doc.chunkCount > 0;
             const failed = doc.processingStatus === 'FAILED';
-            const label = available ? tr('Ready for answers', 'جاهز للإجابات')
+            const label = doc.blockingConflictCount > 0 ? tr('Conflict detected — approval blocked', 'تم اكتشاف تعارض — الاعتماد محظور') : available ? tr('Ready for answers', 'جاهز للإجابات')
               : failed ? tr('Processing failed', 'فشلت المعالجة')
               : processed && !indexed ? tr('No indexed content', 'لا يوجد محتوى مفهرس')
               : processed ? tr('Needs approval', 'بانتظار الاعتماد')
@@ -364,6 +372,7 @@ export function KnowledgeBasePage() {
                 <ol className="document-readiness" aria-label={tr('Assistant availability requirements', 'متطلبات الإتاحة للمساعد')}>
                   {[
                     { done: indexed, text: tr('Indexed', 'مفهرس') },
+                    { done: scanPassed(doc), text: tr('Conflict scan', 'فحص التعارض') },
                     { done: doc.isApproved, text: tr('Approved', 'معتمد') },
                     { done: available, text: tr('Available', 'متاح') },
                   ].map((stage, index) => (
@@ -374,9 +383,11 @@ export function KnowledgeBasePage() {
                   ))}
                 </ol>
 
+                {doc.blockingConflictCount > 0 && <p className="form-error">{tr('This version contradicts trusted information. Open the source to correct it, or review the conflict in Knowledge Intelligence below.', 'يتعارض هذا الإصدار مع معلومات موثوقة. افتح المصدر لتصحيحه أو راجع التعارض في قسم مراجعة المعرفة أدناه.')}</p>}
+                {doc.conflictScanStatus === 'FAILED' && <p className="form-error">{tr('Conflict scan failed. Reprocess this source before approval.', 'فشل فحص التعارض. أعد معالجة المصدر قبل الاعتماد.')}</p>}
                 <div className="document-primary-actions">
                   <button type="button" className="compact-button" disabled={busy || doc.processingStatus === 'PROCESSING'} onClick={() => setEditingId(doc.id)}>{tr('Open / Edit', 'فتح / تعديل')}</button>
-                  {processed && !doc.isApproved && <button type="button" className="compact-button primary" disabled={busy} onClick={() => void act(doc.id, 'approve')}>{tr('Approve', 'اعتماد')}</button>}
+                  {processed && !doc.isApproved && <button type="button" className="compact-button primary" disabled={busy || !canApprove(doc)} onClick={() => void act(doc.id, 'approve')}>{tr('Approve', 'اعتماد')}</button>}
                   {failed && <button type="button" className="compact-button" disabled={busy} onClick={() => void act(doc.id, 'reprocess')}>{tr('Retry processing', 'إعادة محاولة المعالجة')}</button>}
                 </div>
 
@@ -388,7 +399,7 @@ export function KnowledgeBasePage() {
                     <div><dt>{tr('Processing', 'المعالجة')}</dt><dd>{statusLabel(doc.processingStatus)}</dd></div>
                     <div><dt>{tr('Updated', 'آخر تحديث')}</dt><dd>{new Date(doc.updatedAt).toLocaleString(isArabic ? 'ar-LB' : undefined)}</dd></div>
                   </dl>
-                  {doc.processingError && <p className="form-error">{doc.processingError}</p>}
+                  {doc.processingError && <p className="form-error">{tr('Processing could not finish. Review the source and retry processing.', 'تعذر إكمال المعالجة. راجع المصدر وأعد المعالجة.')}</p>}
                   {processed && !indexed && <p className="muted">{tr('This source has no indexed text. Review its contents and reprocess it before using it for answers.', 'لا يحتوي هذا المصدر على نص مفهرس. راجع محتواه وأعد معالجته قبل استخدامه في الإجابات.')}</p>}
                   <div className="document-secondary-actions">
                     {!failed && <button type="button" className="compact-button" disabled={busy} onClick={() => void act(doc.id, 'reprocess')}>{tr('Reprocess', 'إعادة المعالجة')}</button>}

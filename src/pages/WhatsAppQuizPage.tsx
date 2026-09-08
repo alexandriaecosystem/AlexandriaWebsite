@@ -12,6 +12,7 @@ import {
 import { LoadingState, RetryableErrorState } from '../components/AsyncState';
 import { useLanguage } from '../i18n/LanguageContext';
 import './WhatsAppQuizPage.css';
+import '../operational-ux.css';
 
 const DAYS = [
   { value: 1, en: 'Monday', ar: 'الاثنين' },
@@ -26,7 +27,7 @@ const DAYS = [
 function formatDate(value: string | null, locale: string | undefined): string {
   if (!value) return '—';
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Beirut' });
 }
 
 function friendlyFrequency(frequency: QuizFrequency, days: number[], tr: (en: string, ar: string) => string): string {
@@ -152,10 +153,13 @@ export function WhatsAppQuizPage() {
       </span>
     </header>
 
-    {schedule?.lastError && <div className="quiz-friendly-error" role="alert">{schedule.lastError}</div>}
+    {schedule?.status === 'ERROR' && <div className="quiz-friendly-error" role="alert">{tr('The quiz needs attention. Refresh its status before changing the schedule or sending questions.', 'الاختبار يحتاج إلى متابعة. حدّث حالته قبل تغيير الجدول أو إرسال الأسئلة.')} <button type="button" className="compact-button" onClick={() => setReload((value) => value + 1)}>{tr('Refresh status', 'تحديث الحالة')}</button></div>}
     {error && data && <div className="form-error" role="alert">{error}</div>}
     {notice && <div className="form-success" role="status">{notice}</div>}
 
+    <ol className="operational-flow" aria-label={tr('How qualification works', 'كيف يعمل التأهيل')}>
+      <li>{tr('Eligible question bank', 'بنك الأسئلة المتاحة')}</li><li>{tr('10 random questions', '10 أسئلة عشوائية')}</li><li>{tr('Members answer', 'يجيب الأعضاء')}</li><li>{tr('10/10 qualifies', 'نتيجة 10/10 تؤهل')}</li><li>{tr('Community access request', 'طلب دخول المجتمع')}</li>
+    </ol>
     <div className="quiz-layout">
       <form className="panel quiz-schedule-card" onSubmit={save}>
         <div className="section-heading quiz-section-heading">
@@ -217,13 +221,13 @@ export function WhatsAppQuizPage() {
 
       <aside className="panel quiz-status-card" aria-label={tr('Quiz status', 'حالة الاختبار')}>
         <p className="eyebrow">{tr('Status', 'الحالة')}</p>
-        <h2>{schedule?.enabled ? tr('Automatic Quiz is active', 'الاختبار التلقائي نشط') : tr('Automatic Quiz is paused', 'الاختبار التلقائي متوقف')}</h2>
+        <h2>{schedule?.status === 'ERROR' ? tr('Schedule status unavailable', 'حالة الجدول غير متاحة') : schedule?.enabled ? tr('Automatic Quiz is active', 'الاختبار التلقائي نشط') : tr('Automatic Quiz is paused', 'الاختبار التلقائي متوقف')}</h2>
         <dl>
           <div><dt>{tr('Community', 'المجتمع')}</dt><dd>{schedule?.communityName || selectedTarget?.name || '—'}</dd></div>
           <div><dt>{tr('Frequency', 'التكرار')}</dt><dd>{friendlyFrequency(schedule?.frequency ?? frequency, schedule?.daysOfWeek ?? selectedDays, tr)}</dd></div>
           <div><dt>{tr('Time', 'الوقت')}</dt><dd>{schedule?.timeOfDay || timeOfDay}</dd></div>
-          <div><dt>{tr('Last sent', 'آخر إرسال')}</dt><dd>{formatDate(schedule?.lastRunAt ?? null, locale)}</dd></div>
-          <div><dt>{tr('Next scheduled quiz', 'الاختبار المجدول التالي')}</dt><dd>{schedule?.enabled ? formatDate(schedule.nextRunAt, locale) : '—'}</dd></div>
+          <div><dt>{tr('Last sent · Beirut time', 'آخر إرسال · بتوقيت بيروت')}</dt><dd>{formatDate(schedule?.lastRunAt ?? null, locale)}</dd></div>
+          <div><dt>{tr('Next quiz · Beirut time', 'الاختبار التالي · بتوقيت بيروت')}</dt><dd>{schedule?.enabled ? formatDate(schedule.nextRunAt, locale) : '—'}</dd></div>
         </dl>
         <p className="quiz-rule-note">{tr('Qualification stays unchanged: exactly 10 questions are sent and only 10/10 creates the Approved Community access request.', 'يبقى التأهيل دون تغيير: يتم إرسال 10 أسئلة بالضبط، وفقط نتيجة 10/10 تنشئ طلب دخول المجتمع المعتمد.')}</p>
       </aside>

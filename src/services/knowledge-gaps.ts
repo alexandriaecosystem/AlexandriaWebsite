@@ -14,6 +14,8 @@ export type KnowledgeGap = {
   resolvedDocumentId: string | null;
   adminAnswer: string | null;
   answeredAt: string | null;
+  answerProcessingStatus?: string | null;
+  answerConflictScanStatus?: string | null;
 };
 
 const nullable = (value: unknown) => value == null ? null : String(value);
@@ -44,6 +46,8 @@ export async function listKnowledgeGaps(client: SupabaseClient, status = 'OPEN')
       resolvedDocumentId: nullable(item.resolved_document_id),
       adminAnswer: nullable(item.admin_answer),
       answeredAt: nullable(item.answered_at),
+      answerProcessingStatus: nullable(item.answer_processing_status),
+      answerConflictScanStatus: nullable(item.answer_conflict_scan_status),
     })),
   };
 }

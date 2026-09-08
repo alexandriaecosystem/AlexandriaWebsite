@@ -125,7 +125,7 @@ describe('CommunityPieChart', () => {
 
 describe('PlatformUsersPieChart', () => {
   it('splits Telegram into Premium and Regular while preserving the platform total', () => {
-    render(<PlatformUsersPieChart telegram={24} telegramPremium={6} discord={12} whatsapp={4} />);
+    render(<PlatformUsersPieChart telegram={24} telegramPremium={6} telegramRegular={18} discord={12} whatsapp={4} />);
 
     expect(
       screen.getByRole('img', {

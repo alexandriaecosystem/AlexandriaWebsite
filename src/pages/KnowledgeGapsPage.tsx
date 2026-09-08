@@ -5,18 +5,20 @@ import {
   listKnowledgeGaps,
   reopenKnowledgeGap,
   type KnowledgeGap,
-  type KnowledgeGapStatus,
 } from '../services/knowledge-gaps';
 import { getSupabaseClient } from '../services/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../admin-operations.css';
 import '../knowledge-gaps-admin.css';
+import '../operational-ux.css';
 
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleString() : '—';
 
-function Status({ value }: { value: KnowledgeGapStatus }) {
-  const tone = value === 'RESOLVED' ? 'positive' : value === 'OPEN' ? 'neutral' : 'negative';
-  return <span className={`status-pill ${tone}`}>{value}</span>;
+function Status({ gap }: { gap: KnowledgeGap }) {
+  const { tr } = useLanguage();
+  const processing = gap.adminAnswer && (['PENDING', 'PROCESSING'].includes(gap.answerProcessingStatus ?? '') || ['PENDING', 'PROCESSING'].includes(gap.answerConflictScanStatus ?? ''));
+  const label = gap.status === 'RESOLVED' ? tr('Resolved', 'تم الحل') : gap.status === 'IGNORED' ? tr('Ignored', 'متجاهل') : processing ? tr('Processing', 'قيد المعالجة') : gap.adminAnswer ? tr('Answer added', 'أُضيفت الإجابة') : tr('Open', 'مفتوح');
+  return <span className={`status-pill ${gap.status === 'RESOLVED' ? 'positive' : 'neutral'}`}>{label}</span>;
 }
 
 export function KnowledgeGapsPage() {
@@ -36,10 +38,10 @@ export function KnowledgeGapsPage() {
     setError('');
     void listKnowledgeGaps(getSupabaseClient(), status)
       .then((result) => { if (active) setItems(result.items); })
-      .catch((caught) => { if (active) setError(caught instanceof Error ? caught.message : 'Could not load knowledge gaps.'); })
+      .catch(() => { if (active) setError(tr('Could not load knowledge gaps. Please retry.', 'تعذر تحميل فجوات المعرفة. أعد المحاولة.')); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [status, reload]);
+  }, [status, reload, tr]);
 
   function beginEdit(gap: KnowledgeGap) {
     setEditingGapId(gap.id);
@@ -64,8 +66,8 @@ export function KnowledgeGapsPage() {
       await answerKnowledgeGap(getSupabaseClient(), gap.id, answer);
       cancelEdit();
       setReload((value) => value + 1);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : tr('Could not save the answer.', 'تعذر حفظ الإجابة.'));
+    } catch {
+      setError(tr('Could not save the answer.', 'تعذر حفظ الإجابة.'));
     } finally {
       setSavingGapId(null);
     }
@@ -77,8 +79,8 @@ export function KnowledgeGapsPage() {
       await ignoreKnowledgeGap(getSupabaseClient(), gap.id);
       if (editingGapId === gap.id) cancelEdit();
       setReload((value) => value + 1);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : tr('Could not ignore the gap.', 'تعذر تجاهل فجوة المعرفة.'));
+    } catch {
+      setError(tr('Could not ignore the gap.', 'تعذر تجاهل فجوة المعرفة.'));
     }
   }
 
@@ -87,8 +89,8 @@ export function KnowledgeGapsPage() {
     try {
       await reopenKnowledgeGap(getSupabaseClient(), gap.id);
       setReload((value) => value + 1);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : tr('Could not reopen the gap.', 'تعذر إعادة فتح فجوة المعرفة.'));
+    } catch {
+      setError(tr('Could not reopen the gap.', 'تعذر إعادة فتح فجوة المعرفة.'));
     }
   }
 
@@ -98,8 +100,8 @@ export function KnowledgeGapsPage() {
         <p className="eyebrow">{tr('Knowledge improvement', 'تحسين المعرفة')}</p>
         <h1>{tr('Knowledge gaps', 'فجوات المعرفة')}</h1>
         <p className="muted page-subtitle">{tr(
-          'Answer unsupported questions here. Saved answers become trusted knowledge and are indexed by the existing knowledge pipeline.',
-          'أجب هنا عن الأسئلة غير المدعومة. تتحول الإجابات المحفوظة إلى معرفة موثوقة وتتم فهرستها عبر مسار المعرفة الحالي.',
+          'Questions Alexandria could not confidently answer appear here. Your answers are processed, checked for conflicts, and approved before the assistant uses them.',
+          'تظهر هنا الأسئلة التي لم تتمكن Alexandria من الإجابة عنها بثقة. تُعالج إجاباتك وتُفحص للتعارضات وتُعتمد قبل أن يستخدمها المساعد.',
         )}</p>
       </div>
       <select className="compact-select knowledge-gaps-status-filter" value={status} onChange={(event) => setStatus(event.target.value)} aria-label={tr('Filter knowledge gaps by status', 'تصفية فجوات المعرفة حسب الحالة')}>
@@ -109,6 +111,9 @@ export function KnowledgeGapsPage() {
         <option value="ALL">{tr('All', 'الكل')}</option>
       </select>
     </header>
+    <ol className="operational-flow" aria-label={tr('Answer review process', 'مسار مراجعة الإجابة')}>
+      <li>{tr('Open question', 'سؤال مفتوح')}</li><li>{tr('Add an answer', 'أضف إجابة')}</li><li>{tr('Processing & conflict review', 'معالجة ومراجعة التعارضات')}</li><li>{tr('Approve in Knowledge Base', 'اعتماد في قاعدة المعرفة')}</li><li>{tr('Resolved', 'تم الحل')}</li>
+    </ol>
 
     <section className="knowledge-answer-note panel" aria-label={tr('How admin answers work', 'كيف تعمل إجابات المشرف')}>
       <strong>{tr('Trusted answer workflow', 'مسار الإجابة الموثوقة')}</strong>
@@ -149,7 +154,7 @@ export function KnowledgeGapsPage() {
                 <td data-label={tr('Asked', 'عدد المرات')}><strong>{gap.occurrenceCount}</strong></td>
                 <td data-label={tr('Platform', 'المنصة')}>{gap.platform || '—'}</td>
                 <td data-label={tr('Last seen', 'آخر ظهور')}>{formatDate(gap.lastSeenAt)}</td>
-                <td data-label={tr('Status', 'الحالة')}><Status value={gap.status} /></td>
+                <td data-label={tr('Status', 'الحالة')}><Status gap={gap} /></td>
                 <td data-label="" className="table-action"><div className="decision-actions knowledge-gap-actions">
                   {!editing && <button className="compact-button" type="button" onClick={() => beginEdit(gap)}>{gap.adminAnswer ? tr('Edit answer', 'تعديل الإجابة') : tr('Add answer', 'إضافة إجابة')}</button>}
                   {canIgnore && <button className="compact-button" type="button" onClick={() => void ignoreGap(gap)}>{tr('Ignore', 'تجاهل')}</button>}

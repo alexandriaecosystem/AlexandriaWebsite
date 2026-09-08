@@ -1,0 +1,62 @@
+const current = $input.first().json || {};
+let policy = current;
+for (const name of ['Apply Purchase Intent Policy', 'Answer Engine Input']) {
+  try {
+    const candidate = $(name).first().json || {};
+    if (candidate && (candidate.text != null || candidate.question != null || candidate.intent != null)) {
+      policy = { ...policy, ...candidate };
+      break;
+    }
+  } catch (_) {}
+}
+const text = String(policy.text ?? policy.question ?? current.text ?? current.question ?? '').normalize('NFKC').trim();
+const answer0 = String(current.answer ?? current.fallback ?? '').trim();
+const mem = policy.conversation_memory && typeof policy.conversation_memory === 'object' && !Array.isArray(policy.conversation_memory) ? policy.conversation_memory : {};
+const priorIntent = String(mem.last_intent ?? '').toUpperCase();
+const intent = String(current.intent ?? policy.intent ?? 'UNKNOWN').toUpperCase();
+const projectRe = /(?:alexandria|alexandra|\balexa\b|الكسندريا|إليكسندريا)/iu;
+const acquireRe = /(?:\b(?:buy|buying|purchase|purchasing|acquire|acquiring|obtain|invest(?:ing)?(?:\s+in)?|swap)\b|\b(?:acheter|achat|acquérir|investir|échanger)\b|\b(?:kaufen|erwerben|investieren|tauschen)\b|\b(?:comprar|adquirir|invertir|cambiar)\b|\b(?:comprare|acquistare|investire|scambiare)\b|\b(?:comprar|adquirir|investir|trocar)\b|satın\s+al|satin\s+al|yatırım|yatirim|takas|\b(?:kopen|aanschaffen|investeren|ruilen)\b|\b(?:beli|membeli|investasi|tukar)\b|kupić|kupic|kupno|nabyć|nabyc|inwestować|inwestowac|wymienić|wymienic|купить|покупка|приобрести|инвестировать|обменять|купити|придбати|інвестувати|обміняти|(?:买|购买|投资|兑换)|(?:買う|購入|投資|交換)|(?:구매|사다|투자|교환)|(?:ซื้อ|ลงทุน|แลก)|(?:αγορά|αγοράσω|επενδύ|ανταλλαγ)|(?:לקנות|קנייה|להשקיע|להחליף)|(?:شراء|اشتري|أشتري|اشترِ|استثمر|الاستثمار|بدّل))/iu;
+const getAcquireRe = /(?:\b(?:where|how)\s+(?:can\s+i\s+|do\s+i\s+)?(?:get|obtain)\b|من\s+أين|وين|أين|كيف|où|comment|wo|wie|dónde|cómo|dove|come|onde|como|nerede|nasıl|waar|hoe|gdzie|jak|где|как|де|як|哪里|怎么|どこ|どう|어디|어떻게)/iu;
+const getVerbRe = /\b(?:get|obtain|obtenir|avoir|bekommen|erhalten|conseguir|obtener|ottenere|conseguir|obter|alabilirim|krijgen|mendapatkan)\b|أحصل|احصل|الحصول|zdobyć|zdobyc|получить|отримати|获得|获取|手に入|얻/iu;
+const venueRe = /(?:\b(?:exchange|dex|cex|wallet|platform|market|venue)\b|بورصة|منصة|محفظة|bourse|portefeuille|börse|wallet|intercambio|cartera|scambio|portafoglio|corretora|carteira|borsa|cüzdan|beurs|portemonnee|giełd|portfel|бирж|кошел|бірж|гаманець|交易所|钱包|取引所|ウォレット|거래소|지갑|ตลาด|กระเป๋า|ανταλλακτ|πορτοφόλ|בורסה|ארנק)/iu;
+const listingRe = /(?:\b(?:sell|sells|sold|list|lists|listed|listing|offer|offers|available|support|supports|have|has)\b|تبيع|مدرج|متاح|vend|cotiz|listad|disponib|gelistet|verfügbar|купить|доступ|доступн|上市|上架|购买|上場|購入|상장|구매)/iu;
+const directiveRe = /(?:\b(?:you\s+(?:can|should|may|need\s+to)|go\s+to|visit|use|open|connect(?:\s+your)?\s+wallet|recommend|suggest)\b|(?:tu\s+peux|vous\s+pouvez|il\s+faut|va\s+sur|allez\s+sur)|(?:du\s+kannst|sie\s+können|geh\s+zu)|(?:puedes|debes|ve\s+a)|(?:puoi|dovresti|vai\s+su)|(?:você\s+pode|voce\s+pode|deve|vá\s+para|va\s+para)|(?:يمكنك|تقدر|لازم|اذهب|روح|اربط)|(?:можно|тебе\s+нужно|вам\s+нужно|перейди|используй)|(?:你可以|应该|去|使用)|(?:できます|してください|使って)|(?:할\s+수\s+있|해야|사용)|(?:คุณสามารถ|ควร|ใช้))/iu;
+const projectContext = projectRe.test(text) || policy.project_relevant === true || current.project_relevant === true || intent === 'PURCHASE_INTENT' || current.purchase_policy === true || priorIntent === 'PURCHASE_INTENT';
+const directAcquire = projectContext && acquireRe.test(text);
+const getAcquire = projectContext && getAcquireRe.test(text) && getVerbRe.test(text) && (projectRe.test(text) || venueRe.test(text) || priorIntent === 'PURCHASE_INTENT');
+const venuePurchase = projectContext && getAcquireRe.test(text) && venueRe.test(text) && listingRe.test(text);
+const purchaseRequest = intent === 'PURCHASE_INTENT' || current.purchase_policy === true || directAcquire || getAcquire || venuePurchase || (priorIntent === 'PURCHASE_INTENT' && venueRe.test(text));
+const answerHasUnsafeGuidance = projectRe.test(answer0) && acquireRe.test(answer0) && (directiveRe.test(answer0) || venueRe.test(answer0) || /https?:\/\//iu.test(answer0));
+const lang0 = String(current.language ?? policy.language ?? 'en').toLowerCase().split(/[-_]/)[0];
+const replies = {
+  en: 'I can provide verified Alexandria information and explain the project, but I do not provide purchasing instructions, exchange/DEX directions, or investment recommendations.',
+  ar: 'بقدر أوضح معلومات موثقة عن Alexandria والمشروع، لكن ما بقدّم إرشادات للشراء أو توجيهات لمنصة أو DEX أو توصيات استثمارية.',
+  fr: 'Je peux fournir des informations vérifiées sur Alexandria et expliquer le projet, mais je ne donne pas d’instructions d’achat, de parcours via un exchange/DEX ni de recommandations d’investissement.',
+  de: 'Ich kann verifizierte Informationen zu Alexandria und zum Projekt erklären, gebe aber keine Kaufanleitungen, Exchange-/DEX-Wege oder Anlageempfehlungen.',
+  es: 'Puedo dar información verificada sobre Alexandria y explicar el proyecto, pero no doy instrucciones de compra, rutas por exchanges/DEX ni recomendaciones de inversión.',
+  it: 'Posso fornire informazioni verificate su Alexandria e spiegare il progetto, ma non do istruzioni di acquisto, indicazioni su exchange/DEX o raccomandazioni di investimento.',
+  pt: 'Posso fornecer informações verificadas sobre Alexandria e explicar o projeto, mas não forneço instruções de compra, caminhos por exchanges/DEX nem recomendações de investimento.',
+  tr: 'Alexandria hakkında doğrulanmış bilgi verebilir ve projeyi açıklayabilirim; ancak satın alma talimatı, borsa/DEX yönlendirmesi veya yatırım tavsiyesi vermem.',
+  nl: 'Ik kan geverifieerde informatie over Alexandria geven en het project uitleggen, maar ik geef geen aankoopinstructies, exchange/DEX-routes of beleggingsadvies.',
+  id: 'Saya dapat memberikan informasi Alexandria yang terverifikasi dan menjelaskan proyeknya, tetapi saya tidak memberikan petunjuk pembelian, arahan exchange/DEX, atau rekomendasi investasi.',
+  pl: 'Mogę podać zweryfikowane informacje o Alexandria i wyjaśnić projekt, ale nie podaję instrukcji zakupu, wskazówek dotyczących giełd/DEX ani rekomendacji inwestycyjnych.',
+  ru: 'Я могу предоставить проверенную информацию об Alexandria и объяснить проект, но не даю инструкций по покупке, указаний по биржам/DEX или инвестиционных рекомендаций.',
+  uk: 'Я можу надати перевірену інформацію про Alexandria та пояснити проєкт, але не даю інструкцій щодо купівлі, вказівок щодо бірж/DEX чи інвестиційних рекомендацій.',
+  zh: '我可以提供经过核实的 Alexandria 信息并解释该项目，但不会提供购买步骤、交易所/DEX 指引或投资建议。',
+  ja: 'Alexandria について確認済みの情報を説明できますが、購入手順、取引所/DEX への誘導、投資の推奨は行いません。',
+  ko: 'Alexandria에 대한 검증된 정보를 설명할 수 있지만, 구매 방법, 거래소/DEX 안내 또는 투자 추천은 제공하지 않습니다.',
+  th: 'ฉันสามารถให้ข้อมูล Alexandria ที่ตรวจสอบแล้วและอธิบายโครงการได้ แต่จะไม่ให้คำแนะนำวิธีซื้อ เส้นทางไปยัง exchange/DEX หรือคำแนะนำการลงทุน',
+  el: 'Μπορώ να δώσω επαληθευμένες πληροφορίες για το Alexandria και να εξηγήσω το έργο, αλλά δεν παρέχω οδηγίες αγοράς, κατευθύνσεις για exchange/DEX ή επενδυτικές συστάσεις.',
+  he: 'אני יכול לספק מידע מאומת על Alexandria ולהסביר את הפרויקט, אבל איני מספק הוראות רכישה, הכוונה לבורסה/DEX או המלצות השקעה.'
+};
+const block = purchaseRequest || answerHasUnsafeGuidance;
+const answer = block ? (replies[lang0] || replies.en) : answer0;
+return [{ json: {
+  ...current, answer,
+  intent: purchaseRequest ? 'PURCHASE_INTENT' : current.intent,
+  purchase_policy: block || current.purchase_policy === true,
+  cross_language_purchase_guard: true,
+  answer_policy_applied: true,
+  answer_policy_reason: purchaseRequest ? 'cross_language_purchase_request' : answerHasUnsafeGuidance ? 'cross_language_purchase_guidance_filtered' : (current.answer_policy_reason || 'pass'),
+  cache_write_eligible: block ? false : current.cache_write_eligible
+}}];

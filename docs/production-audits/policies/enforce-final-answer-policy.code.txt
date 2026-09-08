@@ -1,0 +1,106 @@
+const current = $input.first().json || {};
+let policy = current;
+try { policy = $('Apply Purchase Intent Policy').first().json || current; } catch (_) {}
+function primaryLang(v) {
+  const x = String(v ?? '').trim().toLowerCase().split(/[-_]/)[0];
+  return /^[a-z]{2,3}$/.test(x) ? x : 'en';
+}
+function hash32(value) {
+  const s = String(value ?? '');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+const purchaseReplies = {
+  en: [
+    'I can share verified information about Alexandria and explain how the project works, but I don’t provide purchasing instructions, exchange/DEX directions, or investment recommendations.',
+    'I can help with verified Alexandria information, but I don’t tell people where or how to buy it or recommend investing in it.',
+    'I can explain Alexandria and its verified project details, but I can’t guide or recommend a purchase.'
+  ],
+  ar: [
+    'بقدر أوضح معلومات موثقة عن Alexandria وكيف يعمل المشروع، لكن ما بقدّم إرشادات للشراء أو توجيهات لمنصة أو DEX أو توصيات استثمارية.',
+    'فيني أساعدك بمعلومات Alexandria الموثقة، لكن ما بدلّك وين أو كيف تشتريها وما بعطي توصيات استثمارية.',
+    'بقدر أشرح Alexandria وتفاصيل المشروع الموثقة، لكن ما بقدّم إرشاد أو توصية للشراء.'
+  ],
+  fr: [
+    'Je peux donner des informations vérifiées sur Alexandria et expliquer le projet, mais je ne fournis pas d’instructions d’achat, de parcours via un exchange/DEX ni de recommandations d’investissement.',
+    'Je peux t’aider avec des informations vérifiées sur Alexandria, mais je n’indique pas où ni comment l’acheter et je ne recommande pas d’y investir.',
+    'Je peux expliquer Alexandria et ses informations vérifiées, mais je ne guide ni ne recommande un achat.'
+  ],
+  de: [
+    'Ich kann verifizierte Informationen zu Alexandria und zum Projekt erklären, gebe aber keine Kaufanleitungen, Exchange-/DEX-Wege oder Anlageempfehlungen.',
+    'Ich helfe gern mit verifizierten Alexandria-Informationen, sage aber nicht, wo oder wie man es kauft, und empfehle keine Investition.',
+    'Ich kann Alexandria und verifizierte Projektdetails erklären, aber keinen Kauf anleiten oder empfehlen.'
+  ],
+  es: [
+    'Puedo compartir información verificada sobre Alexandria y explicar el proyecto, pero no doy instrucciones de compra, rutas por exchanges/DEX ni recomendaciones de inversión.',
+    'Puedo ayudarte con información verificada sobre Alexandria, pero no indico dónde o cómo comprarlo ni recomiendo invertir en él.',
+    'Puedo explicar Alexandria y sus datos verificados, pero no guío ni recomiendo una compra.'
+  ],
+  it: [
+    'Posso fornire informazioni verificate su Alexandria e spiegare il progetto, ma non do istruzioni di acquisto, indicazioni su exchange/DEX o raccomandazioni di investimento.',
+    'Posso aiutarti con informazioni verificate su Alexandria, ma non indico dove o come comprarlo e non consiglio di investirci.',
+    'Posso spiegare Alexandria e i dettagli verificati del progetto, ma non guidare o raccomandare un acquisto.'
+  ]
+};
+function purchaseReply(lang, seed) {
+  const list = purchaseReplies[lang] || purchaseReplies.en;
+  return list[hash32(seed) % list.length];
+}
+function normalizeLegacyName(value) {
+  const input = String(value ?? '');
+  const urlRe = /(https?:\/\/[^\s<>()]+)/giu;
+  let out = '';
+  let last = 0;
+  let m;
+  const cleanText = (chunk) => String(chunk)
+    .replace(/\bAlexandria\s*\(\s*ALEXA\s*\)/giu, 'Alexandria')
+    .replace(/(?<![A-Za-z0-9])ALEXA\s+token\b/giu, 'Alexandria token')
+    .replace(/(?<![A-Za-z0-9])ALEXA(?![A-Za-z0-9])/giu, 'Alexandria')
+    .replace(/\bAlexandria\s+Alexandria\b/giu, 'Alexandria');
+  while ((m = urlRe.exec(input)) !== null) {
+    out += cleanText(input.slice(last, m.index));
+    const url = m[0];
+    if (!/(?<![A-Za-z0-9])ALEXA(?![A-Za-z0-9])/i.test(url)) out += url;
+    last = urlRe.lastIndex;
+  }
+  out += cleanText(input.slice(last));
+  return out.replace(/[ \t]{2,}/g, ' ').replace(/\s+([,.;!?؟])/g, '$1').trim();
+}
+function hasUnsafePurchaseGuidance(value) {
+  const s = String(value ?? '').normalize('NFKC');
+  const patterns = [
+    /\b(?:you\s+(?:can|should|may|need\s+to)|go\s+to|visit|use|open|connect(?:\s+your)?\s+wallet)\b.{0,120}\b(?:buy|purchase|acquire|swap|invest(?:\s+in)?)\b/iu,
+    /\b(?:buy|purchase|acquire|swap)\s+(?:Alexandria|the\s+Alexandria\s+token|it|the\s+token)\b/iu,
+    /\b(?:recommend|suggest|good\s+time|best\s+time|worth)\b.{0,100}\b(?:buy|buying|purchase|purchasing|invest(?:ing)?(?:\s+in)?)\b/iu,
+    /\bconnect(?:\s+your)?\s+wallet\b.{0,120}\b(?:swap|buy|purchase)\b/iu,
+    /\b(?:buy|purchase|swap)\b.{0,80}\b(?:on|via|through|at)\b.{0,80}\b(?:dex|cex|exchange)\b/iu,
+    /(?:tu\s+peux|vous\s+pouvez|il\s+faut|va\s+sur|allez\s+sur|connecte[^.]{0,40}portefeuille).{0,120}(?:acheter|acquérir|échanger|investir)/iu,
+    /(?:du\s+kannst|sie\s+können|geh\s+zu|gehen\s+sie|verbinde[^.]{0,40}(?:wallet|brieftasche)).{0,120}(?:kaufen|erwerben|tauschen|investieren)/iu,
+    /(?:puedes|debes|ve\s+a|conecta[^.]{0,40}(?:cartera|wallet)).{0,120}(?:comprar|adquirir|cambiar|invertir)/iu,
+    /(?:puoi|dovresti|vai\s+su|collega[^.]{0,40}(?:portafoglio|wallet)).{0,120}(?:comprare|acquistare|scambiare|investire)/iu,
+    /(?:يمكنك|تقدر|لازم|اذهب|روح|اربط).{0,120}(?:اشتر|شراء|اشتري|أشتري|بدّل|استثمر)/iu,
+    /(?:شراء|اشتر|اشتري|أشتري).{0,80}(?:منصة|بورصة|DEX|محفظة|رابط)/iu
+  ];
+  return patterns.some((re) => re.test(s));
+}
+const lang = primaryLang(policy.language ?? current.language);
+const intent = String(policy.intent ?? current.intent ?? 'UNKNOWN');
+const seed = String(policy.message_id ?? policy.correlation_id ?? policy.question_hash ?? policy.text ?? intent);
+let answer = normalizeLegacyName(current.answer ?? current.fallback ?? '');
+let policyReason = '';
+if (intent === 'PURCHASE_INTENT') {
+  answer = purchaseReply(lang, seed);
+  policyReason = 'purchase_intent';
+} else if (hasUnsafePurchaseGuidance(answer)) {
+  answer = purchaseReply(lang, seed);
+  policyReason = 'purchase_guidance_filtered';
+}
+answer = normalizeLegacyName(answer);
+return [{json:{
+  ...current, intent, answer,
+  purchase_policy: intent === 'PURCHASE_INTENT' || current.purchase_policy === true,
+  answer_policy_applied: true,
+  answer_policy_reason: policyReason || (String(current.answer ?? '').trim() !== answer ? 'legacy_symbol_normalized' : 'pass'),
+  cache_write_eligible: policyReason || String(current.answer ?? '').trim() !== answer ? false : current.cache_write_eligible
+}}];

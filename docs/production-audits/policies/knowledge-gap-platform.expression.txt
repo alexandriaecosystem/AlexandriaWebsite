@@ -1,0 +1,1 @@
+={{ JSON.stringify({p_question: String($('Answer Engine Input').first().json.text || ''), p_platform: String($('Answer Engine Input').first().json.platform || ''), p_language: String($('Answer Engine Input').first().json.language || '')}) }}
