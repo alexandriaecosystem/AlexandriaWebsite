@@ -26,7 +26,7 @@ describe('admin RPC boundary', () => {
     }));
   });
 
-  it('preserves a fail-closed knowledge approval response', async () => {
+  it('fails closed when the knowledge approval RPC reports a blocking contradiction', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
         blocked: true,
@@ -49,16 +49,18 @@ describe('admin RPC boundary', () => {
       error: null,
     });
 
-    await expect(approveKnowledgeDocument({ rpc } as never, 'document-id')).resolves.toMatchObject({
-      blocked: true,
+    await expect(approveKnowledgeDocument({ rpc } as never, 'document-id')).rejects.toMatchObject({
       code: 'KNOWLEDGE_CONFLICT_BLOCKING',
-      conflictCount: 1,
-      conflicts: [{
-        claimA: 'Uploaded claim',
-        claimB: 'Verified claim',
-        sourceBTitle: 'Alexandria Redemption Policy',
-        blocking: true,
-      }],
+      result: {
+        blocked: true,
+        conflictCount: 1,
+        conflicts: [{
+          claimA: 'Uploaded claim',
+          claimB: 'Verified claim',
+          sourceBTitle: 'Alexandria Redemption Policy',
+          blocking: true,
+        }],
+      },
     });
   });
 
