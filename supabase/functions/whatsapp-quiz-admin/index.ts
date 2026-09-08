@@ -100,14 +100,20 @@ function webhookUrl(path: string): string {
 }
 
 async function callN8n(path: string, method: "GET" | "POST", body?: Record<string, unknown>): Promise<unknown> {
-  const response = await fetch(webhookUrl(path), {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "x-crypto-internal-secret": INTERNAL_SECRET,
-    },
-    body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(webhookUrl(path), {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "x-crypto-internal-secret": INTERNAL_SECRET,
+      },
+      body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "quiz_backend_not_configured") throw error;
+    throw new Error("quiz_backend_unavailable");
+  }
   if (!response.ok) throw new Error("quiz_backend_unavailable");
   try {
     return await response.json();
@@ -153,12 +159,41 @@ function publicSchedule(raw: Record<string, unknown>, targets: QuizTarget[]) {
   };
 }
 
+function schedulerUnavailableSchedule(targets: QuizTarget[]) {
+  const target = preferredQuizTarget(targets);
+  return {
+    enabled: false,
+    community_id: target?.community_id ?? null,
+    community_name: target?.name ?? null,
+    frequency: "daily",
+    time_of_day: "19:00",
+    timezone: "Asia/Beirut",
+    days_of_week: [] as number[],
+    status: "ERROR",
+    last_run_at: null,
+    next_run_at: null,
+    last_error: "Quiz scheduler connection needs attention. Settings can still be reviewed, but saving or sending may fail until the connection recovers.",
+  };
+}
+
+function isSchedulerConnectivityError(error: unknown): boolean {
+  const code = error instanceof Error ? error.message : "";
+  return code === "quiz_backend_not_configured"
+    || code === "quiz_backend_unavailable"
+    || code === "quiz_backend_invalid_response";
+}
+
 async function loadPublicState(ctx: AdminContext, targets?: QuizTarget[]) {
   const availableTargets = targets ?? await listTargets(ctx);
-  const rawStatus = await callN8n("crypto-whatsapp-quiz-schedule-status", "GET");
-  const rows = Array.isArray(rawStatus) ? rawStatus.map(asRecord) : [asRecord(rawStatus)];
-  const row = rows.find((item) => String(item.schedule_key ?? "") === "general_whatsapp_quiz") ?? rows[0] ?? {};
-  return { targets: publicTargets(availableTargets), schedule: publicSchedule(row, availableTargets) };
+  try {
+    const rawStatus = await callN8n("crypto-whatsapp-quiz-schedule-status", "GET");
+    const rows = Array.isArray(rawStatus) ? rawStatus.map(asRecord) : [asRecord(rawStatus)];
+    const row = rows.find((item) => String(item.schedule_key ?? "") === "general_whatsapp_quiz") ?? rows[0] ?? {};
+    return { targets: publicTargets(availableTargets), schedule: publicSchedule(row, availableTargets) };
+  } catch (error) {
+    if (!isSchedulerConnectivityError(error)) throw error;
+    return { targets: publicTargets(availableTargets), schedule: schedulerUnavailableSchedule(availableTargets) };
+  }
 }
 
 async function resolveTarget(targets: QuizTarget[], communityId: unknown): Promise<QuizTarget> {

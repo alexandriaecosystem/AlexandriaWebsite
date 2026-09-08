@@ -47,12 +47,9 @@ function normalizeFrequency(value: unknown): QuizFrequency {
   return value === 'weekly' || value === 'custom' ? value : 'daily';
 }
 
-function mapResponse(value: unknown): WhatsAppQuizAdminData {
-  const payload = asRecord(value);
-  const rawTargets = Array.isArray(payload.targets) ? payload.targets : [];
-  const schedule = asRecord(payload.schedule ?? {});
-
-  const targets = rawTargets.map((item) => {
+function mapTargets(value: unknown): WhatsAppQuizTarget[] {
+  const rawTargets = Array.isArray(value) ? value : [];
+  return rawTargets.map((item) => {
     const row = asRecord(item);
     return {
       communityId: String(row.community_id ?? row.communityId ?? ''),
@@ -60,6 +57,12 @@ function mapResponse(value: unknown): WhatsAppQuizAdminData {
       communityLevel: String(row.community_level ?? row.communityLevel ?? ''),
     };
   }).filter((item) => item.communityId);
+}
+
+function mapResponse(value: unknown): WhatsAppQuizAdminData {
+  const payload = asRecord(value);
+  const schedule = asRecord(payload.schedule ?? {});
+  const targets = mapTargets(payload.targets);
 
   const daysRaw = Array.isArray(schedule.days_of_week)
     ? schedule.days_of_week
@@ -89,14 +92,66 @@ function mapResponse(value: unknown): WhatsAppQuizAdminData {
   };
 }
 
+function preferredQuizTarget(targets: WhatsAppQuizTarget[]): WhatsAppQuizTarget | undefined {
+  return targets.find((target) => target.communityLevel.toUpperCase() === 'GENERAL' && /general/i.test(target.name) && !/announcement/i.test(target.name))
+    ?? targets.find((target) => target.communityLevel.toUpperCase() === 'GENERAL' && !/announcement/i.test(target.name))
+    ?? targets.find((target) => target.communityLevel.toUpperCase() === 'GENERAL')
+    ?? targets[0];
+}
+
+function schedulerUnavailableState(targets: WhatsAppQuizTarget[]): WhatsAppQuizAdminData {
+  const preferred = preferredQuizTarget(targets);
+  return {
+    targets,
+    schedule: {
+      enabled: false,
+      communityId: preferred?.communityId ?? null,
+      communityName: preferred?.name ?? null,
+      frequency: 'daily',
+      timeOfDay: '19:00',
+      timezone: 'Asia/Beirut',
+      daysOfWeek: [],
+      status: 'ERROR',
+      lastRunAt: null,
+      nextRunAt: null,
+      lastError: 'Quiz scheduler connection needs attention. Settings can still be reviewed, but saving or sending may fail until the connection recovers.',
+    },
+  };
+}
+
 async function invoke(client: SupabaseClient, body: Record<string, unknown>): Promise<WhatsAppQuizAdminData> {
   const { data, error } = await client.functions.invoke('whatsapp-quiz-admin', { body });
   if (error) throw new Error(error.message || 'Could not update the WhatsApp quiz settings.');
   return mapResponse(data);
 }
 
-export function loadWhatsappQuizAdmin(client: SupabaseClient): Promise<WhatsAppQuizAdminData> {
-  return invoke(client, { action: 'STATUS' });
+export async function loadWhatsappQuizAdmin(client: SupabaseClient): Promise<WhatsAppQuizAdminData> {
+  try {
+    return await invoke(client, { action: 'STATUS' });
+  } catch (primaryError) {
+    const { data, error } = await client.rpc('admin_list_takeover_targets');
+    if (error) throw primaryError;
+
+    const targets = mapTargets(data).filter((target) => {
+      const source = Array.isArray(data)
+        ? data.find((item) => {
+          try {
+            return String(asRecord(item).community_id ?? '') === target.communityId;
+          } catch {
+            return false;
+          }
+        })
+        : undefined;
+      if (!source) return false;
+      try {
+        return String(asRecord(source).platform ?? '').toUpperCase() === 'WHATSAPP';
+      } catch {
+        return false;
+      }
+    });
+
+    return schedulerUnavailableState(targets);
+  }
 }
 
 export async function saveWhatsappQuizSchedule(client: SupabaseClient, input: SaveWhatsappQuizScheduleInput): Promise<WhatsAppQuizAdminData> {
