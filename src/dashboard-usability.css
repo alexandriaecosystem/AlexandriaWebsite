@@ -177,8 +177,67 @@ html[dir='rtl'] .platform-comparison-row small {
   text-align: start;
 }
 
+/* Simplified operational dashboard */
+.dashboard-simple-header {
+  margin-bottom: 18px;
+}
+
+.dashboard-summary-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.dashboard-summary-metrics .metric-card {
+  min-height: 118px;
+}
+
+.dashboard-main-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .9fr);
+  gap: 18px;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+
+.dashboard-main-row .dashboard-attention-panel {
+  margin-top: 0;
+}
+
+.dashboard-main-row .dashboard-attention-panel .attention-grid {
+  grid-template-columns: 1fr;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel, 14px);
+  background: var(--panel-soft);
+}
+
+.dashboard-main-row .dashboard-attention-panel .attention-grid a {
+  min-height: 74px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.dashboard-main-row .dashboard-attention-panel .attention-grid a + a {
+  border-top: 1px solid var(--border);
+}
+
+.dashboard-activity-panel .vip-segment {
+  stroke: #4c5563;
+}
+
+.dashboard-activity-panel .community-pie-legend .vip i {
+  background: #687384;
+}
+
+.dashboard-activity-panel .community-pie-center em {
+  display: none;
+}
+
 @media (max-width: 1180px) {
-  .dashboard-summary-row {
+  .dashboard-summary-row,
+  .dashboard-main-row {
     grid-template-columns: 1fr;
   }
 
@@ -196,10 +255,15 @@ html[dir='rtl'] .platform-comparison-row small {
   .dashboard-attention-panel .attention-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .dashboard-main-row .dashboard-attention-panel .attention-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {
-  .dashboard-summary-row .dashboard-essential-metrics {
+  .dashboard-summary-row .dashboard-essential-metrics,
+  .dashboard-summary-metrics {
     grid-template-columns: 1fr;
   }
 }
@@ -232,7 +296,8 @@ html[dir='rtl'] .platform-comparison-row small {
 }
 
 @media (max-width: 520px) {
-  .dashboard-attention-panel .attention-grid {
+  .dashboard-attention-panel .attention-grid,
+  .dashboard-main-row .dashboard-attention-panel .attention-grid {
     grid-template-columns: 1fr;
   }
 

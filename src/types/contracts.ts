@@ -129,6 +129,7 @@ export interface ReviewCounts {
 export interface DashboardMetrics {
   totalUsers: number;
   activeUsers: number;
+  activeUsers7Days: number;
   approvedUsers: number;
   pendingReviews: number;
   blockedUsers: number;

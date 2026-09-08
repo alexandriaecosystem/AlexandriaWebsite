@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../src/i18n/LanguageContext';
@@ -28,6 +28,7 @@ import { DashboardPage } from '../src/pages/DashboardPage';
 const metrics = {
   totalUsers: 120,
   activeUsers: 94,
+  activeUsers7Days: 31,
   approvedUsers: 36,
   pendingReviews: 4,
   blockedUsers: 2,
@@ -44,13 +45,13 @@ const metrics = {
   aiCostToday: 0.8,
   aiCost7Days: 4.5,
   aiCost30Days: 16.2,
-  failedOperations: 0,
+  failedOperations: 2,
 };
 
 beforeEach(() => {
   mocks.getDashboardMetrics.mockResolvedValue(metrics);
-  mocks.listKnowledgeDocuments.mockResolvedValue({ total: 2 });
-  mocks.listKnowledgeGaps.mockResolvedValue({ total: 3 });
+  mocks.listKnowledgeDocuments.mockResolvedValue({ total: 0 });
+  mocks.listKnowledgeGaps.mockResolvedValue({ total: 0 });
   mocks.getCommunityPlatformStats.mockResolvedValue({
     platforms: [
       { platform: 'TELEGRAM', knownUsers: 60, premiumUsers: 12, generalMembers: 40, vipMembers: 20, verifiedMembers: 60, lastVerifiedAt: null, verificationConnected: true },
@@ -67,7 +68,7 @@ afterEach(() => {
 });
 
 describe('simplified dashboard', () => {
-  it('shows essential KPIs, an activity donut, platform comparison and attention layers', async () => {
+  it('shows only essential summary cards and real seven-day activity', async () => {
     const { container } = render(
       <MemoryRouter>
         <LanguageProvider>
@@ -76,14 +77,34 @@ describe('simplified dashboard', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('Total users')).toBeInTheDocument();
+    expect(await screen.findByText('Reviews waiting')).toBeInTheDocument();
     expect(container.querySelectorAll('.metric-card')).toHaveLength(3);
-    expect(screen.getByText('Active users')).toBeInTheDocument();
-    expect(screen.getByText('Approved members')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Users: 94 Active \(78\.3%\), 26 Inactive \(21\.7%\)/ })).toBeInTheDocument();
+    const summary = screen.getByRole('region', { name: 'Community summary' });
+    expect(within(summary).getByText('Users')).toBeInTheDocument();
+    expect(screen.getByText('User activity (last 7 days)')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Users: 31 Active \(25\.8%\), 89 Inactive \(74\.2%\)/ })).toBeInTheDocument();
+    expect(screen.getByText('31 of 120 users interacted in the last 7 days.')).toBeInTheDocument();
+
+    expect(screen.queryByText('Active users')).not.toBeInTheDocument();
+    expect(screen.queryByText('Approved members')).not.toBeInTheDocument();
+    expect(container.querySelector('.dashboard-quick-actions')).not.toBeInTheDocument();
+  });
+
+  it('keeps attention items and platform comparison without extra analytics', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LanguageProvider>
+          <DashboardPage />
+        </LanguageProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Needs attention')).toBeInTheDocument();
+    expect(screen.getByText('Member reviews')).toBeInTheDocument();
+    expect(screen.getByText('Knowledge gaps')).toBeInTheDocument();
+    expect(screen.getByText('Knowledge documents')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /TELEGRAM 60, DISCORD 40, WHATSAPP 20/ })).toBeInTheDocument();
     expect(container.querySelector('.platform-comparison')).toBeInTheDocument();
-    expect(screen.getByText('Needs attention')).toBeInTheDocument();
 
     expect(screen.queryByText('AI spend')).not.toBeInTheDocument();
     expect(screen.queryByText('Messages trend')).not.toBeInTheDocument();
