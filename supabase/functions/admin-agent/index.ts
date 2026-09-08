@@ -1,13 +1,34 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
-  ALL_TOOLS,
+  ALL_TOOLS as BASE_ALL_TOOLS,
   NAVIGATION_PATHS,
-  WRITE_TOOLS,
-  modelTools,
-  normalizeToolArgs,
-  previewFor,
+  WRITE_TOOLS as BASE_WRITE_TOOLS,
+  modelTools as baseModelTools,
+  normalizeToolArgs as normalizeBaseToolArgs,
+  previewFor as previewBase,
 } from "./tools.ts";
+import {
+  KNOWLEDGE_INTELLIGENCE_TOOLS,
+  KNOWLEDGE_INTELLIGENCE_WRITE_TOOLS,
+  executeKnowledgeIntelligenceTool,
+  executeSafeKnowledgeApproval,
+  knowledgeIntelligenceModelTools,
+  normalizeKnowledgeIntelligenceToolArgs,
+  previewKnowledgeIntelligenceTool,
+} from "./knowledge-intelligence-tools.ts";
+
+const ALL_TOOLS = new Set([...BASE_ALL_TOOLS, ...KNOWLEDGE_INTELLIGENCE_TOOLS]);
+const WRITE_TOOLS = new Set([...BASE_WRITE_TOOLS, ...KNOWLEDGE_INTELLIGENCE_WRITE_TOOLS]);
+const modelTools = [...baseModelTools, ...knowledgeIntelligenceModelTools];
+const normalizeToolArgs = (tool: string, args: unknown) => KNOWLEDGE_INTELLIGENCE_TOOLS.has(tool)
+  ? normalizeKnowledgeIntelligenceToolArgs(tool, args)
+  : normalizeBaseToolArgs(tool, args);
+const previewFor = (tool: string, args: Record<string, unknown>) => tool === "approve_document"
+  ? { action: "Request knowledge approval", safety: "Database processing, contradiction-scan and blocking-conflict gates remain enforced" }
+  : KNOWLEDGE_INTELLIGENCE_TOOLS.has(tool)
+    ? previewKnowledgeIntelligenceTool(tool, args)
+    : previewBase(tool, args);
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -168,6 +189,10 @@ async function callModel(instruction: string, context: PageContext): Promise<{
     "AI sleep mode means human takeover for one exact external channel/group id between explicit timestamps. Incoming messages remain logged, automated AI replies are skipped, and messages received while sleeping are never replayed automatically after wake.",
     "Never schedule sleep from a display name alone; an exact external_channel_id is required.",
     "For small edits to an existing knowledge document, use patch_knowledge_document_text. Never regenerate or invent the rest of a document just to add, insert, prepend or replace a few words.",
+    "Knowledge approval is fail-closed. Never say a document was approved unless the database returns is_approved=true and blocked is not true.",
+    "If knowledge approval is blocked, explain the contradiction or incomplete conflict scan naturally; never bypass or downplay the database gate.",
+    "Use Knowledge Intelligence read tools for official-source health, contradictions, source authority, pending candidates and recent source changes.",
+    "Official-source candidates are pending evidence only. Promotion never means approval; normal processing, contradiction scanning and admin approval still apply.",
     "Write actions are proposals only; the server requires explicit human confirmation before execution.",
     `Current admin page: ${context.pageLabel} (${context.pathname}). UI language: ${context.language}.`,
     "Reply in the language used by the administrator unless they clearly ask for another language. Use the UI language only as a fallback when the instruction language is unclear or mixed.",
@@ -316,6 +341,9 @@ async function executeTool(
   args: Record<string, unknown>,
   context: PageContext,
 ): Promise<Record<string, unknown>> {
+  if (tool === "approve_document") return await executeSafeKnowledgeApproval(client, args, context.language);
+  if (KNOWLEDGE_INTELLIGENCE_TOOLS.has(tool)) return await executeKnowledgeIntelligenceTool(client, tool, args, context.language);
+
   switch (tool) {
     case "navigate_to_page":
       return {
@@ -490,11 +518,6 @@ async function executeTool(
           `تم تحديث «${document.title}» ووضعه في قائمة إعادة المعالجة. يجب مراجعته واعتماده من جديد قبل أن يستخدم المساعد النص الجديد.`,
         ),
       };
-    }
-
-    case "approve_document": {
-      const result = await rpc(client, "admin_approve_knowledge_document", { p_document_id: args.document_id });
-      return { kind: "tool_result", tool, result, message: localized(context, "The knowledge document was approved.", "تم اعتماد مستند المعرفة.") };
     }
 
     case "send_announcement": {

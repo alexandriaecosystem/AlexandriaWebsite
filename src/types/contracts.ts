@@ -161,6 +161,9 @@ export interface AiUsageSummary {
   totalTokens: number;
   costUsd: number;
   avgCostPerCall: number;
+  trackingHasEvents: boolean;
+  trackingLastRecordedAt: string | null;
+  trackingMissing: boolean;
   byPurpose: Record<string, {
     calls: number;
     inputTokens: number;
@@ -208,6 +211,53 @@ export interface ModelUsageStat {
 }
 
 export type KnowledgeProcessingStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | string;
+export type KnowledgeConflictScanStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | string;
+
+export interface KnowledgeConflict {
+  id: string;
+  sourceAKind: string | null;
+  sourceADocumentId: string | null;
+  sourceAOfficialSourceId: string | null;
+  sourceAVersion: number | null;
+  sourceATitle: string;
+  claimA: string;
+  authorityACode: string | null;
+  authorityALabel: string | null;
+  authorityAPriority: number;
+  sourceAUrl: string | null;
+  sourceBKind: string | null;
+  sourceBDocumentId: string | null;
+  sourceBOfficialSourceId: string | null;
+  sourceBVersion: number | null;
+  sourceBTitle: string;
+  claimB: string;
+  authorityBCode: string | null;
+  authorityBLabel: string | null;
+  authorityBPriority: number;
+  sourceBUrl: string | null;
+  explanation: string | null;
+  category: string | null;
+  topic: string | null;
+  conflictType: string | null;
+  timeScope: string | null;
+  severity: string;
+  confidence: number;
+  blocking: boolean;
+  status: string;
+  detectedAt: string | null;
+  resolvedAt: string | null;
+  resolution: string | null;
+  relatedKnowledgeDocumentId: string | null;
+  relatedWebsiteSourceId: string | null;
+}
+
+export interface KnowledgeApprovalResult {
+  blocked: boolean;
+  code: string | null;
+  isApproved: boolean;
+  conflictCount: number;
+  conflicts: KnowledgeConflict[];
+}
 
 export interface KnowledgeDocumentSummary {
   id: string;
@@ -223,6 +273,13 @@ export interface KnowledgeDocumentSummary {
   createdAt: string;
   updatedAt: string;
   chunkCount: number;
+  conflictScanStatus: KnowledgeConflictScanStatus;
+  conflictScannedVersion: number | null;
+  conflictScannedAt: string | null;
+  conflictScanError: string | null;
+  openConflictCount: number;
+  blockingConflictCount: number;
+  approvalBlocked: boolean;
 }
 
 export interface KnowledgeChunk {
@@ -234,6 +291,98 @@ export interface KnowledgeChunk {
 
 export interface KnowledgeDocumentDetail extends KnowledgeDocumentSummary {
   chunks: KnowledgeChunk[];
+}
+
+export interface OfficialSourceHealth {
+  sourceId: string;
+  familyId: string | null;
+  pageTitle: string;
+  canonicalUrl: string;
+  language: string;
+  canonicalLanguage: string | null;
+  isFamilyCanonical: boolean;
+  sourceType: string;
+  authorityCode: string;
+  authorityPriority: number;
+  extractionStatus: string;
+  currentVersion: number;
+  conflictScanStatus: string;
+  conflictScannedVersion: number | null;
+  lastFetchedAt: string | null;
+  lastSuccessfulFetch: string | null;
+  lastChangedAt: string | null;
+  freshnessTtlSeconds: number;
+  isStale: boolean;
+  hasBlockingConflict: boolean;
+  lastError: string | null;
+  isActive: boolean;
+  removedAt: string | null;
+  nextCrawlAt: string | null;
+}
+
+export interface OfficialCrawlRunSummary {
+  id: string;
+  syncType: string;
+  status: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  fetchedCount: number;
+  unchangedCount: number;
+  changedCount: number;
+  newCount: number;
+  removedCount: number;
+  failedCount: number;
+  blockedCount: number;
+  unsupportedCount: number;
+  errorSummary: string | null;
+}
+
+export interface OfficialSourceChange {
+  id: string;
+  sourceId: string;
+  sourceTitle: string;
+  sourceUrl: string;
+  previousVersion: number | null;
+  currentVersion: number;
+  changeKind: string;
+  detectedAt: string;
+  changeSummary: string | null;
+  important: boolean;
+  conflictCount: number;
+  reviewStatus: string;
+}
+
+export interface KnowledgeCandidate {
+  id: string;
+  originalQuestion: string;
+  proposedAnswer: string;
+  extractedClaim: string | null;
+  officialSourceId: string;
+  sourceVersion: number;
+  sourceUrl: string;
+  sourceTitle: string;
+  language: string;
+  proposedCategory: string;
+  authorityCode: string | null;
+  authorityPriority: number;
+  status: string;
+  discoveryCount: number;
+  firstDiscoveredAt: string;
+  lastDiscoveredAt: string;
+  promotedDocumentId: string | null;
+}
+
+export interface KnowledgeIntelligenceStatus {
+  openConflicts: number;
+  blockingConflicts: number;
+  staleSources: number;
+  failedSources: number;
+  pendingCandidates: number;
+  lastSuccessfulSync: string | null;
+  officialSourceVersion: number;
+  officialSourceHealth: OfficialSourceHealth[];
+  recentCrawlRuns: OfficialCrawlRunSummary[];
+  recentSourceChanges: OfficialSourceChange[];
 }
 
 export interface ReviewListItem {
