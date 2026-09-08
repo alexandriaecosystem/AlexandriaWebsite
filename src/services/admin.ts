@@ -29,6 +29,12 @@ export class AdminApiError extends Error {
   }
 }
 
+export class KnowledgeApprovalBlockedError extends AdminApiError {
+  constructor(public readonly result: KnowledgeApprovalResult) {
+    super(formatKnowledgeApprovalBlockedMessage(result), result.code ?? 'KNOWLEDGE_APPROVAL_BLOCKED');
+  }
+}
+
 function assertRpc<T>(data: T | null, error: { message: string; code?: string } | null): T {
   if (error) throw new AdminApiError(error.message, error.code);
   if (data == null) throw new AdminApiError('The server returned no data.');
@@ -79,6 +85,26 @@ function mapKnowledgeConflict(item: Record<string, unknown>): KnowledgeConflict 
     relatedKnowledgeDocumentId: asNullableString(item.related_knowledge_document_id),
     relatedWebsiteSourceId: asNullableString(item.related_website_source_id),
   };
+}
+
+function formatKnowledgeApprovalBlockedMessage(result: KnowledgeApprovalResult) {
+  if (result.code === 'CONFLICT_SCAN_REQUIRED') {
+    return 'Approval blocked: the contradiction scan for this document version is not complete. Reprocess or wait for the scan to finish before approving.';
+  }
+  if (result.code === 'DOCUMENT_NOT_READY') {
+    return 'Approval blocked: this document has not finished processing yet.';
+  }
+  if (result.code === 'KNOWLEDGE_CONFLICT_BLOCKING') {
+    const conflict = result.conflicts[0];
+    if (conflict) {
+      const authorityA = conflict.authorityALabel || conflict.authorityACode || 'authority unavailable';
+      const authorityB = conflict.authorityBLabel || conflict.authorityBCode || 'authority unavailable';
+      const confidence = Math.round(conflict.confidence * 100);
+      return `Approval blocked: “${conflict.sourceATitle}” says “${conflict.claimA}”, while “${conflict.sourceBTitle}” says “${conflict.claimB}”. Authority: ${authorityA} vs ${authorityB}. Severity: ${conflict.severity}; confidence: ${confidence}%. Review the contradiction in Knowledge Intelligence before approving.`;
+    }
+    return 'Approval blocked because an unresolved material knowledge contradiction exists. Review Knowledge Intelligence before approving.';
+  }
+  return 'Approval was not confirmed by the database safety gate. Review this document before trying again.';
 }
 
 function mapKnowledgeDocument(item: Record<string, unknown>): KnowledgeDocumentSummary {
@@ -406,13 +432,15 @@ export async function approveKnowledgeDocument(client: SupabaseClient, documentI
   const raw = assertRpc(data as unknown, error);
   const value = asObject(Array.isArray(raw) ? raw[0] : raw);
   const conflicts = Array.isArray(value.conflicts) ? value.conflicts.map((item) => mapKnowledgeConflict(asObject(item))) : [];
-  return {
+  const result: KnowledgeApprovalResult = {
     blocked: value.blocked === true,
     code: asNullableString(value.code),
     isApproved: value.is_approved === true,
     conflictCount: asNumber(value.conflict_count ?? conflicts.length),
     conflicts,
   };
+  if (result.blocked || !result.isApproved) throw new KnowledgeApprovalBlockedError(result);
+  return result;
 }
 
 export async function requestKnowledgeDocumentReprocessing(client: SupabaseClient, documentId: string) {
@@ -466,7 +494,12 @@ export async function getKnowledgeConflict(client: SupabaseClient, conflictId: s
   return mapKnowledgeConflict(assertRpc(data as Record<string, unknown> | null, error));
 }
 
-export async function resolveKnowledgeConflict(client: SupabaseClient, conflictId: string, action: 'RESOLVE' | 'DISMISS', note: string) {
+export async function resolveKnowledgeConflict(
+  client: SupabaseClient,
+  conflictId: string,
+  action: 'KEEP_SOURCE_A' | 'KEEP_SOURCE_B' | 'KEEP_EXISTING' | 'DISMISS_FALSE_CONFLICT',
+  note: string,
+) {
   const { data, error } = await client.rpc('admin_resolve_knowledge_conflict', {
     p_conflict_id: conflictId,
     p_action: action,
