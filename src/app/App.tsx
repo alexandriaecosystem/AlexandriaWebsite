@@ -20,6 +20,7 @@ import { SettingsPage } from '../pages/SettingsPage';
 import { ApprovedCommunityPage } from '../pages/AdminOperationsPages';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { ToastProvider } from '../components/Feedback';
+import { KnowledgeIntelligencePanel } from '../components/KnowledgeIntelligencePanel';
 
 export function App() {
   return <LanguageProvider><ToastProvider><BrowserRouter><Routes>
@@ -34,7 +35,7 @@ export function App() {
         <Route path="users/:userId" element={<UserConversationPage />} />
         <Route path="messages" element={<MessagesPage />} />
         <Route path="community" element={<ApprovedCommunityPage />} />
-        <Route path="knowledge" element={<KnowledgeBasePage />} />
+        <Route path="knowledge" element={<><KnowledgeBasePage /><KnowledgeIntelligencePanel /></>} />
         <Route path="knowledge-gaps" element={<KnowledgeGapsPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
