@@ -11,6 +11,7 @@ const N8N_BASE_URL = (
   ?? ""
 ).replace(/\/$/, "");
 const INTERNAL_SECRET = Deno.env.get("CRYPTO_INTERNAL_WEBHOOK_SECRET") ?? "";
+const SCHEDULE_KEY = "general_whatsapp_quiz";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,7 +119,7 @@ async function callN8n(path: string, method: "GET" | "POST", body?: Record<strin
   try {
     return await response.json();
   } catch {
-    throw new Error("quiz_backend_invalid_response");
+    return {};
   }
 }
 
@@ -138,10 +139,12 @@ function publicTargets(targets: QuizTarget[]) {
 }
 
 function publicSchedule(raw: Record<string, unknown>, targets: QuizTarget[]) {
-  const externalTargetId = String(raw.external_target_id ?? "").trim();
-  const target = targets.find((item) => item.external_target_id === externalTargetId)
+  const communityId = String(raw.community_id ?? "").trim();
+  const target = targets.find((item) => item.community_id === communityId)
     ?? preferredQuizTarget(targets);
-  const status = String(raw.status ?? (raw.enabled === true ? "READY" : "PAUSED")).toUpperCase();
+  const hasError = Boolean(String(raw.last_error ?? "").trim());
+  const rawTime = String(raw.time_of_day ?? "19:00");
+  const timeOfDay = /^\d{2}:\d{2}/.test(rawTime) ? rawTime.slice(0, 5) : "19:00";
   return {
     enabled: raw.enabled === true,
     community_id: target?.community_id ?? null,
@@ -149,51 +152,40 @@ function publicSchedule(raw: Record<string, unknown>, targets: QuizTarget[]) {
     frequency: ["daily", "weekly", "custom"].includes(String(raw.frequency ?? "").toLowerCase())
       ? String(raw.frequency).toLowerCase()
       : "daily",
-    time_of_day: /^\d{2}:\d{2}$/.test(String(raw.time_of_day ?? "")) ? String(raw.time_of_day) : "19:00",
+    time_of_day: timeOfDay,
     timezone: String(raw.timezone ?? "Asia/Beirut") || "Asia/Beirut",
     days_of_week: parseDays(raw.days_of_week),
-    status,
-    last_run_at: raw.last_run_at_iso ? String(raw.last_run_at_iso) : null,
-    next_run_at: raw.next_run_at_iso ? String(raw.next_run_at_iso) : null,
+    status: hasError ? "ERROR" : raw.enabled === true ? "READY" : "PAUSED",
+    last_run_at: raw.last_run_at ? String(raw.last_run_at) : null,
+    next_run_at: raw.next_run_at ? String(raw.next_run_at) : null,
     last_error: friendlyLastError(raw.last_error),
   };
 }
 
-function schedulerUnavailableSchedule(targets: QuizTarget[]) {
-  const target = preferredQuizTarget(targets);
-  return {
+async function loadPublicState(ctx: AdminContext, targets?: QuizTarget[]) {
+  const availableTargets = targets ?? await listTargets(ctx);
+  const { data, error } = await ctx.serviceClient
+    .from("whatsapp_quiz_schedule")
+    .select("schedule_key,enabled,community_id,frequency,time_of_day,timezone,days_of_week,question_count,next_run_at,last_run_at,last_error")
+    .eq("schedule_key", SCHEDULE_KEY)
+    .maybeSingle();
+  if (error) throw new Error("schedule_unavailable");
+
+  const fallbackTarget = preferredQuizTarget(availableTargets);
+  const raw = data ? asRecord(data) : {
+    schedule_key: SCHEDULE_KEY,
     enabled: false,
-    community_id: target?.community_id ?? null,
-    community_name: target?.name ?? null,
+    community_id: fallbackTarget?.community_id ?? null,
     frequency: "daily",
     time_of_day: "19:00",
     timezone: "Asia/Beirut",
-    days_of_week: [] as number[],
-    status: "ERROR",
-    last_run_at: null,
+    days_of_week: [],
+    question_count: 10,
     next_run_at: null,
-    last_error: "Quiz scheduler connection needs attention. Settings can still be reviewed, but saving or sending may fail until the connection recovers.",
+    last_run_at: null,
+    last_error: null,
   };
-}
-
-function isSchedulerConnectivityError(error: unknown): boolean {
-  const code = error instanceof Error ? error.message : "";
-  return code === "quiz_backend_not_configured"
-    || code === "quiz_backend_unavailable"
-    || code === "quiz_backend_invalid_response";
-}
-
-async function loadPublicState(ctx: AdminContext, targets?: QuizTarget[]) {
-  const availableTargets = targets ?? await listTargets(ctx);
-  try {
-    const rawStatus = await callN8n("crypto-whatsapp-quiz-schedule-status", "GET");
-    const rows = Array.isArray(rawStatus) ? rawStatus.map(asRecord) : [asRecord(rawStatus)];
-    const row = rows.find((item) => String(item.schedule_key ?? "") === "general_whatsapp_quiz") ?? rows[0] ?? {};
-    return { targets: publicTargets(availableTargets), schedule: publicSchedule(row, availableTargets) };
-  } catch (error) {
-    if (!isSchedulerConnectivityError(error)) throw error;
-    return { targets: publicTargets(availableTargets), schedule: schedulerUnavailableSchedule(availableTargets) };
-  }
+  return { targets: publicTargets(availableTargets), schedule: publicSchedule(raw, availableTargets) };
 }
 
 async function resolveTarget(targets: QuizTarget[], communityId: unknown): Promise<QuizTarget> {
@@ -203,13 +195,27 @@ async function resolveTarget(targets: QuizTarget[], communityId: unknown): Promi
   return target;
 }
 
+function validateQuestion(body: Record<string, unknown>) {
+  const prompt = String(body.prompt ?? "").trim();
+  const options = Array.isArray(body.options) ? body.options.map((option) => String(option).trim()) : [];
+  const correctOptionIndex = Number(body.correct_option_index);
+  const normalizedOptions = options.map((option) => option.toLocaleLowerCase());
+  if (prompt.length < 3 || prompt.length > 500) throw new Error("invalid_question");
+  if (options.length !== 4 || options.some((option) => !option || option.length > 250)) throw new Error("invalid_question");
+  if (new Set(normalizedOptions).size !== 4) throw new Error("invalid_question");
+  if (!Number.isInteger(correctOptionIndex) || correctOptionIndex < 0 || correctOptionIndex > 3) throw new Error("invalid_question");
+  return { prompt, options, correctOptionIndex };
+}
+
 function publicError(error: unknown) {
   const code = error instanceof Error ? error.message : "quiz_admin_error";
   if (code === "unauthorized") return { status: 401, code, message: "Authentication required." };
   if (code === "forbidden") return { status: 403, code, message: "Administrator access required." };
   if (code === "invalid_community") return { status: 400, code, message: "Choose an available WhatsApp community." };
   if (code === "invalid_schedule") return { status: 400, code, message: "Check the selected frequency, days and time." };
-  if (code === "quiz_backend_not_configured") return { status: 503, code, message: "WhatsApp Quiz controls are not connected to the scheduler yet." };
+  if (code === "invalid_question") return { status: 400, code, message: "Enter one question, four different options and the correct answer." };
+  if (code === "quiz_backend_not_configured") return { status: 503, code, message: "WhatsApp Quiz sending is not connected yet." };
+  if (code === "quiz_backend_unavailable") return { status: 502, code, message: "WhatsApp Quiz sending is temporarily unavailable." };
   return { status: 502, code: "quiz_service_unavailable", message: "WhatsApp Quiz controls are temporarily unavailable." };
 }
 
@@ -225,24 +231,52 @@ Deno.serve(async (req) => {
 
     if (action === "STATUS") return json(await loadPublicState(ctx, targets));
 
-    if (action === "PAUSE") {
-      await callN8n("crypto-whatsapp-quiz-schedule", "POST", {
-        action: "PAUSE",
-        schedule_key: "general_whatsapp_quiz",
-        updated_by: ctx.userId,
+    if (action === "ADD_QUESTION") {
+      const question = validateQuestion(body);
+      const { error } = await ctx.serviceClient.from("whatsapp_quiz_questions").insert({
+        prompt: question.prompt,
+        options: question.options,
+        correct_answer: question.options[question.correctOptionIndex],
+        reward_credits: 50,
+        is_active: true,
+        safety_exclusion_reason: null,
       });
+      if (error) throw new Error("question_insert_failed");
+      return json(await loadPublicState(ctx, targets));
+    }
+
+    if (action === "PAUSE") {
+      const { error } = await ctx.serviceClient
+        .from("whatsapp_quiz_schedule")
+        .update({ enabled: false, last_error: null, updated_by: ctx.userId })
+        .eq("schedule_key", SCHEDULE_KEY);
+      if (error) throw new Error("schedule_update_failed");
       return json(await loadPublicState(ctx, targets));
     }
 
     const target = await resolveTarget(targets, body.community_id);
     if (action === "RUN_NOW") {
-      await callN8n("crypto-whatsapp-quiz-schedule", "POST", {
-        action: "RUN_NOW",
-        schedule_key: "general_whatsapp_quiz",
-        external_target_id: target.external_target_id,
-        question_count: 10,
-        updated_by: ctx.userId,
-      });
+      try {
+        await callN8n("crypto-whatsapp-quiz-schedule", "POST", {
+          action: "RUN_NOW",
+          schedule_key: SCHEDULE_KEY,
+          external_target_id: target.external_target_id,
+          question_count: 10,
+          updated_by: ctx.userId,
+          trigger_source: "admin",
+        });
+      } catch (error) {
+        await ctx.serviceClient
+          .from("whatsapp_quiz_schedule")
+          .update({ last_error: "Manual quiz delivery failed.", updated_by: ctx.userId })
+          .eq("schedule_key", SCHEDULE_KEY);
+        throw error;
+      }
+      const { error: updateError } = await ctx.serviceClient
+        .from("whatsapp_quiz_schedule")
+        .update({ last_run_at: new Date().toISOString(), last_error: null, updated_by: ctx.userId })
+        .eq("schedule_key", SCHEDULE_KEY);
+      if (updateError) throw new Error("schedule_update_failed");
       return json(await loadPublicState(ctx, targets));
     }
 
@@ -256,18 +290,20 @@ Deno.serve(async (req) => {
     if (frequency === "custom" && !days.length) throw new Error("invalid_schedule");
     if (timezone !== "Asia/Beirut") throw new Error("invalid_schedule");
 
-    await callN8n("crypto-whatsapp-quiz-schedule", "POST", {
-      action: "SAVE",
-      schedule_key: "general_whatsapp_quiz",
+    const { error } = await ctx.serviceClient.from("whatsapp_quiz_schedule").upsert({
+      schedule_key: SCHEDULE_KEY,
       enabled: body.enabled === true,
-      external_target_id: target.external_target_id,
+      community_id: target.community_id,
       frequency,
       time_of_day: timeOfDay,
       timezone,
       days_of_week: days,
       question_count: 10,
+      last_error: null,
       updated_by: ctx.userId,
-    });
+    }, { onConflict: "schedule_key" });
+    if (error) throw new Error("schedule_update_failed");
+
     return json(await loadPublicState(ctx, targets));
   } catch (error) {
     const mapped = publicError(error);

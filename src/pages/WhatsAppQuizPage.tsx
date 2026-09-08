@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { getSupabaseClient } from '../services/supabase';
 import {
+  addWhatsappQuizQuestion,
   loadWhatsappQuizAdmin,
   pauseWhatsappQuiz,
   saveWhatsappQuizSchedule,
@@ -23,6 +24,8 @@ const DAYS = [
   { value: 6, en: 'Saturday', ar: 'السبت' },
   { value: 7, en: 'Sunday', ar: 'الأحد' },
 ] as const;
+
+const EMPTY_OPTIONS = ['', '', '', ''];
 
 function formatDate(value: string | null, locale: string | undefined): string {
   if (!value) return '—';
@@ -59,6 +62,12 @@ export function WhatsAppQuizPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [reload, setReload] = useState(0);
+  const [questionPrompt, setQuestionPrompt] = useState('');
+  const [questionOptions, setQuestionOptions] = useState<string[]>(EMPTY_OPTIONS);
+  const [correctOptionIndex, setCorrectOptionIndex] = useState(0);
+  const [questionSaving, setQuestionSaving] = useState(false);
+  const [questionError, setQuestionError] = useState('');
+  const [questionNotice, setQuestionNotice] = useState('');
 
   const locale = isArabic ? 'ar-LB' : undefined;
 
@@ -128,6 +137,41 @@ export function WhatsAppQuizPage() {
       }),
       tr('Quiz schedule saved.', 'تم حفظ جدول الاختبار.'),
     );
+  }
+
+  async function addQuestion(event: FormEvent) {
+    event.preventDefault();
+    const prompt = questionPrompt.trim();
+    const options = questionOptions.map((option) => option.trim());
+    const uniqueOptions = new Set(options.map((option) => option.toLocaleLowerCase()));
+    setQuestionError('');
+    setQuestionNotice('');
+    if (!prompt || options.some((option) => !option)) {
+      setQuestionError(tr('Enter the question and all four answer options.', 'أدخل السؤال وخيارات الإجابة الأربعة.'));
+      return;
+    }
+    if (uniqueOptions.size !== 4) {
+      setQuestionError(tr('Each answer option must be different.', 'يجب أن يكون كل خيار إجابة مختلفًا.'));
+      return;
+    }
+
+    setQuestionSaving(true);
+    try {
+      await addWhatsappQuizQuestion(getSupabaseClient(), { prompt, options, correctOptionIndex });
+      setQuestionPrompt('');
+      setQuestionOptions(EMPTY_OPTIONS);
+      setCorrectOptionIndex(0);
+      setQuestionNotice(tr('Question added to the active quiz bank.', 'تمت إضافة السؤال إلى بنك الأسئلة النشط.'));
+      setReload((value) => value + 1);
+    } catch {
+      setQuestionError(tr('The question could not be added. Check the fields and try again.', 'تعذرت إضافة السؤال. تحقق من الحقول وحاول مرة أخرى.'));
+    } finally {
+      setQuestionSaving(false);
+    }
+  }
+
+  function updateQuestionOption(index: number, value: string) {
+    setQuestionOptions((current) => current.map((option, optionIndex) => optionIndex === index ? value : option));
   }
 
   function toggleCustomDay(day: number) {
@@ -236,6 +280,39 @@ export function WhatsAppQuizPage() {
       </aside>
     </div>
 
+    <section className="panel quiz-question-editor" aria-labelledby="quiz-question-editor-title">
+      <div className="section-heading quiz-preview-heading">
+        <div>
+          <p className="eyebrow">{tr('Question bank', 'بنك الأسئلة')}</p>
+          <h2 id="quiz-question-editor-title">{tr('Add question', 'إضافة سؤال')}</h2>
+        </div>
+      </div>
+      <p className="muted quiz-preview-note">{tr('Add one eligible question with four choices. It becomes active immediately and can be selected in future 10-question rounds.', 'أضف سؤالًا مؤهلًا واحدًا مع أربعة خيارات. يصبح نشطًا فورًا ويمكن اختياره في جولات الأسئلة العشرة القادمة.')}</p>
+      {questionError && <div className="form-error" role="alert">{questionError}</div>}
+      {questionNotice && <div className="form-success" role="status">{questionNotice}</div>}
+      <form className="quiz-question-editor-form" onSubmit={addQuestion}>
+        <label>
+          <span>{tr('Question', 'السؤال')}</span>
+          <textarea aria-label="Question" value={questionPrompt} onChange={(event) => setQuestionPrompt(event.target.value)} rows={3} maxLength={500} required />
+        </label>
+        <div className="quiz-question-option-grid">
+          {questionOptions.map((option, index) => <label key={index}>
+            <span>{tr(`Option ${String.fromCharCode(65 + index)}`, `الخيار ${String.fromCharCode(65 + index)}`)}</span>
+            <input aria-label={`Option ${String.fromCharCode(65 + index)}`} value={option} onChange={(event) => updateQuestionOption(index, event.target.value)} maxLength={250} required />
+          </label>)}
+        </div>
+        <label className="quiz-correct-answer-field">
+          <span>{tr('Correct answer', 'الإجابة الصحيحة')}</span>
+          <select aria-label="Correct answer" value={correctOptionIndex} onChange={(event) => setCorrectOptionIndex(Number(event.target.value))}>
+            {questionOptions.map((option, index) => <option key={index} value={index}>{String.fromCharCode(65 + index)}{option.trim() ? ` — ${option.trim()}` : ''}</option>)}
+          </select>
+        </label>
+        <div className="quiz-actions">
+          <button type="submit" className="primary-button" disabled={questionSaving}>{questionSaving ? tr('Adding…', 'جارٍ الإضافة…') : tr('Add to question bank', 'إضافة إلى بنك الأسئلة')}</button>
+        </div>
+      </form>
+    </section>
+
     <section className="panel quiz-question-preview" aria-labelledby="quiz-question-preview-title">
       <div className="section-heading quiz-preview-heading">
         <div>
@@ -269,7 +346,7 @@ export function WhatsAppQuizPage() {
       ) : (
         <div className="quiz-preview-empty" role="status">
           <strong>{tr('No active questions are available', 'لا توجد أسئلة نشطة متاحة')}</strong>
-          <span>{tr('Activate eligible questions before scheduling a quiz.', 'فعّل الأسئلة المؤهلة قبل جدولة الاختبار.')}</span>
+          <span>{tr('Add or activate eligible questions before scheduling a quiz.', 'أضف أو فعّل الأسئلة المؤهلة قبل جدولة الاختبار.')}</span>
         </div>
       )}
     </section>

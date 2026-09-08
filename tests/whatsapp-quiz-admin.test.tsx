@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   saveWhatsappQuizSchedule: vi.fn(),
   sendWhatsappQuizNow: vi.fn(),
   pauseWhatsappQuiz: vi.fn(),
+  addWhatsappQuizQuestion: vi.fn(),
 }));
 
 vi.mock('../src/services/supabase', () => ({ getSupabaseClient: () => ({}) }));
@@ -15,6 +16,7 @@ vi.mock('../src/services/whatsapp-quiz', () => ({
   saveWhatsappQuizSchedule: mocks.saveWhatsappQuizSchedule,
   sendWhatsappQuizNow: mocks.sendWhatsappQuizNow,
   pauseWhatsappQuiz: mocks.pauseWhatsappQuiz,
+  addWhatsappQuizQuestion: mocks.addWhatsappQuizQuestion,
 }));
 
 import { WhatsAppQuizPage } from '../src/pages/WhatsAppQuizPage';
@@ -64,6 +66,7 @@ beforeEach(() => {
   mocks.saveWhatsappQuizSchedule.mockResolvedValue(undefined);
   mocks.sendWhatsappQuizNow.mockResolvedValue(undefined);
   mocks.pauseWhatsappQuiz.mockResolvedValue(undefined);
+  mocks.addWhatsappQuizQuestion.mockResolvedValue(undefined);
 });
 
 afterEach(() => {

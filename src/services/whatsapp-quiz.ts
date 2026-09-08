@@ -54,6 +54,12 @@ export type SaveWhatsappQuizScheduleInput = {
   daysOfWeek: number[];
 };
 
+export type AddWhatsappQuizQuestionInput = {
+  prompt: string;
+  options: [string, string, string, string] | string[];
+  correctOptionIndex: number;
+};
+
 type QuestionPreviewState = Pick<WhatsAppQuizAdminData, 'questions' | 'questionStats' | 'questionPreviewStatus'>;
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -259,4 +265,13 @@ export function sendWhatsappQuizNow(client: SupabaseClient, communityId: string)
 
 export function pauseWhatsappQuiz(client: SupabaseClient): Promise<WhatsAppQuizAdminData> {
   return invoke(client, { action: 'PAUSE' });
+}
+
+export function addWhatsappQuizQuestion(client: SupabaseClient, input: AddWhatsappQuizQuestionInput): Promise<WhatsAppQuizAdminData> {
+  return invoke(client, {
+    action: 'ADD_QUESTION',
+    prompt: input.prompt,
+    options: input.options,
+    correct_option_index: input.correctOptionIndex,
+  });
 }
