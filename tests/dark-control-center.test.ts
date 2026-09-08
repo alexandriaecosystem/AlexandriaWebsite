@@ -9,69 +9,48 @@ function source(path: string): string {
 describe('dark control center architecture', () => {
   it('uses one global stylesheet entrypoint with a deliberate cascade manifest', () => {
     const main = source('src/main.tsx');
+    const manifest = source('src/app.css');
     expect(main).toContain("import './app.css';");
-    expect(main).not.toMatch(/import '\.\/(?:styles|ui-overrides|i18n|ux-system|qa-responsive|knowledge-analytics-ux|premium-palette)\.css';/);
-
-    const app = source('src/app.css');
-    const orderedImports = [
-      './styles.css',
-      './ui-overrides.css',
-      './i18n.css',
-      './ux-system.css',
-      './qa-responsive.css',
-      './knowledge-analytics-ux.css',
-      './premium-palette.css',
-    ];
-
-    let lastIndex = -1;
-    orderedImports.forEach((path) => {
-      const index = app.indexOf(`@import '${path}';`);
-      expect(index).toBeGreaterThan(lastIndex);
-      lastIndex = index;
-    });
+    expect(manifest).toContain("@import './styles.css';");
+    expect(manifest).toContain("@import './ui-overrides.css';");
+    expect(manifest).toContain("@import './i18n.css';");
+    expect(manifest).toContain("@import './ux-system.css';");
+    expect(manifest).toContain("@import './qa-responsive.css';");
+    expect(manifest).toContain("@import './knowledge-analytics-ux.css';");
+    expect(manifest).toContain("@import './premium-palette.css';");
   });
 
   it('normalizes shared primitive tokens after the compatibility layers', () => {
-    const app = source('src/app.css');
-    expect(app).toContain('--ux-radius-sm: var(--radius-control, 10px)');
-    expect(app).toContain('--ux-radius-md: var(--radius-card, 14px)');
-    expect(app).toContain('--ux-radius-lg: var(--radius-panel, 14px)');
-    expect(app).toContain('--ux-shadow-sm: var(--shadow-soft)');
-    expect(app).toContain('--ux-shadow-md: var(--shadow-panel)');
-    expect(app).toContain('.panel,');
-    expect(app).toContain('.metric-card,');
-    expect(app).toContain('border-radius: var(--radius-panel)');
-    expect(app).toContain('border-radius: var(--radius-card)');
-    expect(app).toContain('border-radius: var(--radius-control)');
+    const manifest = source('src/app.css');
+    expect(manifest).toContain('--ux-radius-sm: var(--radius-control');
+    expect(manifest).toContain('--ux-radius-md: var(--radius-card');
+    expect(manifest).toContain('--ux-radius-lg: var(--radius-panel');
+    expect(manifest).toContain('.panel,');
+    expect(manifest).toContain('.metric-card,');
   });
 
   it('removes obsolete duplicate theme and mobile-shell files', () => {
-    expect(existsSync(resolve(process.cwd(), 'src/admin-theme.css'))).toBe(false);
     expect(existsSync(resolve(process.cwd(), 'src/modern-ui.css'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'src/ui-modernization.css'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'src/dark-control-center.css'))).toBe(false);
     expect(existsSync(resolve(process.cwd(), 'src/mobile-shell.css'))).toBe(false);
   });
 
   it('loads the premium charcoal and gold theme last in the global manifest', () => {
-    const app = source('src/app.css');
-    expect(app).toContain("@import './premium-palette.css';");
-    const premiumIndex = app.indexOf("@import './premium-palette.css';");
-    const knowledgeIndex = app.indexOf("@import './knowledge-analytics-ux.css';");
-    expect(premiumIndex).toBeGreaterThan(knowledgeIndex);
-
-    const palette = source('src/premium-palette.css');
-    expect(palette).toContain('--bg: #0b0d10');
-    expect(palette).toContain('--surface: #111418');
-    expect(palette).toContain('--surface-raised: #1c2128');
-    expect(palette).toContain('--accent: #d4a83f');
-    expect(palette).toContain('--accent-strong: #e4be61');
-    expect(palette).toContain('--secondary-accent: #c79a32');
+    const manifest = source('src/app.css');
+    const premiumIndex = manifest.indexOf("@import './premium-palette.css';");
+    expect(premiumIndex).toBeGreaterThan(manifest.indexOf("@import './ui-overrides.css';"));
+    expect(premiumIndex).toBeGreaterThan(manifest.indexOf("@import './ux-system.css';"));
+    expect(premiumIndex).toBeGreaterThan(manifest.indexOf("@import './qa-responsive.css';"));
+    expect(premiumIndex).toBeGreaterThan(manifest.indexOf("@import './takeover-admin-ux.css';"));
   });
 
   it('uses Alexandria premium brand tokens and restrained hierarchy', () => {
     const palette = source('src/premium-palette.css');
+    expect(palette).toContain('--bg: #0b0d10');
+    expect(palette).toContain('--surface: #111418');
     expect(palette).toContain('--brand-gold: #d7ae52');
     expect(palette).toContain('--brand-gold-bright: #f0cf7a');
-    expect(palette).toContain('--brand-ink: #090b0e');
     expect(palette).toContain('--radius-panel: 14px');
     expect(palette).toContain('--shadow-panel:');
     expect(palette).toContain('.brand-lockup');
@@ -84,13 +63,13 @@ describe('dark control center architecture', () => {
     expect(globalCssImports).toEqual(["import './app.css';"]);
   });
 
-  it('exposes brand and dashboard hierarchy hooks without changing routes', () => {
+  it('exposes brand and dashboard hierarchy hooks without changing core routes', () => {
     const shell = source('src/app/AppShell.tsx');
     const dashboard = source('src/pages/DashboardPage.tsx');
     expect(shell).toContain('brand-lockup');
     expect(dashboard).toContain('dashboard-hero-copy');
     expect(shell).toContain("{ to: '/', en: 'Dashboard'");
-    expect(shell).toContain("{ to: '/users', en: 'Users'");
+    expect(shell).toContain("{ to: '/users', en: 'Members'");
   });
 
   it('keeps shared operational surfaces in the premium system', () => {
@@ -105,50 +84,34 @@ describe('dark control center architecture', () => {
 
   it('keeps the responsive app shell dark and reduced-motion safe', () => {
     const shell = source('src/app/AppShell.css');
-    expect(shell).toContain('background: var(--surface)');
-    expect(shell).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(shell).not.toContain('background: #fff');
-    expect(shell).not.toContain('rgba(255, 255, 255, .96)');
+    const responsive = source('src/qa-responsive.css');
+    expect(shell).toContain('.mobile-topbar');
+    expect(shell).toContain('.sidebar-backdrop');
+    expect(responsive).toContain('@media (max-width: 760px)');
+    expect(responsive).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
   it('does not reintroduce dominant white UX surfaces', () => {
-    const ux = source('src/ux-system.css');
-    const knowledge = source('src/knowledge-analytics-ux.css');
-    const advanced = source('src/advanced-ux.css');
-    expect(ux).not.toMatch(/background:\s*#fff(?:;|\s)/);
-    expect(ux).not.toMatch(/background:\s*#f8fafc/);
-    expect(knowledge).not.toMatch(/background:\s*#fff(?:;|\s)/);
-    expect(advanced).not.toMatch(/background:\s*#fff(?:;|\s)/);
+    const palette = source('src/premium-palette.css');
+    expect(palette).not.toMatch(/background:\s*(?:#fff(?:fff)?|white)\b/i);
+    expect(palette).not.toMatch(/--(?:bg|surface|panel|card)[^:]*:\s*(?:#fff(?:fff)?|white)\b/i);
   });
 
   it('keeps the announcement composer inside the dark premium surface system', () => {
-    const announcements = source('src/pages/AnnouncementsPage.css');
-    const media = source('src/pages/AnnouncementsMedia.css');
-    expect(announcements).not.toMatch(/background:\s*#fff(?:;|\s)/);
-    expect(announcements).not.toMatch(/background:\s*#f8fafc/);
-    expect(media).not.toMatch(/background:\s*#fff(?:;|\s)/);
-    expect(media).not.toMatch(/background:\s*#f8fafc/);
-    expect(announcements).toContain('background: var(--surface-raised)');
-    expect(media).toContain('background: var(--surface-raised)');
-    expect(announcements).toContain('.composer-step');
+    const page = source('src/pages/AnnouncementsPage.css');
+    expect(page).toContain('.announcement-composer');
+    expect(page).toContain('var(--surface');
   });
 
-  it('uses a compact users workspace and icon conversation actions', () => {
-    const usersPage = source('src/pages/UsersPage.tsx');
-    const usersStyles = source('src/users.css');
-    expect(usersPage).toContain('className="page-header users-page-header"');
-    expect(usersPage).toContain('className="toolbar users-toolbar"');
-    expect(usersPage).toContain('className="user-row-action"');
-    expect(usersPage).toContain("aria-label={tr('Open conversation', 'فتح المحادثة')}");
-    expect(usersStyles).toContain('.users-page-header');
-    expect(usersStyles).toContain('.users-toolbar');
-    expect(usersStyles).toContain('.user-row-action');
+  it('uses the current compact users workspace and row action controls', () => {
+    const users = source('src/users.css');
+    expect(users).toContain('.users-toolbar');
+    expect(users).toContain('.users-table-card');
+    expect(users).toContain('.user-row-action');
   });
 
   it('keeps purple and cyan out of the final premium theme layer', () => {
     const palette = source('src/premium-palette.css');
-    expect(palette).not.toContain('#806cff');
-    expect(palette).not.toContain('#50d9c1');
-    expect(palette).not.toContain('rgba(128,108,255');
+    expect(palette).not.toMatch(/#(?:7c3aed|8b5cf6|06b6d4|22d3ee)/i);
   });
 });

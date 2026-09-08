@@ -12,28 +12,22 @@ type NavItem = { to: string; en: string; ar: string; icon: NavIconName; end?: bo
 type NavGroup = { en: string; ar: string; items: NavItem[] };
 
 const navigation: NavGroup[] = [
-  { en: 'Workspace', ar: 'مساحة العمل', items: [
+  { en: 'Overview', ar: 'نظرة عامة', items: [
     { to: '/', en: 'Dashboard', ar: 'الرئيسية', icon: 'dashboard', end: true },
-    { to: '/knowledge', en: 'Knowledge base', ar: 'قاعدة المعرفة', icon: 'knowledge' },
   ] },
   { en: 'Community', ar: 'المجتمع', items: [
-    { to: '/users', en: 'Users', ar: 'المستخدمون', icon: 'users' },
+    { to: '/users', en: 'Members', ar: 'الأعضاء', icon: 'users' },
+    { to: '/community', en: 'Communities', ar: 'المجتمعات', icon: 'community' },
     { to: '/messages', en: 'Messages', ar: 'الرسائل', icon: 'messages' },
-    { to: '/reviews', en: 'Member reviews', ar: 'مراجعة الأعضاء', icon: 'reviews' },
-    { to: '/community', en: 'Approved community', ar: 'المجتمع المعتمد', icon: 'community' },
   ] },
   { en: 'Content', ar: 'المحتوى', items: [
-    { to: '/knowledge-gaps', en: 'Knowledge gaps', ar: 'فجوات المعرفة', icon: 'gaps' },
+    { to: '/knowledge', en: 'Knowledge', ar: 'المعرفة', icon: 'knowledge' },
     { to: '/announcements', en: 'Announcements', ar: 'الإعلانات', icon: 'announcements' },
-  ] },
-  { en: 'Insights', ar: 'المؤشرات', items: [
-    { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: 'analytics' },
-    { to: '/token-monitor', en: 'Token activity', ar: 'نشاط التوكن', icon: 'token' },
+    { to: '/whatsapp-quiz', en: 'WhatsApp Quiz', ar: 'اختبار WhatsApp', icon: 'reviews' },
   ] },
   { en: 'Admin', ar: 'الإدارة', items: [
+    { to: '/analytics', en: 'AI & costs', ar: 'الذكاء الاصطناعي والتكلفة', icon: 'analytics' },
     { to: '/settings', en: 'Settings', ar: 'الإعدادات', icon: 'settings' },
-    { to: '/operations', en: 'System & integrations', ar: 'النظام والتكاملات', icon: 'operations' },
-    { to: '/account', en: 'Account & security', ar: 'الحساب والأمان', icon: 'account' },
   ] },
 ];
 
@@ -77,7 +71,7 @@ export function AppShell() {
           <img src={alexandriaLogo} alt="" aria-hidden="true" />
           <span><strong>Alexandria</strong><small>{tr('Community admin', 'إدارة المجتمع')}</small></span>
         </div>
-        <NavLink className="mobile-knowledge-link" to="/knowledge" aria-label={tr('Knowledge base', 'قاعدة المعرفة')}>
+        <NavLink className="mobile-knowledge-link" to="/knowledge" aria-label={tr('Knowledge', 'المعرفة')}>
           <NavIcon name="knowledge" />
         </NavLink>
       </header>

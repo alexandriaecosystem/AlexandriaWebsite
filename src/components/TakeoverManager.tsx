@@ -3,6 +3,7 @@ import { getSupabaseClient } from '../services/supabase';
 import {
   cancelAiSleepWindow,
   classifyAiSleepWindow,
+  formatSleepDuration,
   listAiSleepWindows,
   validateSleepRange,
   type AiSleepWindow,
@@ -18,6 +19,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import '../takeover.css';
 
 type TakeoverMode = 'NOW' | 'SCHEDULE';
+type QuickDuration = number | 'TOMORROW' | 'CUSTOM';
 
 type TakeoverManagerProps = {
   now?: Date;
@@ -28,12 +30,14 @@ type TakeoverManagerProps = {
   onActiveCountChange?: (count: number) => void;
 };
 
-const QUICK_DURATIONS = [
-  { label: '30 min', minutes: 30 },
-  { label: '1 hour', minutes: 60 },
-  { label: '2 hours', minutes: 120 },
-  { label: '4 hours', minutes: 240 },
-] as const;
+const QUICK_DURATIONS: { label: string; value: QuickDuration }[] = [
+  { label: '30 min', value: 30 },
+  { label: '1 hour', value: 60 },
+  { label: '2 hours', value: 120 },
+  { label: '4 hours', value: 240 },
+  { label: 'Until tomorrow', value: 'TOMORROW' },
+  { label: 'Custom', value: 'CUSTOM' },
+];
 
 function localDateTime(value: string, locale?: string): string {
   const date = new Date(value);
@@ -43,6 +47,13 @@ function localDateTime(value: string, locale?: string): string {
 function toLocalInputValue(date: Date): string {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function untilTomorrow(base: Date): Date {
+  const end = new Date(base);
+  end.setDate(end.getDate() + 1);
+  end.setHours(9, 0, 0, 0);
+  return end;
 }
 
 function platformLabel(platform: string): string {
@@ -72,8 +83,9 @@ export function TakeoverManager({
   const [communityId, setCommunityId] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  const [customEndsAt, setCustomEndsAt] = useState('');
   const [reason, setReason] = useState('');
-  const [quickMinutes, setQuickMinutes] = useState(120);
+  const [quickDuration, setQuickDuration] = useState<QuickDuration>(120);
 
   const load = async () => {
     setLoading(true);
@@ -111,8 +123,7 @@ export function TakeoverManager({
 
   const active = classified.filter((item) => item.status === 'ACTIVE');
   const upcoming = classified.filter((item) => item.status === 'UPCOMING');
-  const relevant = [...active, ...upcoming];
-  const nextWindow = relevant[0] ?? null;
+  const nextWindow = active[0] ?? upcoming[0] ?? null;
   const locale = isArabic ? 'ar-LB' : undefined;
 
   useEffect(() => { onActiveCountChange?.(active.length); }, [active.length, onActiveCountChange]);
@@ -130,6 +141,11 @@ export function TakeoverManager({
     }
   }
 
+  function openDrawer(nextMode?: TakeoverMode) {
+    if (nextMode) chooseMode(nextMode);
+    setDrawerOpen(true);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
@@ -144,10 +160,19 @@ export function TakeoverManager({
       let input: CreateCommunityTakeoverInput;
       if (mode === 'NOW') {
         const base = now ? new Date(now) : new Date();
+        let end: Date;
+        if (typeof quickDuration === 'number') {
+          end = new Date(base.getTime() + quickDuration * 60_000);
+        } else if (quickDuration === 'TOMORROW') {
+          end = untilTomorrow(base);
+        } else {
+          const range = validateSleepRange(base.toISOString(), customEndsAt);
+          end = new Date(range.endsAt);
+        }
         input = {
           communityId,
           startsAt: base.toISOString(),
-          endsAt: new Date(base.getTime() + quickMinutes * 60_000).toISOString(),
+          endsAt: end.toISOString(),
           reason: reason.trim() || null,
         };
       } else {
@@ -191,19 +216,27 @@ export function TakeoverManager({
   }
 
   return (
-    <section className="takeover-shell" aria-label={tr('Human takeovers', 'التحكم البشري')}>
+    <section className="takeover-shell" aria-label={tr('Human Takeover', 'التحكم البشري')}>
       <div className="takeover-toolbar-actions">
         <span className={`status-pill ${active.length ? 'negative' : 'positive'}`}>
           <span className="takeover-status-dot" aria-hidden="true" />
-          {active.length ? `${active.length} ${tr('human takeover', 'تحكم بشري')}` : tr('AI replying', 'الذكاء الاصطناعي يرد')}
+          {active.length ? tr('Human Takeover Active', 'التحكم البشري نشط') : tr('AI Active', 'الذكاء الاصطناعي نشط')}
         </span>
-        <button type="button" className="secondary-button takeover-manage-button" aria-label="Manage takeovers" onClick={() => setDrawerOpen(true)}>
-          {tr('Manage takeovers', 'إدارة التحكم البشري')}
-        </button>
+        <div className="takeover-primary-actions">
+          <button type="button" className="primary-button takeover-manage-button" aria-label="Take Over Now" onClick={() => openDrawer('NOW')}>
+            {tr('Take Over Now', 'ابدأ التحكم الآن')}
+          </button>
+          <button type="button" className="secondary-button takeover-manage-button" aria-label="Schedule Takeover" onClick={() => openDrawer('SCHEDULE')}>
+            {tr('Schedule Takeover', 'جدولة التحكم')}
+          </button>
+          {active.length > 0 && <button type="button" className="secondary-button takeover-manage-button" aria-label="Return to AI" onClick={() => openDrawer()}>
+            {tr('Return to AI', 'العودة للذكاء الاصطناعي')}
+          </button>}
+        </div>
       </div>
 
       {nextWindow && (
-        <button type="button" className="takeover-summary" onClick={() => setDrawerOpen(true)}>
+        <button type="button" className="takeover-summary" onClick={() => openDrawer()}>
           <span className="takeover-summary-icon" aria-hidden="true">◉</span>
           <span className="takeover-summary-copy">
             <strong>{nextWindow.status === 'ACTIVE' ? tr('Human takeover active', 'التحكم البشري نشط') : tr('Scheduled takeover', 'تحكم بشري مجدول')}</strong>
@@ -220,7 +253,7 @@ export function TakeoverManager({
           <aside className="takeover-drawer" role="dialog" aria-modal="true" aria-labelledby="takeover-title">
             <div className="takeover-drawer-head">
               <div>
-                <p className="eyebrow">{tr('Human takeover', 'التحكم البشري')}</p>
+                <p className="eyebrow">{tr('Human Takeover', 'التحكم البشري')}</p>
                 <h2 id="takeover-title">{tr('Take over AI replies', 'تولّي الردود بدل الذكاء الاصطناعي')}</h2>
                 <p className="muted">{tr('Pause automated replies without dealing with technical IDs.', 'أوقف الردود الآلية من دون التعامل مع معرّفات تقنية.')}</p>
               </div>
@@ -250,18 +283,23 @@ export function TakeoverManager({
 
                 {mode === 'NOW' ? (
                   <div className="takeover-quick-block">
-                    <span>{tr('Quick duration', 'مدة سريعة')}</span>
+                    <span>{tr('Duration', 'المدة')}</span>
                     <div className="takeover-duration-chips">
                       {QUICK_DURATIONS.map((duration) => (
                         <button
-                          key={duration.minutes}
+                          key={duration.label}
                           type="button"
                           aria-label={duration.label}
-                          className={quickMinutes === duration.minutes ? 'active' : ''}
-                          onClick={() => setQuickMinutes(duration.minutes)}
-                        >{duration.label}</button>
+                          className={quickDuration === duration.value ? 'active' : ''}
+                          onClick={() => setQuickDuration(duration.value)}
+                        >{duration.label === 'Until tomorrow' ? tr('Until tomorrow', 'حتى الغد') : duration.label === 'Custom' ? tr('Custom', 'مخصص') : duration.label}</button>
                       ))}
                     </div>
+                    {quickDuration === 'TOMORROW' && <small className="takeover-duration-hint">{tr('AI returns tomorrow at 9:00 AM.', 'يعود الذكاء الاصطناعي غدًا الساعة 9:00 صباحًا.')}</small>}
+                    {quickDuration === 'CUSTOM' && <label>
+                      <span>{tr('Return to AI at', 'العودة للذكاء الاصطناعي عند')}</span>
+                      <input aria-label="Custom return time" type="datetime-local" value={customEndsAt} onChange={(event) => setCustomEndsAt(event.target.value)} required />
+                    </label>}
                   </div>
                 ) : (
                   <div className="takeover-time-grid">
@@ -299,33 +337,38 @@ export function TakeoverManager({
               {notice && <div className="takeover-alert success" role="status">{notice}</div>}
 
               <div className="takeover-drawer-actions">
-                <button type="button" className="secondary-button" onClick={() => setDrawerOpen(false)}>{tr('Cancel', 'إلغاء')}</button>
+                <button type="button" className="secondary-button" onClick={() => setDrawerOpen(false)}>{tr('Close', 'إغلاق')}</button>
                 <button type="submit" className="primary-button" disabled={submitting || loading || !communityId} aria-label={mode === 'NOW' ? 'Start takeover' : 'Schedule takeover'}>
                   {submitting ? tr('Saving…', 'جارٍ الحفظ…') : mode === 'NOW' ? tr('Start takeover', 'بدء التحكم') : tr('Schedule takeover', 'جدولة التحكم')}
                 </button>
               </div>
             </form>
 
-            {!!relevant.length && (
-              <div className="takeover-current-list">
-                <div className="takeover-current-head">
-                  <h3>{tr('Active & upcoming', 'النشطة والقادمة')}</h3>
-                  <span>{relevant.length}</span>
-                </div>
-                {relevant.map((item) => (
-                  <article key={item.id} className="takeover-current-card">
-                    <div>
-                      <small className="takeover-platform-label">{platformLabel(item.platform)}</small>
-                      <strong>{item.externalChannelName || tr('Community', 'المجتمع')}</strong>
-                      <span>{localDateTime(item.startsAt, locale)} → {localDateTime(item.endsAt, locale)}</span>
-                    </div>
-                    <button type="button" className="secondary-button" disabled={submitting} onClick={() => void returnToAi(item.id)}>
-                      {item.status === 'ACTIVE' ? tr('Return to AI', 'إعادة التحكم للذكاء الاصطناعي') : tr('Cancel schedule', 'إلغاء الجدولة')}
-                    </button>
-                  </article>
-                ))}
-              </div>
-            )}
+            <section className="takeover-window-section" aria-label="Active Takeovers">
+              <div className="takeover-current-head"><h3>{tr('Active Takeovers', 'عمليات التحكم النشطة')}</h3><span>{active.length}</span></div>
+              {active.length ? <div className="takeover-window-table">
+                <div className="takeover-window-row takeover-window-head"><span>{tr('Community', 'المجتمع')}</span><span>{tr('Started', 'بدأ')}</span><span>{tr('Returns to AI', 'العودة للذكاء الاصطناعي')}</span><span>{tr('Action', 'الإجراء')}</span></div>
+                {active.map((item) => <div className="takeover-window-row" key={item.id}>
+                  <span data-label={tr('Community', 'المجتمع')}><small>{platformLabel(item.platform)}</small><strong>{item.externalChannelName || tr('Community', 'المجتمع')}</strong></span>
+                  <span data-label={tr('Started', 'بدأ')}>{localDateTime(item.startsAt, locale)}</span>
+                  <span data-label={tr('Returns to AI', 'العودة للذكاء الاصطناعي')}>{localDateTime(item.endsAt, locale)}</span>
+                  <span data-label={tr('Action', 'الإجراء')}><button type="button" className="secondary-button" aria-label="Return to AI" disabled={submitting} onClick={() => void returnToAi(item.id)}>{tr('Return to AI', 'العودة للذكاء الاصطناعي')}</button></span>
+                </div>)}
+              </div> : <p className="takeover-empty">{tr('No active takeovers.', 'لا توجد عمليات تحكم نشطة.')}</p>}
+            </section>
+
+            <section className="takeover-window-section" aria-label="Upcoming Takeovers">
+              <div className="takeover-current-head"><h3>{tr('Upcoming Takeovers', 'عمليات التحكم القادمة')}</h3><span>{upcoming.length}</span></div>
+              {upcoming.length ? <div className="takeover-window-table">
+                <div className="takeover-window-row takeover-window-head"><span>{tr('Community', 'المجتمع')}</span><span>{tr('Starts', 'يبدأ')}</span><span>{tr('Duration', 'المدة')}</span><span>{tr('Action', 'الإجراء')}</span></div>
+                {upcoming.map((item) => <div className="takeover-window-row" key={item.id}>
+                  <span data-label={tr('Community', 'المجتمع')}><small>{platformLabel(item.platform)}</small><strong>{item.externalChannelName || tr('Community', 'المجتمع')}</strong></span>
+                  <span data-label={tr('Starts', 'يبدأ')}>{localDateTime(item.startsAt, locale)}</span>
+                  <span data-label={tr('Duration', 'المدة')}>{formatSleepDuration(item.startsAt, item.endsAt)}</span>
+                  <span data-label={tr('Action', 'الإجراء')}><button type="button" className="secondary-button" aria-label="Cancel" disabled={submitting} onClick={() => void returnToAi(item.id)}>{tr('Cancel', 'إلغاء')}</button></span>
+                </div>)}
+              </div> : <p className="takeover-empty">{tr('No upcoming takeovers.', 'لا توجد عمليات تحكم قادمة.')}</p>}
+            </section>
           </aside>
         </div>
       )}

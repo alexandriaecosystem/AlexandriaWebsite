@@ -5,22 +5,18 @@ import { LanguageProvider } from '../src/i18n/LanguageContext';
 
 const mocks = vi.hoisted(() => ({
   getDashboardMetrics: vi.fn(),
-  listKnowledgeDocuments: vi.fn(),
   listKnowledgeGaps: vi.fn(),
-  getCommunityPlatformStats: vi.fn(),
+  getDashboardAttention: vi.fn(),
+  listAiSleepWindows: vi.fn(),
 }));
 
 vi.mock('../src/services/supabase', () => ({ getSupabaseClient: () => ({}) }));
-vi.mock('../src/services/admin', () => ({
-  getDashboardMetrics: mocks.getDashboardMetrics,
-  listKnowledgeDocuments: mocks.listKnowledgeDocuments,
-}));
-vi.mock('../src/services/admin-operations', () => ({
-  listKnowledgeGaps: mocks.listKnowledgeGaps,
-  getMessageTimeseries: vi.fn().mockResolvedValue([{ bucketDate: '2026-08-29', messages: 8 }]),
-}));
-vi.mock('../src/services/community-dashboard', () => ({
-  getCommunityPlatformStats: mocks.getCommunityPlatformStats,
+vi.mock('../src/services/admin', () => ({ getDashboardMetrics: mocks.getDashboardMetrics }));
+vi.mock('../src/services/admin-operations', () => ({ listKnowledgeGaps: mocks.listKnowledgeGaps }));
+vi.mock('../src/services/dashboard-attention', () => ({ getDashboardAttention: mocks.getDashboardAttention }));
+vi.mock('../src/services/ai-sleep', () => ({
+  listAiSleepWindows: mocks.listAiSleepWindows,
+  classifyAiSleepWindow: vi.fn(() => 'ENDED'),
 }));
 
 import { DashboardPage } from '../src/pages/DashboardPage';
@@ -50,16 +46,9 @@ const metrics = {
 
 beforeEach(() => {
   mocks.getDashboardMetrics.mockResolvedValue(metrics);
-  mocks.listKnowledgeDocuments.mockResolvedValue({ total: 0 });
-  mocks.listKnowledgeGaps.mockResolvedValue({ total: 0 });
-  mocks.getCommunityPlatformStats.mockResolvedValue({
-    platforms: [
-      { platform: 'TELEGRAM', knownUsers: 60, premiumUsers: 12, generalMembers: 40, vipMembers: 20, verifiedMembers: 60, lastVerifiedAt: null, verificationConnected: true },
-      { platform: 'DISCORD', knownUsers: 40, premiumUsers: 0, generalMembers: 30, vipMembers: 10, verifiedMembers: 40, lastVerifiedAt: null, verificationConnected: true },
-      { platform: 'WHATSAPP', knownUsers: 20, premiumUsers: 0, generalMembers: 15, vipMembers: 5, verifiedMembers: 20, lastVerifiedAt: null, verificationConnected: true },
-    ],
-    overall: { knownUsers: 120, generalMembers: 85, vipMembers: 35, verifiedMembers: 120 },
-  });
+  mocks.listKnowledgeGaps.mockResolvedValue({ total: 3 });
+  mocks.getDashboardAttention.mockResolvedValue({ knowledgeConflicts: 2, failedAnnouncements: 1 });
+  mocks.listAiSleepWindows.mockResolvedValue({ items: [], total: 0 });
 });
 
 afterEach(() => {
@@ -68,7 +57,7 @@ afterEach(() => {
 });
 
 describe('simplified dashboard', () => {
-  it('shows only essential summary cards and real seven-day activity', async () => {
+  it('shows exactly the four essential summary cards and truthful seven-day activity', async () => {
     const { container } = render(
       <MemoryRouter>
         <LanguageProvider>
@@ -77,20 +66,21 @@ describe('simplified dashboard', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('Reviews waiting')).toBeInTheDocument();
-    expect(container.querySelectorAll('.metric-card')).toHaveLength(3);
+    expect(await screen.findByText('Pending Reviews')).toBeInTheDocument();
+    expect(container.querySelectorAll('.metric-card')).toHaveLength(4);
     const summary = screen.getByRole('region', { name: 'Community summary' });
-    expect(within(summary).getByText('Users')).toBeInTheDocument();
-    expect(screen.getByText('User activity (last 7 days)')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Users: 31 Active \(25\.8%\), 89 Inactive \(74\.2%\)/ })).toBeInTheDocument();
-    expect(screen.getByText('31 of 120 users interacted in the last 7 days.')).toBeInTheDocument();
+    expect(within(summary).getByText('Total Members')).toBeInTheDocument();
+    expect(within(summary).getByText('Active Members')).toBeInTheDocument();
+    expect(within(summary).getByText('Pending Reviews')).toBeInTheDocument();
+    expect(within(summary).getByText('Knowledge Gaps')).toBeInTheDocument();
 
-    expect(screen.queryByText('Active users')).not.toBeInTheDocument();
-    expect(screen.queryByText('Approved members')).not.toBeInTheDocument();
-    expect(container.querySelector('.dashboard-quick-actions')).not.toBeInTheDocument();
+    expect(screen.getByText('Active vs inactive members')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Members: 31 Active \(25\.8%\), 89 Inactive \(74\.2%\)/ })).toBeInTheDocument();
+    expect(screen.getByText(/Active means a member has at least one processed message in the last 7 days/)).toBeInTheDocument();
+    expect(screen.getByText('31 of 120 members were active in the last 7 days.')).toBeInTheDocument();
   });
 
-  it('keeps attention items and platform comparison without extra analytics', async () => {
+  it('shows only admin-action alerts instead of secondary technical analytics', async () => {
     const { container } = render(
       <MemoryRouter>
         <LanguageProvider>
@@ -100,15 +90,15 @@ describe('simplified dashboard', () => {
     );
 
     expect(await screen.findByText('Needs attention')).toBeInTheDocument();
-    expect(screen.getByText('Member reviews')).toBeInTheDocument();
+    expect(screen.getByText('Pending member reviews')).toBeInTheDocument();
+    expect(screen.getByText('Knowledge conflicts')).toBeInTheDocument();
     expect(screen.getByText('Knowledge gaps')).toBeInTheDocument();
-    expect(screen.getByText('Knowledge documents')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /TELEGRAM 60, DISCORD 40, WHATSAPP 20/ })).toBeInTheDocument();
-    expect(container.querySelector('.platform-comparison')).toBeInTheDocument();
+    expect(screen.getByText('Failed announcements')).toBeInTheDocument();
 
+    expect(screen.queryByText('Failed operations')).not.toBeInTheDocument();
+    expect(screen.queryByText('Users by platform')).not.toBeInTheDocument();
     expect(screen.queryByText('AI spend')).not.toBeInTheDocument();
     expect(screen.queryByText('Messages trend')).not.toBeInTheDocument();
-    expect(screen.queryByText('Verified group memberships')).not.toBeInTheDocument();
-    expect(screen.queryByText('General')).not.toBeInTheDocument();
+    expect(container.querySelector('.platform-comparison')).not.toBeInTheDocument();
   });
 });

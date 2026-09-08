@@ -17,7 +17,8 @@ import { TokenMonitorPage } from '../pages/TokenMonitorPage';
 import { AccountSecurityPage } from '../pages/AccountSecurityPage';
 import { OperationsPage } from '../pages/OperationsPage';
 import { SettingsPage } from '../pages/SettingsPage';
-import { ApprovedCommunityPage } from '../pages/AdminOperationsPages';
+import { CommunitiesPage } from '../pages/CommunitiesPage';
+import { WhatsAppQuizPage } from '../pages/WhatsAppQuizPage';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { ToastProvider } from '../components/Feedback';
 import { KnowledgeIntelligencePanel } from '../components/KnowledgeIntelligencePanel';
@@ -34,10 +35,11 @@ export function App() {
         <Route path="users" element={<UsersPage />} />
         <Route path="users/:userId" element={<UserConversationPage />} />
         <Route path="messages" element={<MessagesPage />} />
-        <Route path="community" element={<ApprovedCommunityPage />} />
+        <Route path="community" element={<CommunitiesPage />} />
         <Route path="knowledge" element={<><KnowledgeBasePage /><KnowledgeIntelligencePanel /></>} />
         <Route path="knowledge-gaps" element={<KnowledgeGapsPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
+        <Route path="whatsapp-quiz" element={<WhatsAppQuizPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="token-monitor" element={<TokenMonitorPage />} />
         <Route path="operations" element={<OperationsPage />} />

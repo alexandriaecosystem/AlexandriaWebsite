@@ -1,0 +1,142 @@
+.takeover-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-inline-start: auto;
+}
+
+.takeover-duration-hint {
+  color: var(--muted, #8f9bad);
+  line-height: 1.45;
+}
+
+.takeover-window-section {
+  margin-top: 1.2rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid #293241;
+}
+
+.takeover-window-table {
+  display: grid;
+  gap: .35rem;
+}
+
+.takeover-window-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.2fr) minmax(110px, 1fr) minmax(110px, 1fr) auto;
+  align-items: center;
+  gap: .65rem;
+  padding: .7rem .75rem;
+  border: 1px solid #293241;
+  border-radius: 10px;
+  background: #111925;
+}
+
+.takeover-window-row > span {
+  min-width: 0;
+  color: #a9b4c3;
+  font-size: .76rem;
+}
+
+.takeover-window-row > span:first-child {
+  display: grid;
+  gap: .12rem;
+}
+
+.takeover-window-row strong {
+  overflow: hidden;
+  color: #edf2f7;
+  font-size: .82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.takeover-window-row small {
+  color: #e8b84f;
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.takeover-window-row .secondary-button {
+  min-height: 2.2rem;
+  padding-inline: .7rem;
+  white-space: nowrap;
+}
+
+.takeover-window-head {
+  border: 0;
+  background: transparent;
+  padding-block: .25rem;
+}
+
+.takeover-window-head > span {
+  color: #7f8b9c;
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.takeover-empty {
+  margin: 0;
+  padding: .7rem .2rem;
+  color: #8f9bad;
+  font-size: .82rem;
+}
+
+@media (max-width: 900px) {
+  .takeover-toolbar-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .takeover-primary-actions {
+    width: 100%;
+    margin-inline-start: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .takeover-primary-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .takeover-primary-actions .takeover-manage-button {
+    width: 100%;
+  }
+
+  .takeover-window-head {
+    display: none;
+  }
+
+  .takeover-window-row {
+    grid-template-columns: 1fr;
+    gap: .45rem;
+  }
+
+  .takeover-window-row > span {
+    display: grid;
+    grid-template-columns: minmax(92px, .7fr) minmax(0, 1.3fr);
+    align-items: center;
+    gap: .55rem;
+  }
+
+  .takeover-window-row > span::before {
+    content: attr(data-label);
+    color: #7f8b9c;
+    font-size: .67rem;
+    font-weight: 750;
+    text-transform: uppercase;
+  }
+
+  .takeover-window-row > span:first-child {
+    grid-template-columns: minmax(92px, .7fr) minmax(0, 1.3fr);
+  }
+
+  .takeover-window-row > span:first-child::after {
+    content: '';
+  }
+}

@@ -48,6 +48,9 @@ function previousSummaryFrom(combined: AiUsageSummary, current: AiUsageSummary, 
     totalTokens: safeSubtract(combined.totalTokens, current.totalTokens),
     costUsd,
     avgCostPerCall: totalCalls ? costUsd / totalCalls : 0,
+    trackingHasEvents: combined.trackingHasEvents,
+    trackingLastRecordedAt: combined.trackingLastRecordedAt,
+    trackingMissing: combined.trackingMissing,
     byPurpose,
   };
 }

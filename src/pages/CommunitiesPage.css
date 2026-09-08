@@ -1,0 +1,9 @@
+.communities-header { align-items:flex-start; gap:18px; }
+.community-ai-control { margin-bottom:20px; }
+.community-ai-control .section-heading { margin-bottom:12px; }
+.communities-metrics { margin-top:0; }
+.communities-total { margin-inline-start:auto; white-space:nowrap; }
+@media (max-width:720px) {
+  .communities-header { display:grid; }
+  .communities-total { width:100%; margin-inline-start:0; }
+}
