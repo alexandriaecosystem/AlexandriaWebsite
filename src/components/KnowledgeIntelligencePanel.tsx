@@ -7,6 +7,7 @@ import {
   rejectKnowledgeCandidate,
   resolveKnowledgeConflict,
 } from '../services/admin';
+import { requestOfficialSourceIndex } from '../services/official-source-index';
 import { getSupabaseClient } from '../services/supabase';
 import type { KnowledgeCandidate, KnowledgeConflict, KnowledgeIntelligenceStatus } from '../types/contracts';
 import { ConfirmDialog, useToast } from './Feedback';
@@ -30,6 +31,7 @@ export function KnowledgeIntelligencePanel({ refreshKey = 0 }: { refreshKey?: nu
   const [localRefresh, setLocalRefresh] = useState(0);
   const [reviewAction, setReviewAction] = useState<ReviewAction>(null);
   const [busy, setBusy] = useState(false);
+  const [indexing, setIndexing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +66,28 @@ export function KnowledgeIntelligencePanel({ refreshKey = 0 }: { refreshKey?: nu
     || source.hasBlockingConflict
     || Boolean(source.lastError)
   )), [activeSources]);
+
+  async function startOfficialSourceIndex() {
+    if (indexing) return;
+    setIndexing(true);
+    try {
+      await requestOfficialSourceIndex(getSupabaseClient());
+      notify({
+        tone: 'success',
+        title: tr('Official-source indexing started', 'بدأت فهرسة المصادر الرسمية'),
+        message: tr('The first crawl is running through the registered official pages. Use Refresh to see pages become indexed as they finish.', 'يتم الآن فحص الصفحات الرسمية المسجلة. استخدم تحديث لرؤية الصفحات بعد اكتمال فهرستها.'),
+      });
+      setLocalRefresh((value) => value + 1);
+    } catch (caught) {
+      notify({
+        tone: 'error',
+        title: tr('Could not start official-source indexing', 'تعذر بدء فهرسة المصادر الرسمية'),
+        message: caught instanceof Error ? caught.message : tr('The indexing request could not be started.', 'تعذر بدء طلب الفهرسة.'),
+      });
+    } finally {
+      setIndexing(false);
+    }
+  }
 
   async function performReviewAction() {
     if (!reviewAction || busy) return;
@@ -126,7 +150,7 @@ export function KnowledgeIntelligencePanel({ refreshKey = 0 }: { refreshKey?: nu
           <h2>{tr('Official sources & contradiction safety', 'المصادر الرسمية وسلامة التعارض')}</h2>
           <p className="muted">{tr('A simple view of official-source health, conflicts, candidates and source changes.', 'عرض مبسط لصحة المصادر الرسمية والتعارضات والمرشحين وتغييرات المصادر.')}</p>
         </div>
-        <button type="button" className="compact-button" disabled={busy} onClick={() => setLocalRefresh((value) => value + 1)}>{tr('Refresh', 'تحديث')}</button>
+        <button type="button" className="compact-button" disabled={busy || indexing} onClick={() => setLocalRefresh((value) => value + 1)}>{tr('Refresh', 'تحديث')}</button>
       </div>
 
       {error && <p className="form-error" role="alert">{tr('Knowledge Intelligence status could not be loaded.', 'تعذر تحميل حالة ذكاء المعرفة.')}</p>}
@@ -142,7 +166,15 @@ export function KnowledgeIntelligencePanel({ refreshKey = 0 }: { refreshKey?: nu
           </div>
 
           {activeSources.length > 0 && indexedSources.length === 0 && (
-            <p className="form-note">{tr('The official-source registry is configured, but the first authorized bootstrap crawl has not indexed any page yet.', 'سجل المصادر الرسمية مهيأ، لكن أول زحف تمهيدي مصرح به لم يفهرس أي صفحة بعد.')}</p>
+            <div className="form-note">
+              <strong>{tr('Official sources are ready to index.', 'المصادر الرسمية جاهزة للفهرسة.')}</strong>
+              <p>{tr('The registry is configured, but the first crawl has not run yet. Start it here; Refresh only reloads the current status.', 'سجل المصادر مهيأ، لكن أول زحف لم يعمل بعد. ابدأه من هنا؛ زر تحديث يعيد تحميل الحالة الحالية فقط.')}</p>
+              <div className="document-primary-actions">
+                <button type="button" className="compact-button primary" disabled={busy || indexing} onClick={() => void startOfficialSourceIndex()}>
+                  {indexing ? tr('Starting indexing…', 'جارٍ بدء الفهرسة…') : tr('Index official sources', 'فهرسة المصادر الرسمية')}
+                </button>
+              </div>
+            </div>
           )}
 
           <details className="document-details" open={unhealthySources.length > 0}>
