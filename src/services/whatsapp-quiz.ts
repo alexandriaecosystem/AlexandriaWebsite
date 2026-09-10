@@ -37,12 +37,27 @@ export type WhatsAppQuizQuestionStats = {
   excluded: number;
 };
 
+export type AdmissionQuestionBankItem = {
+  id: string;
+  number: number;
+  prompt: string;
+};
+
+export type AdmissionQuizSettings = {
+  greeting: string;
+  questionIds: string[];
+  formOrigin: string | null;
+  updatedAt: string | null;
+  questionBank: AdmissionQuestionBankItem[];
+};
+
 export type WhatsAppQuizAdminData = {
   targets: WhatsAppQuizTarget[];
   schedule: WhatsAppQuizSchedule;
   questions: WhatsAppQuizPreviewQuestion[];
   questionStats: WhatsAppQuizQuestionStats | null;
   questionPreviewStatus: QuizPreviewStatus;
+  admission: AdmissionQuizSettings;
 };
 
 export type SaveWhatsappQuizScheduleInput = {
@@ -54,12 +69,19 @@ export type SaveWhatsappQuizScheduleInput = {
   daysOfWeek: number[];
 };
 
+export type SaveAdmissionQuizSettingsInput = {
+  greeting: string;
+  questionIds: string[];
+  formOrigin: string | null;
+};
+
 export type AddWhatsappQuizQuestionInput = {
   prompt: string;
   options: [string, string, string, string] | string[];
   correctOptionIndex: number;
 };
 
+type SchedulerState = Pick<WhatsAppQuizAdminData, 'targets' | 'schedule'>;
 type QuestionPreviewState = Pick<WhatsAppQuizAdminData, 'questions' | 'questionStats' | 'questionPreviewStatus'>;
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -116,9 +138,7 @@ function mapQuestionPreview(value: unknown): QuestionPreviewState {
     const total = nonNegativeInteger(stats.total);
     const active = nonNegativeInteger(stats.active);
     const excluded = nonNegativeInteger(stats.excluded);
-    if (total !== null && active !== null && excluded !== null) {
-      questionStats = { total, active, excluded };
-    }
+    if (total !== null && active !== null && excluded !== null) questionStats = { total, active, excluded };
   } catch {
     questionStats = null;
   }
@@ -135,11 +155,9 @@ function unavailableQuestionPreview(): QuestionPreviewState {
   return { questions: [], questionStats: null, questionPreviewStatus: 'ERROR' };
 }
 
-function mapResponse(value: unknown): WhatsAppQuizAdminData {
+function mapSchedulerResponse(value: unknown): SchedulerState {
   const payload = asRecord(value);
   const schedule = asRecord(payload.schedule ?? {});
-  const targets = mapTargets(payload.targets);
-
   const daysRaw = Array.isArray(schedule.days_of_week)
     ? schedule.days_of_week
     : Array.isArray(schedule.daysOfWeek)
@@ -147,7 +165,7 @@ function mapResponse(value: unknown): WhatsAppQuizAdminData {
       : [];
 
   return {
-    targets,
+    targets: mapTargets(payload.targets),
     schedule: {
       enabled: schedule.enabled === true,
       communityId: schedule.community_id == null && schedule.communityId == null
@@ -165,18 +183,16 @@ function mapResponse(value: unknown): WhatsAppQuizAdminData {
       nextRunAt: schedule.next_run_at == null && schedule.nextRunAt == null ? null : String(schedule.next_run_at ?? schedule.nextRunAt),
       lastError: String(schedule.last_error ?? schedule.lastError ?? ''),
     },
-    ...unavailableQuestionPreview(),
   };
 }
 
 function preferredQuizTarget(targets: WhatsAppQuizTarget[]): WhatsAppQuizTarget | undefined {
   return targets.find((target) => target.communityLevel.toUpperCase() === 'GENERAL' && /general/i.test(target.name) && !/announcement/i.test(target.name))
     ?? targets.find((target) => target.communityLevel.toUpperCase() === 'GENERAL' && !/announcement/i.test(target.name))
-    ?? targets.find((target) => target.communityLevel.toUpperCase() === 'GENERAL')
-    ?? targets[0];
+    ?? targets.find((target) => target.communityLevel.toUpperCase() === 'GENERAL');
 }
 
-function schedulerUnavailableState(targets: WhatsAppQuizTarget[]): WhatsAppQuizAdminData {
+function schedulerUnavailableState(targets: WhatsAppQuizTarget[]): SchedulerState {
   const preferred = preferredQuizTarget(targets);
   return {
     targets,
@@ -191,14 +207,13 @@ function schedulerUnavailableState(targets: WhatsAppQuizTarget[]): WhatsAppQuizA
       status: 'ERROR',
       lastRunAt: null,
       nextRunAt: null,
-      lastError: 'Quiz scheduler connection needs attention. Settings can still be reviewed, but saving or sending may fail until the connection recovers.',
+      lastError: 'Quiz scheduler connection needs attention. Settings can still be reviewed, but saving may fail until the connection recovers.',
     },
-    ...unavailableQuestionPreview(),
   };
 }
 
 async function loadQuestionPreview(client: SupabaseClient): Promise<QuestionPreviewState> {
-  const { data, error } = await client.rpc('admin_get_whatsapp_quiz_preview', { p_limit: 10 });
+  const { data, error } = await client.rpc('admin_get_whatsapp_quiz_preview', { p_limit: 5 });
   if (error) return unavailableQuestionPreview();
   try {
     return mapQuestionPreview(data);
@@ -207,18 +222,52 @@ async function loadQuestionPreview(client: SupabaseClient): Promise<QuestionPrev
   }
 }
 
-async function invoke(client: SupabaseClient, body: Record<string, unknown>): Promise<WhatsAppQuizAdminData> {
+function mapAdmissionQuestionBank(value: unknown): AdmissionQuestionBankItem[] {
+  return (Array.isArray(value) ? value : []).flatMap((item): AdmissionQuestionBankItem[] => {
+    try {
+      const row = asRecord(item);
+      const id = String(row.id ?? '').trim();
+      const prompt = String(row.prompt ?? '').trim();
+      const number = Number(row.number);
+      if (!id || !prompt || !Number.isFinite(number)) return [];
+      return [{ id, number, prompt }];
+    } catch {
+      return [];
+    }
+  });
+}
+
+async function loadAdmissionSettings(client: SupabaseClient): Promise<AdmissionQuizSettings> {
+  const [settingsResult, bankResult] = await Promise.all([
+    client.from('admission_settings').select('greeting, question_ids, form_origin, updated_at').eq('singleton', true).maybeSingle(),
+    client.rpc('admin_admission_question_bank'),
+  ]);
+  if (settingsResult.error) throw new Error(settingsResult.error.message || 'Could not load admission settings.');
+  if (bankResult.error) throw new Error(bankResult.error.message || 'Could not load the admission question bank.');
+
+  const row = settingsResult.data ? asRecord(settingsResult.data) : {};
+  return {
+    greeting: String(row.greeting ?? ''),
+    questionIds: Array.isArray(row.question_ids) ? row.question_ids.map(String) : [],
+    formOrigin: row.form_origin == null || String(row.form_origin).trim() === '' ? null : String(row.form_origin),
+    updatedAt: row.updated_at == null ? null : String(row.updated_at),
+    questionBank: mapAdmissionQuestionBank(bankResult.data),
+  };
+}
+
+async function invokeScheduler(client: SupabaseClient, body: Record<string, unknown>): Promise<SchedulerState> {
   const { data, error } = await client.functions.invoke('whatsapp-quiz-admin', { body });
   if (error) throw new Error(error.message || 'Could not update the WhatsApp quiz settings.');
-  return mapResponse(data);
+  return mapSchedulerResponse(data);
 }
 
 export async function loadWhatsappQuizAdmin(client: SupabaseClient): Promise<WhatsAppQuizAdminData> {
   const previewPromise = loadQuestionPreview(client);
+  const admissionPromise = loadAdmissionSettings(client);
   try {
-    const state = await invoke(client, { action: 'STATUS' });
-    const preview = await previewPromise;
-    return { ...state, ...preview };
+    const scheduler = await invokeScheduler(client, { action: 'STATUS' });
+    const [preview, admission] = await Promise.all([previewPromise, admissionPromise]);
+    return { ...scheduler, ...preview, admission };
   } catch (primaryError) {
     const { data, error } = await client.rpc('admin_list_takeover_targets');
     if (error) throw primaryError;
@@ -226,28 +275,19 @@ export async function loadWhatsappQuizAdmin(client: SupabaseClient): Promise<Wha
     const targets = mapTargets(data).filter((target) => {
       const source = Array.isArray(data)
         ? data.find((item) => {
-          try {
-            return String(asRecord(item).community_id ?? '') === target.communityId;
-          } catch {
-            return false;
-          }
+          try { return String(asRecord(item).community_id ?? '') === target.communityId; } catch { return false; }
         })
         : undefined;
       if (!source) return false;
-      try {
-        return String(asRecord(source).platform ?? '').toUpperCase() === 'WHATSAPP';
-      } catch {
-        return false;
-      }
+      try { return String(asRecord(source).platform ?? '').toUpperCase() === 'WHATSAPP'; } catch { return false; }
     });
-
-    const preview = await previewPromise;
-    return { ...schedulerUnavailableState(targets), ...preview };
+    const [preview, admission] = await Promise.all([previewPromise, admissionPromise]);
+    return { ...schedulerUnavailableState(targets), ...preview, admission };
   }
 }
 
-export async function saveWhatsappQuizSchedule(client: SupabaseClient, input: SaveWhatsappQuizScheduleInput): Promise<WhatsAppQuizAdminData> {
-  return invoke(client, {
+export async function saveWhatsappQuizSchedule(client: SupabaseClient, input: SaveWhatsappQuizScheduleInput): Promise<void> {
+  await invokeScheduler(client, {
     action: 'SAVE',
     community_id: input.communityId,
     enabled: input.enabled,
@@ -255,20 +295,20 @@ export async function saveWhatsappQuizSchedule(client: SupabaseClient, input: Sa
     time_of_day: input.timeOfDay,
     timezone: input.timezone,
     days_of_week: input.daysOfWeek,
-    question_count: 10,
   });
 }
 
-export function sendWhatsappQuizNow(client: SupabaseClient, communityId: string): Promise<WhatsAppQuizAdminData> {
-  return invoke(client, { action: 'RUN_NOW', community_id: communityId, question_count: 10 });
+export async function saveAdmissionQuizSettings(client: SupabaseClient, input: SaveAdmissionQuizSettingsInput): Promise<void> {
+  const { error } = await client.rpc('admin_save_admission_settings', {
+    p_form_origin: input.formOrigin,
+    p_question_ids: input.questionIds,
+    p_greeting: input.greeting.trim(),
+  });
+  if (error) throw new Error(error.message || 'Could not save the admission quiz settings.');
 }
 
-export function pauseWhatsappQuiz(client: SupabaseClient): Promise<WhatsAppQuizAdminData> {
-  return invoke(client, { action: 'PAUSE' });
-}
-
-export function addWhatsappQuizQuestion(client: SupabaseClient, input: AddWhatsappQuizQuestionInput): Promise<WhatsAppQuizAdminData> {
-  return invoke(client, {
+export async function addWhatsappQuizQuestion(client: SupabaseClient, input: AddWhatsappQuizQuestionInput): Promise<void> {
+  await invokeScheduler(client, {
     action: 'ADD_QUESTION',
     prompt: input.prompt,
     options: input.options,
