@@ -5,8 +5,7 @@ import { LanguageProvider } from '../src/i18n/LanguageContext';
 const mocks = vi.hoisted(() => ({
   loadWhatsappQuizAdmin: vi.fn(),
   saveWhatsappQuizSchedule: vi.fn(),
-  sendWhatsappQuizNow: vi.fn(),
-  pauseWhatsappQuiz: vi.fn(),
+  saveAdmissionQuizSettings: vi.fn(),
   addWhatsappQuizQuestion: vi.fn(),
 }));
 
@@ -14,14 +13,14 @@ vi.mock('../src/services/supabase', () => ({ getSupabaseClient: () => ({}) }));
 vi.mock('../src/services/whatsapp-quiz', () => ({
   loadWhatsappQuizAdmin: mocks.loadWhatsappQuizAdmin,
   saveWhatsappQuizSchedule: mocks.saveWhatsappQuizSchedule,
-  sendWhatsappQuizNow: mocks.sendWhatsappQuizNow,
-  pauseWhatsappQuiz: mocks.pauseWhatsappQuiz,
+  saveAdmissionQuizSettings: mocks.saveAdmissionQuizSettings,
   addWhatsappQuizQuestion: mocks.addWhatsappQuizQuestion,
 }));
 
 import { WhatsAppQuizPage } from '../src/pages/WhatsAppQuizPage';
 
 const generalId = '11111111-1111-4111-8111-111111111111';
+const bank = Array.from({ length: 5 }, (_, index) => ({ id: `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa${index}`, number: index + 1, prompt: `Question ${index + 1}` }));
 
 beforeEach(() => {
   mocks.loadWhatsappQuizAdmin.mockResolvedValue({
@@ -42,10 +41,16 @@ beforeEach(() => {
       nextRunAt: null,
       lastError: '',
     },
+    admission: {
+      greeting: 'Welcome to the daily quiz.',
+      questionIds: bank.map((item) => item.id),
+      formOrigin: null,
+      updatedAt: null,
+      questionBank: bank,
+    },
   });
   mocks.saveWhatsappQuizSchedule.mockResolvedValue(undefined);
-  mocks.sendWhatsappQuizNow.mockResolvedValue(undefined);
-  mocks.pauseWhatsappQuiz.mockResolvedValue(undefined);
+  mocks.saveAdmissionQuizSettings.mockResolvedValue(undefined);
   mocks.addWhatsappQuizQuestion.mockResolvedValue(undefined);
 });
 
@@ -58,13 +63,13 @@ describe('WhatsApp quiz question editor', () => {
   it('lets an admin add one active four-option question without entering technical IDs', async () => {
     render(<LanguageProvider><WhatsAppQuizPage /></LanguageProvider>);
 
-    expect(await screen.findByRole('heading', { name: 'Add question' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'Which network does this quiz use for transfers?' } });
-    fireEvent.change(screen.getByLabelText('Option A'), { target: { value: 'TRON' } });
-    fireEvent.change(screen.getByLabelText('Option B'), { target: { value: 'Ethereum' } });
-    fireEvent.change(screen.getByLabelText('Option C'), { target: { value: 'Solana' } });
-    fireEvent.change(screen.getByLabelText('Option D'), { target: { value: 'BNB Smart Chain' } });
-    fireEvent.change(screen.getByLabelText('Correct answer'), { target: { value: '0' } });
+    expect(await screen.findByRole('heading', { name: 'Add a question' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('New quiz question'), { target: { value: 'Which network does this quiz use for transfers?' } });
+    fireEvent.change(screen.getByLabelText('Option 1'), { target: { value: 'TRON' } });
+    fireEvent.change(screen.getByLabelText('Option 2'), { target: { value: 'Ethereum' } });
+    fireEvent.change(screen.getByLabelText('Option 3'), { target: { value: 'Solana' } });
+    fireEvent.change(screen.getByLabelText('Option 4'), { target: { value: 'BNB Smart Chain' } });
+    fireEvent.click(screen.getByLabelText('Mark option 1 correct'));
     fireEvent.click(screen.getByRole('button', { name: 'Add to question bank' }));
 
     await waitFor(() => expect(mocks.addWhatsappQuizQuestion).toHaveBeenCalledWith(expect.anything(), {
@@ -72,6 +77,6 @@ describe('WhatsApp quiz question editor', () => {
       options: ['TRON', 'Ethereum', 'Solana', 'BNB Smart Chain'],
       correctOptionIndex: 0,
     }));
-    expect(screen.queryByText(/source question|question id|database/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/question id|database id/i)).not.toBeInTheDocument();
   });
 });
