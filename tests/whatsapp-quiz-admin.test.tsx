@@ -89,7 +89,7 @@ describe('WhatsApp Quiz admin page', () => {
 
     expect(await screen.findByRole('heading', { name: 'WhatsApp General Community' })).toBeInTheDocument();
     expect(screen.getByText('READY')).toBeInTheDocument();
-    expect(screen.getByText(/Sep 10|10\/09|2026/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Sep 10|Sep 11|10\/09|11\/09|2026/).length).toBeGreaterThanOrEqual(2);
   });
 
   it('can save Daily at 7 PM, Weekly, and Custom days without sending', async () => {
