@@ -156,9 +156,10 @@ function mapHistory(value: unknown): AdmissionDecisionHistory[] {
 }
 
 export async function getAdmissionDetail(client: SupabaseClient, applicationId: string): Promise<AdmissionDetail> {
-  const [{ data, error }, formOriginConfigured] = await Promise.all([
+  const [{ data, error }, formOriginConfigured, admissions] = await Promise.all([
     client.rpc('admin_get_admission', { p_application_id: applicationId }),
     readFormOriginConfigured(client),
+    listAdmissions(client),
   ]);
   if (error) throw new Error(error.message || 'Could not load the admission review.');
 
@@ -166,10 +167,11 @@ export async function getAdmissionDetail(client: SupabaseClient, applicationId: 
   const review = asRecord(payload.review);
   const id = text(review.application_id ?? applicationId).trim();
   if (!id) throw new Error('The admission review returned no application ID.');
+  const listItem = admissions.find((item) => item.applicationId === id);
 
   return {
     applicationId: id,
-    platform: text(review.platform ?? payload.platform, 'unknown').toLowerCase(),
+    platform: listItem?.platform ?? 'unknown',
     stage: text(review.stage, 'SCORE_REVIEW'),
     quizScore: nullableNumber(review.quiz_score),
     personaScore: nullableNumber(review.persona_score),
