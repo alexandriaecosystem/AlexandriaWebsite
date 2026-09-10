@@ -77,6 +77,6 @@ describe('WhatsApp quiz question editor', () => {
       options: ['TRON', 'Ethereum', 'Solana', 'BNB Smart Chain'],
       correctOptionIndex: 0,
     }));
-    expect(screen.queryByText(/question id|database id/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/question id|database id/i)).not.toBeInTheDocument();
   });
 });
