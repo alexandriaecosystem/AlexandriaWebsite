@@ -93,7 +93,7 @@ beforeEach(() => {
   mocks.listAdmissions.mockResolvedValue([
     { applicationId: 'low', name: 'Low score participant', platform: 'whatsapp', stage: 'SCORE_REVIEW', quizScore: 20, personaScore: 25, totalScore: 21.5, version: 1, updatedAt: '2026-09-10T20:00:00Z' },
     { applicationId: 'waiting', name: 'Awaiting details', platform: 'whatsapp', stage: 'FORM_PENDING', quizScore: 95, personaScore: 90, totalScore: 93.5, version: 2, updatedAt: '2026-09-10T21:00:00Z' },
-    { applicationId: 'info', name: 'Information review', platform: 'telegram', stage: 'INFORMATION_REVIEW', quizScore: 80, personaScore: 80, totalScore: 80, version: 3, updatedAt: '2026-09-10T22:00:00Z' },
+    { applicationId: 'info', name: 'Submitted participant', platform: 'telegram', stage: 'INFORMATION_REVIEW', quizScore: 80, personaScore: 80, totalScore: 80, version: 3, updatedAt: '2026-09-10T22:00:00Z' },
   ]);
 
   mocks.getAdmissionDetail.mockResolvedValue({
@@ -157,9 +157,10 @@ describe('VIP admission administration', () => {
 
     expect(await screen.findByText('Low score participant')).toBeInTheDocument();
     expect(screen.getByText('Awaiting details')).toBeInTheDocument();
-    expect(screen.getByText('Information review')).toBeInTheDocument();
-    expect(screen.getByText('Assessment review')).toBeInTheDocument();
-    expect(screen.getByText('Awaiting information')).toBeInTheDocument();
+    expect(screen.getByText('Submitted participant')).toBeInTheDocument();
+    expect(screen.getAllByText('Assessment review').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Awaiting information').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Information review').length).toBeGreaterThan(0);
     expect(screen.getByRole('columnheader', { name: 'Quiz' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Crypto understanding' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Combined' })).toBeInTheDocument();
