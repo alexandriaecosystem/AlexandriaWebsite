@@ -39,6 +39,13 @@ export type CreateAiSleepWindowInput = {
   reason?: string | null;
 };
 
+export type KnownAiSleepChannel = {
+  platform: AiSleepPlatform;
+  externalChannelId: string;
+  name: string;
+  communityLevel: string;
+};
+
 const MAX_SLEEP_MS = 30 * 24 * 60 * 60 * 1000;
 
 function nullableString(value: unknown): string | null {
@@ -118,6 +125,22 @@ export async function createAiSleepWindow(
 export async function cancelAiSleepWindow(client: SupabaseClient, windowId: string): Promise<void> {
   const { error } = await client.rpc('admin_cancel_ai_sleep_window', { p_window_id: windowId });
   if (error) throw new Error(error.message || 'Could not wake the AI.');
+}
+
+function normalizeKnownChannel(value: Record<string, unknown>): KnownAiSleepChannel {
+  return {
+    platform: normalizePlatform(value.platform),
+    externalChannelId: String(value.external_target_id),
+    name: String(value.name ?? ''),
+    communityLevel: String(value.community_level ?? ''),
+  };
+}
+
+export async function listKnownAiSleepChannels(client: SupabaseClient): Promise<KnownAiSleepChannel[]> {
+  const { data, error } = await client.rpc('admin_list_known_ai_sleep_channels');
+  if (error) throw new Error(error.message || 'Could not load known channels.');
+  const items = Array.isArray(data) ? data as Record<string, unknown>[] : [];
+  return items.map(normalizeKnownChannel);
 }
 
 export function localDateTimeToIso(value: string): string {

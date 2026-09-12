@@ -10,6 +10,8 @@ export const NAVIGATION_PATHS: Record<string, string> = {
   announcements: "/announcements",
   token_activity: "/token-monitor",
   account_security: "/account",
+  operations: "/operations",
+  settings: "/settings",
 };
 
 export const WRITE_TOOLS = new Set([

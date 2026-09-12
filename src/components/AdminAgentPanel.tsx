@@ -43,7 +43,7 @@ export type AdminAgentPanelProps = {
 
 const allowedAgentPaths = new Set([
   '/', '/analytics', '/knowledge', '/users', '/messages', '/reviews', '/community',
-  '/announcements', '/token-monitor', '/account', '/knowledge-gaps',
+  '/announcements', '/token-monitor', '/account', '/knowledge-gaps', '/operations', '/settings',
 ]);
 
 const voiceLocales = [
