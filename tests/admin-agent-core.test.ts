@@ -1,8 +1,19 @@
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { buildAdminPageContext } from '../src/agent/page-context';
 import { resolveVoiceNavigation } from '../src/agent/voice-commands';
 import routerEdgeFunctionSource from '../supabase/functions/admin-agent/index.ts?raw';
 import legacyEdgeFunctionSource from '../supabase/functions/admin-agent-legacy/index.ts?raw';
+
+function parseDirectKnowledgeAddFromRouter(instruction: string): string | null {
+  const start = routerEdgeFunctionSource.indexOf('function parseDirectKnowledgeAdd');
+  const end = routerEdgeFunctionSource.indexOf('function titleFor', start);
+  if (start < 0 || end < 0) throw new Error('Direct knowledge parser not found in router source.');
+  const parserSource = routerEdgeFunctionSource
+    .slice(start, end)
+    .replace('function parseDirectKnowledgeAdd(instruction: string): string | null', 'function parseDirectKnowledgeAdd(instruction)');
+  return runInNewContext(`${parserSource}\nparseDirectKnowledgeAdd(${JSON.stringify(instruction)})`);
+}
 
 describe('voice navigation', () => {
   it('resolves English navigation commands without using the AI agent', () => {
@@ -67,6 +78,18 @@ describe('admin page context', () => {
       pageLabel: 'Admin page',
       language: 'en',
     });
+  });
+});
+
+describe('dashboard knowledge request routing', () => {
+  it('recognizes destination-first add wording from the admin chat', () => {
+    expect(parseDirectKnowledgeAddFromRouter('add to knowledge base alexandria is not a crypto currency'))
+      .toBe('alexandria is not a crypto currency');
+  });
+
+  it('keeps recognizing content-first wording', () => {
+    expect(parseDirectKnowledgeAddFromRouter('add Alexandria uses the TRON network to the knowledge base'))
+      .toBe('Alexandria uses the TRON network');
   });
 });
 

@@ -119,6 +119,7 @@ function parseDirectKnowledgeAdd(instruction: string): string | null {
   const patterns = [
     /(?:^|[\s,])(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:add|save|put|insert)\s+([\s\S]+?)\s+(?:to|into|in)\s+(?:the\s+)?(?:alexandria\s+)?(?:knowledge\s*base|kb)\s*[?.!]*$/i,
     /(?:^|[\s,])(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:add|save|put|insert)\s+(?:this\s+)?(?:to|into|in)\s+(?:the\s+)?(?:alexandria\s+)?(?:knowledge\s*base|kb)\s*[:\-–—]\s*([\s\S]+)$/i,
+    /(?:^|[\s,])(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:add|save|put|insert)\s+(?:this\s+)?(?:to|into|in)\s+(?:the\s+)?(?:alexandria\s+)?(?:knowledge\s*base|kb)\s+([\s\S]+?)\s*[?.!]*$/i,
     /(?:أضف|اضف|احفظ|سجّل|سجل)\s+([\s\S]+?)\s+(?:إلى|الى|في)\s+(?:قاعدة\s+المعرفة|قاعدة\s+معرفة)\s*[؟?!.]*$/u,
     /(?:أضف|اضف|احفظ|سجّل|سجل)\s+(?:إلى|الى|في)\s+(?:قاعدة\s+المعرفة|قاعدة\s+معرفة)\s*[:\-–—]\s*([\s\S]+)$/u,
   ];
