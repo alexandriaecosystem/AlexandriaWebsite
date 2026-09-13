@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildAdminPageContext } from '../src/agent/page-context';
 import { resolveVoiceNavigation } from '../src/agent/voice-commands';
-import edgeFunctionSource from '../supabase/functions/admin-agent/index.ts?raw';
+import routerEdgeFunctionSource from '../supabase/functions/admin-agent/index.ts?raw';
+import legacyEdgeFunctionSource from '../supabase/functions/admin-agent-legacy/index.ts?raw';
 
 describe('voice navigation', () => {
   it('resolves English navigation commands without using the AI agent', () => {
@@ -70,22 +71,38 @@ describe('admin page context', () => {
 });
 
 describe('secure write confirmation wiring', () => {
-  it('consumes the confirmation nonce before executing a write tool', () => {
-    const start = edgeFunctionSource.indexOf('if (body.confirmation)');
-    const end = edgeFunctionSource.indexOf('const model = await callModel', start);
-    const confirmationBranch = edgeFunctionSource.slice(start, end);
+  it('consumes direct knowledge confirmation before calling the n8n knowledge workflow', () => {
+    const start = routerEdgeFunctionSource.indexOf('if (body.confirmation)');
+    const end = routerEdgeFunctionSource.indexOf('const content = parseDirectKnowledgeAdd', start);
+    const confirmationBranch = routerEdgeFunctionSource.slice(start, end);
 
     expect(confirmationBranch).toContain('admin_consume_agent_confirmation');
+    expect(confirmationBranch).toContain('callDashboardKnowledgeAssistant');
+    expect(confirmationBranch.indexOf('admin_consume_agent_confirmation'))
+      .toBeLessThan(confirmationBranch.indexOf('callDashboardKnowledgeAssistant'));
+    expect(confirmationBranch).toContain('proxyLegacy');
+  });
+
+  it('keeps legacy write confirmations one-time before executing legacy tools', () => {
+    const start = legacyEdgeFunctionSource.indexOf('if (body.confirmation)');
+    const end = legacyEdgeFunctionSource.indexOf('const model = await callModel', start);
+    const confirmationBranch = legacyEdgeFunctionSource.slice(start, end);
+
+    expect(confirmationBranch).toContain('admin_consume_agent_confirmation');
+    expect(confirmationBranch).toContain('executeTool');
     expect(confirmationBranch.indexOf('admin_consume_agent_confirmation'))
       .toBeLessThan(confirmationBranch.indexOf('executeTool'));
   });
 });
 
 describe('knowledge search wiring', () => {
-  it('uses the admin content-search RPC instead of title-only filtering', () => {
-    const start = edgeFunctionSource.indexOf('case "search_knowledge_base"');
-    const end = edgeFunctionSource.indexOf('case "get_analytics"', start);
-    const searchBranch = edgeFunctionSource.slice(start, end);
+  it('keeps general knowledge search in the legacy agent behind the router', () => {
+    expect(routerEdgeFunctionSource).toContain('admin-agent-legacy');
+    expect(routerEdgeFunctionSource).toContain('proxyLegacy');
+
+    const start = legacyEdgeFunctionSource.indexOf('case "search_knowledge_base"');
+    const end = legacyEdgeFunctionSource.indexOf('case "get_analytics"', start);
+    const searchBranch = legacyEdgeFunctionSource.slice(start, end);
 
     expect(searchBranch).toContain('admin_search_knowledge_documents');
     expect(searchBranch).not.toContain('item.title');

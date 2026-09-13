@@ -125,7 +125,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
 
   async function handleInstruction(rawInstruction: string) {
     const instruction = rawInstruction.trim();
-    if (!instruction || status === 'thinking' || status === 'executing') return;
+    if (!instruction || pendingConfirmation || status === 'thinking' || status === 'executing') return;
     setInput('');
     addMessage('admin', instruction);
 
@@ -192,6 +192,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
   async function confirmPendingAction() {
     if (!pendingConfirmation) return;
     const { response, instruction } = pendingConfirmation;
+    setPendingConfirmation(null);
     await runAgent(instruction, { token: response.confirmationToken, tool: response.tool });
   }
 
@@ -246,6 +247,42 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
                 <p>{message.text}</p>
               </div>
             ))}
+
+            {pendingConfirmation && (
+              <div
+                className="admin-agent-inline-confirmation"
+                role="group"
+                aria-label={tr('Pending admin action', 'إجراء إداري بانتظار التأكيد')}
+              >
+                <div className="admin-agent-inline-confirmation-header">
+                  <span className="admin-agent-inline-confirmation-icon" aria-hidden="true">✓</span>
+                  <div>
+                    <small>{tr('Confirmation required', 'التأكيد مطلوب')}</small>
+                    <strong>{tr('Review before changing data', 'راجع قبل تغيير البيانات')}</strong>
+                  </div>
+                </div>
+                <dl>
+                  {Object.entries(pendingConfirmation.response.preview).map(([key, value]) => (
+                    <div key={key}>
+                      <dt>{key.replaceAll('_', ' ')}</dt>
+                      <dd>{Array.isArray(value) ? value.join(', ') : String(value ?? '—')}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className="admin-agent-inline-confirmation-actions">
+                  <button type="button" className="secondary-button" onClick={cancelPendingAction}>{tr('Cancel', 'إلغاء')}</button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    aria-label={tr('Confirm action', 'تأكيد الإجراء')}
+                    onClick={() => void confirmPendingAction()}
+                    disabled={status === 'executing'}
+                  >
+                    {status === 'executing' ? tr('Executing…', 'جارٍ التنفيذ…') : tr('Confirm action', 'تأكيد الإجراء')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {error && <div className="admin-agent-error" role="alert">{error}</div>}
@@ -260,7 +297,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
               maxLength={4000}
               onChange={(event) => setInput(event.target.value)}
               placeholder={tr('Ask a question or give an admin instruction…', 'اكتب سؤالاً أو أمراً إدارياً…')}
-              disabled={status === 'thinking' || status === 'executing'}
+              disabled={Boolean(pendingConfirmation) || status === 'thinking' || status === 'executing'}
             />
             <div className="admin-agent-actions">
               <div className="admin-agent-voice-controls">
@@ -271,7 +308,7 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
                   aria-label={tr('Voice recognition language', 'لغة التعرف على الصوت')}
                   value={voiceLocale}
                   onChange={(event) => setVoiceLocale(event.target.value)}
-                  disabled={status === 'listening' || status === 'thinking' || status === 'executing'}
+                  disabled={Boolean(pendingConfirmation) || status === 'listening' || status === 'thinking' || status === 'executing'}
                 >
                   {voiceLocales.map((locale) => <option value={locale.value} key={locale.value}>{language === 'ar' ? locale.ar : locale.en}</option>)}
                 </select>
@@ -280,40 +317,23 @@ export function AdminAgentPanel({ requestAgent = sendAdminAgentRequest }: AdminA
                   className={`admin-agent-mic ${status === 'listening' ? 'listening' : ''}`}
                   aria-label={status === 'listening' ? tr('Listening for voice command', 'جارٍ الاستماع للأمر الصوتي') : tr('Start voice command', 'بدء أمر صوتي')}
                   onClick={startListening}
-                  disabled={status === 'thinking' || status === 'executing'}
+                  disabled={Boolean(pendingConfirmation) || status === 'thinking' || status === 'executing'}
                 >
                   <span className="admin-agent-mic-dot" aria-hidden="true">◉</span>
                   <span>{status === 'listening' ? tr('Listening', 'استماع') : tr('Voice', 'صوت')}</span>
                 </button>
               </div>
-              <button type="submit" className="primary-button" aria-label={tr('Send message', 'إرسال الرسالة')} disabled={!input.trim() || status === 'thinking' || status === 'executing'}>
+              <button
+                type="submit"
+                className="primary-button"
+                aria-label={tr('Send message', 'إرسال الرسالة')}
+                disabled={Boolean(pendingConfirmation) || !input.trim() || status === 'thinking' || status === 'executing'}
+              >
                 {tr('Send', 'إرسال')}
               </button>
             </div>
           </form>
         </section>
-      )}
-
-      {pendingConfirmation && (
-        <div className="admin-agent-confirmation-backdrop" role="presentation">
-          <section className="admin-agent-confirmation" role="dialog" aria-modal="true" aria-label={tr('Confirm admin action', 'تأكيد الإجراء الإداري')}>
-            <div className="admin-agent-confirmation-icon" aria-hidden="true">✓</div>
-            <p className="eyebrow">{tr('Confirmation required', 'التأكيد مطلوب')}</p>
-            <h2>{tr('Review before changing data', 'راجع قبل تغيير البيانات')}</h2>
-            <p>{pendingConfirmation.response.message}</p>
-            <dl>
-              {Object.entries(pendingConfirmation.response.preview).map(([key, value]) => (
-                <div key={key}><dt>{key.replaceAll('_', ' ')}</dt><dd>{Array.isArray(value) ? value.join(', ') : String(value ?? '—')}</dd></div>
-              ))}
-            </dl>
-            <div className="admin-agent-confirmation-actions">
-              <button type="button" className="secondary-button" onClick={cancelPendingAction}>{tr('Cancel', 'إلغاء')}</button>
-              <button type="button" className="primary-button" aria-label={tr('Confirm action', 'تأكيد الإجراء')} onClick={() => void confirmPendingAction()} disabled={status === 'executing'}>
-                {status === 'executing' ? tr('Executing…', 'جارٍ التنفيذ…') : tr('Confirm action', 'تأكيد الإجراء')}
-              </button>
-            </div>
-          </section>
-        </div>
       )}
     </div>
   );
