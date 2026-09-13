@@ -411,8 +411,17 @@ export async function getKnowledgeDocument(client: SupabaseClient, documentId: s
   };
 }
 
+const KNOWLEDGE_UPLOAD_EXTENSIONS = new Set(['docx', 'txt', 'md']);
+const KNOWLEDGE_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+
 export async function createKnowledgeDocument(client: SupabaseClient, input: { title: string; category: string; language: string; file: File }) {
   const extension = input.file.name.includes('.') ? input.file.name.split('.').pop()!.toLowerCase() : 'txt';
+  if (!KNOWLEDGE_UPLOAD_EXTENSIONS.has(extension)) {
+    throw new AdminApiError('Only .docx, .txt, or .md files can be added to the knowledge base.');
+  }
+  if (!input.file.size || input.file.size > KNOWLEDGE_UPLOAD_MAX_BYTES) {
+    throw new AdminApiError('Knowledge files must be between 1 byte and 20 MB.');
+  }
   const created = await client.rpc('admin_create_knowledge_document', {
     p_title: input.title.trim(), p_category: input.category.trim(), p_language: input.language.trim(), p_file_extension: extension,
   });

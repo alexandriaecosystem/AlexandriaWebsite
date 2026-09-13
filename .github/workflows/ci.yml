@@ -36,10 +36,11 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Check admin Edge Functions
+      - name: Check Edge Functions
         run: |
-          deno check --node-modules-dir=auto supabase/functions/admin-agent/index.ts
-          deno check --node-modules-dir=auto supabase/functions/whatsapp-quiz-admin/index.ts
+          for fn in supabase/functions/*/index.ts; do
+            deno check --node-modules-dir=auto "$fn"
+          done
 
       - name: Build
         run: npm run build

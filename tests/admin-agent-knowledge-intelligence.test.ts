@@ -5,7 +5,7 @@ import {
   executeSafeKnowledgeApproval,
   normalizeKnowledgeIntelligenceToolArgs,
   previewKnowledgeIntelligenceTool,
-} from '../supabase/functions/admin-agent/knowledge-intelligence-tools';
+} from '../supabase/functions/admin-agent-legacy/knowledge-intelligence-tools';
 
 describe('Admin AI Knowledge Intelligence safety', () => {
   it('keeps read tools separate from explicit-confirmation write tools', () => {

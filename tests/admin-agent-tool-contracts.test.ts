@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_TOOLS, WRITE_TOOLS, normalizeToolArgs, previewFor } from '../supabase/functions/admin-agent/tools';
+import { ALL_TOOLS, WRITE_TOOLS, normalizeToolArgs, previewFor } from '../supabase/functions/admin-agent-legacy/tools';
 
 describe('AI admin tool allowlist', () => {
   it('contains only the explicit supported tool names', () => {
