@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { EmptyState, RetryableErrorState, TableSkeleton } from '../components/AsyncState';
 import { useLanguage } from '../i18n/LanguageContext';
 import { listAdmissions, type AdmissionListItem, type AdmissionStage } from '../services/admission';
+import { approveVipRecommendation, dismissVipRecommendation, listVipRecommendations, type VipRecommendation } from '../services/vip-recommendations';
 import { getSupabaseClient } from '../services/supabase';
 
 type ReviewSort = 'newest' | 'oldest' | 'score-high' | 'score-low';
@@ -22,11 +23,37 @@ export function ReviewsPage() {
   const [platform, setPlatform] = useState('all');
   const [stage, setStage] = useState('all');
   const [sort, setSort] = useState<ReviewSort>('newest');
+  const [recommendations, setRecommendations] = useState<VipRecommendation[]>([]);
+  const [recommendationBusy, setRecommendationBusy] = useState('');
+  const [recommendationNote, setRecommendationNote] = useState('');
 
   useEffect(() => {
     setError(false);
     listAdmissions(getSupabaseClient()).then(setItems).catch(() => setError(true));
+    listVipRecommendations(getSupabaseClient()).then(setRecommendations).catch(() => setRecommendations([]));
   }, [reload]);
+
+  async function decideRecommendation(userId: string, decision: 'approve' | 'dismiss') {
+    setRecommendationBusy(userId);
+    setRecommendationNote('');
+    try {
+      if (decision === 'approve') {
+        const result = await approveVipRecommendation(getSupabaseClient(), userId);
+        setRecommendationNote(tr(
+          `Approved — the private invite is being sent on ${result.platform}.`,
+          `تمت الموافقة — يتم إرسال الدعوة الخاصة عبر ${result.platform}.`,
+        ));
+      } else {
+        await dismissVipRecommendation(getSupabaseClient(), userId);
+        setRecommendationNote(tr('Recommendation dismissed.', 'تم تجاهل الترشيح.'));
+      }
+      setReload((n) => n + 1);
+    } catch (caught) {
+      setRecommendationNote(caught instanceof Error ? caught.message : tr('The action failed.', 'فشل الإجراء.'));
+    } finally {
+      setRecommendationBusy('');
+    }
+  }
 
   const stageLabel = (value: AdmissionStage) => ({
     SCORE_REVIEW: tr('Assessment review', 'مراجعة التقييم'),
@@ -77,6 +104,38 @@ export function ReviewsPage() {
         </div>
         {items && <span className="queue-count">{actionableCount} {tr('need a decision', 'تحتاج إلى قرار')}</span>}
       </header>
+
+      {recommendations.length > 0 && (
+        <section className="panel" aria-label={tr('VIP recommendations', 'ترشيحات VIP')}>
+          <p className="eyebrow">{tr('Agent recommendations', 'ترشيحات الوكيل')}</p>
+          <h2>{tr('Recommended for the VIP community', 'مرشحون لمجتمع VIP')}</h2>
+          <p className="muted">{tr('These members answered enough daily questions well. Approving sends them the private invite by DM — nothing is posted in the group.', 'هؤلاء الأعضاء أجابوا جيداً على عدد كافٍ من الأسئلة اليومية. الموافقة ترسل لهم الدعوة الخاصة برسالة مباشرة — لا يُنشر شيء في المجموعة.')}</p>
+          {recommendationNote && <p className="muted" role="status">{recommendationNote}</p>}
+          <div className="account-list">
+            {recommendations.map((rec) => (
+              <div className="account-card" key={rec.userId}>
+                <strong>{rec.name || tr('Unnamed member', 'عضو بدون اسم')}</strong>
+                <small className="muted">
+                  {tr('Score', 'النتيجة')} {rec.qualificationScore == null ? '—' : Math.round(rec.qualificationScore)}/100
+                  {' · '}{rec.answerCount} {tr('answers', 'إجابة')}
+                  {' · '}{rec.platforms.join(', ') || '—'}
+                </small>
+                <div className="chip-row">
+                  <button type="button" className="primary-button" disabled={recommendationBusy === rec.userId}
+                    onClick={() => void decideRecommendation(rec.userId, 'approve')}>
+                    {recommendationBusy === rec.userId ? tr('Working…', 'جارٍ التنفيذ…') : tr('Approve & invite', 'موافقة وإرسال دعوة')}
+                  </button>
+                  <button type="button" className="ghost-button" disabled={recommendationBusy === rec.userId}
+                    onClick={() => void decideRecommendation(rec.userId, 'dismiss')}>
+                    {tr('Dismiss', 'تجاهل')}
+                  </button>
+                  <Link className="row-link" to={`/users/${rec.userId}`}>{tr('View member', 'عرض العضو')}</Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {error ? (
         <RetryableErrorState onRetry={() => { setError(false); setReload((n) => n + 1); }} />

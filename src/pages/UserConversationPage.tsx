@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
-import { getAdminUserConversation, markAdminConversationRead, type AdminUserConversation } from '../services/users-admin';
+import { getAdminUserConversation, listAdminUsers, markAdminConversationRead, type AdminUserConversation, type AdminUserListItem } from '../services/users-admin';
+import { getMemberPortfolio, mergeMembers, type MemberPortfolio } from '../services/vip-recommendations';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../users.css';
 
@@ -31,6 +32,12 @@ export function UserConversationPage() {
   const [platform, setPlatform] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [portfolio, setPortfolio] = useState<MemberPortfolio | null>(null);
+  const [otherMembers, setOtherMembers] = useState<AdminUserListItem[]>([]);
+  const [mergeTarget, setMergeTarget] = useState('');
+  const [mergeBusy, setMergeBusy] = useState(false);
+  const [mergeNote, setMergeNote] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     setLoading(true);
@@ -43,7 +50,29 @@ export function UserConversationPage() {
       })
       .catch((caught) => setError(caught instanceof Error ? caught.message : tr('Could not load user.', 'تعذر تحميل المستخدم.')))
       .finally(() => setLoading(false));
+    void getMemberPortfolio(client, userId).then(setPortfolio).catch(() => setPortfolio(null));
+    void listAdminUsers(client).then((result) => setOtherMembers(result.items.filter((item) => item.id !== userId))).catch(() => setOtherMembers([]));
   }, [userId, tr]);
+
+  async function mergeSelectedMember() {
+    if (!mergeTarget) return;
+    const duplicate = otherMembers.find((item) => item.id === mergeTarget);
+    const confirmed = window.confirm(tr(
+      `Merge "${duplicate?.name || mergeTarget}" into this member? All their accounts, messages and scores move here. This cannot be undone.`,
+      `دمج «${duplicate?.name || mergeTarget}» في هذا العضو؟ ستنتقل كل حساباته ورسائله ونتائجه إلى هنا. لا يمكن التراجع.`,
+    ));
+    if (!confirmed) return;
+    setMergeBusy(true);
+    setMergeNote('');
+    try {
+      await mergeMembers(getSupabaseClient(), userId, mergeTarget);
+      setMergeNote(tr('Merged — reloading…', 'تم الدمج — إعادة التحميل…'));
+      navigate(0);
+    } catch (caught) {
+      setMergeNote(caught instanceof Error ? caught.message : tr('Merge failed.', 'فشل الدمج.'));
+      setMergeBusy(false);
+    }
+  }
 
   const visibleMessages = useMemo(() => {
     if (!data) return [];
@@ -119,6 +148,43 @@ export function UserConversationPage() {
               ))}
               {!data.platformAccounts.length && <p className="muted">{tr('No connected platform accounts.', 'لا توجد حسابات منصات مرتبطة.')}</p>}
             </div>
+            {otherMembers.length > 0 && (
+              <div className="merge-member-control">
+                <p className="eyebrow">{tr('Same person on another platform?', 'نفس الشخص على منصة أخرى؟')}</p>
+                <div className="chip-row">
+                  <label className="select-field">
+                    <span className="sr-only">{tr('Member to merge into this one', 'العضو المراد دمجه في هذا العضو')}</span>
+                    <select value={mergeTarget} onChange={(event) => setMergeTarget(event.target.value)}>
+                      <option value="">{tr('Select duplicate member…', 'اختر العضو المكرر…')}</option>
+                      {otherMembers.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {(item.name || tr('Unnamed', 'بدون اسم'))} · {item.platforms.join('/') || '—'}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="button" className="ghost-button" disabled={!mergeTarget || mergeBusy} onClick={() => void mergeSelectedMember()}>
+                    {mergeBusy ? tr('Merging…', 'جارٍ الدمج…') : tr('Merge into this member', 'دمج في هذا العضو')}
+                  </button>
+                </div>
+                {mergeNote && <p className="muted" role="status">{mergeNote}</p>}
+              </div>
+            )}
+          </section>
+          <section className="panel user-profile-panel">
+            <p className="eyebrow">{tr('VIP qualification', 'تأهيل VIP')}</p>
+            <dl className="profile-list">
+              <div><dt>{tr('Daily-question score', 'نتيجة الأسئلة اليومية')}</dt><dd>{portfolio?.qualification?.score == null ? '—' : `${Math.round(portfolio.qualification.score)}/100`}</dd></div>
+              <div><dt>{tr('Answers scored', 'إجابات مقيّمة')}</dt><dd>{portfolio?.qualification?.answerCount ?? 0}</dd></div>
+              <div><dt>{tr('Recommended', 'مرشح')}</dt><dd>{portfolio?.qualification?.reviewRequired ? tr('Yes — awaiting admin decision', 'نعم — بانتظار قرار المشرف') : tr('Not yet', 'ليس بعد')}</dd></div>
+              <div><dt>{tr('Evidence records', 'سجلات الأدلة')}</dt><dd>{portfolio?.evidenceCount ?? 0}</dd></div>
+              <div><dt>{tr('Last activity signal', 'آخر إشارة نشاط')}</dt><dd>{formatDate(portfolio?.qualification?.lastEvidenceAt)}</dd></div>
+              <div><dt>{tr('Submitted contact info', 'معلومات التواصل المقدمة')}</dt><dd>{portfolio?.admissionInformation
+                ? [portfolio.admissionInformation.first_name, portfolio.admissionInformation.last_name].filter(Boolean).join(' ')
+                  + (portfolio.admissionInformation.email ? ` · ${String(portfolio.admissionInformation.email)}` : '')
+                  + (portfolio.admissionInformation.phone ? ` · ${String(portfolio.admissionInformation.phone)}` : '')
+                : tr('None — collected when they complete the admission form', 'لا يوجد — تُجمع عند إكمال نموذج القبول')}</dd></div>
+            </dl>
           </section>
         </div>
       )}
