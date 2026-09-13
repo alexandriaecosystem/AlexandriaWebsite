@@ -34,6 +34,19 @@
 [dir='rtl'] .admin-agent-message.assistant{border-radius:15px 15px 5px 15px}
 .admin-agent-message span{display:block;margin-bottom:3px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
 .admin-agent-message p{margin:0;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.admin-agent-inline-confirmation{align-self:stretch;display:grid;gap:10px;padding:12px;border:1px solid rgba(128,108,255,.34);border-radius:14px;background:linear-gradient(135deg,rgba(128,108,255,.12),rgba(91,75,221,.06));box-shadow:0 8px 20px rgba(0,0,0,.14)}
+.admin-agent-inline-confirmation-header{display:flex;align-items:center;gap:9px}
+.admin-agent-inline-confirmation-header>div{display:grid;gap:1px}
+.admin-agent-inline-confirmation-header small{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--accent-strong)}
+.admin-agent-inline-confirmation-header strong{font-size:12px;letter-spacing:-.01em}
+.admin-agent-inline-confirmation-icon{width:30px;height:30px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);border:1px solid rgba(128,108,255,.28);color:var(--accent-strong);font-weight:900}
+.admin-agent-inline-confirmation dl{margin:0;display:grid;padding:2px 9px;border:1px solid var(--border);border-radius:10px;background:rgba(10,17,28,.48)}
+.admin-agent-inline-confirmation dl>div{display:grid;grid-template-columns:minmax(88px,.65fr) minmax(0,1.35fr);gap:9px;padding:7px 0;border-bottom:1px solid var(--border)}
+.admin-agent-inline-confirmation dl>div:last-child{border-bottom:0}
+.admin-agent-inline-confirmation dt{color:var(--muted);text-transform:capitalize;font-size:10px}
+.admin-agent-inline-confirmation dd{margin:0;font-size:11px;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+.admin-agent-inline-confirmation-actions{display:flex;justify-content:flex-end;gap:8px}
+.admin-agent-inline-confirmation .secondary-button{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-raised);padding:8px 12px;font-weight:700}
 .admin-agent-error{margin:0 14px 10px;padding:9px 11px;border:1px solid rgba(255,112,129,.26);border-radius:10px;background:var(--danger-soft);color:#ff9aa6;font-size:11px}
 .admin-agent-compose{padding:11px 13px 13px;border-top:1px solid var(--border);background:var(--surface);box-shadow:0 -8px 22px rgba(0,0,0,.12)}
 .admin-agent-compose textarea{width:100%;min-height:66px;max-height:140px;resize:vertical;border:1px solid var(--border-strong);border-radius:13px;padding:10px 11px;font:inherit;font-size:12px;line-height:1.45;background:var(--panel-soft)}
@@ -43,20 +56,8 @@
 .admin-agent-mic-dot{font-size:11px;color:var(--accent-strong)}
 .admin-agent-mic.listening{color:#ff9aa6;border-color:rgba(255,112,129,.30);background:var(--danger-soft);box-shadow:0 0 0 4px rgba(255,112,129,.08)}
 .admin-agent-mic.listening .admin-agent-mic-dot{color:var(--danger);animation:agent-pulse 1s ease-in-out infinite}
-.admin-agent .primary-button,.admin-agent-confirmation .primary-button{border:1px solid var(--accent);border-radius:10px;background:linear-gradient(135deg,var(--accent),#5b4bdd);color:#fff;padding:8px 13px;font-weight:750;box-shadow:0 8px 18px rgba(91,75,221,.20)}
-.admin-agent .primary-button:hover:not(:disabled),.admin-agent-confirmation .primary-button:hover:not(:disabled){background:linear-gradient(135deg,var(--accent-strong),var(--accent));border-color:var(--accent-strong)}
-.admin-agent-confirmation .secondary-button{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-raised);padding:8px 13px;font-weight:700}
-.admin-agent-confirmation-backdrop{position:fixed;inset:0;z-index:1300;display:grid;place-items:center;padding:20px;background:rgba(3,7,14,.72);backdrop-filter:blur(6px)}
-.admin-agent-confirmation{width:min(540px,100%);max-height:min(700px,calc(100dvh - 40px));overflow:auto;border:1px solid var(--border);border-radius:20px;background:var(--surface);padding:23px;box-shadow:0 34px 100px rgba(0,0,0,.52)}
-.admin-agent-confirmation-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;margin-bottom:12px;background:var(--accent-soft);border:1px solid rgba(128,108,255,.26);color:var(--accent-strong);font-weight:900}
-.admin-agent-confirmation h2{margin:4px 0 8px;font-size:21px;letter-spacing:-.03em}
-.admin-agent-confirmation>p:not(.eyebrow){margin:0 0 16px;color:var(--muted);line-height:1.5}
-.admin-agent-confirmation dl{margin:0;display:grid;gap:7px;padding:4px 12px;border:1px solid var(--border);border-radius:13px;background:var(--panel-soft)}
-.admin-agent-confirmation dl>div{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(0,1.3fr);gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
-.admin-agent-confirmation dl>div:last-child{border-bottom:0}
-.admin-agent-confirmation dt{color:var(--muted);text-transform:capitalize;font-size:11px}
-.admin-agent-confirmation dd{margin:0;font-size:12px;font-weight:750;overflow-wrap:anywhere}
-.admin-agent-confirmation-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}
+.admin-agent .primary-button{border:1px solid var(--accent);border-radius:10px;background:linear-gradient(135deg,var(--accent),#5b4bdd);color:#fff;padding:8px 13px;font-weight:750;box-shadow:0 8px 18px rgba(91,75,221,.20)}
+.admin-agent .primary-button:hover:not(:disabled){background:linear-gradient(135deg,var(--accent-strong),var(--accent));border-color:var(--accent-strong)}
 @media(max-width:650px){
   .admin-agent,[dir='rtl'] .admin-agent{right:8px;left:8px;bottom:8px}
   .admin-agent-launcher{margin-inline-start:auto;min-width:54px;height:54px;padding:0 14px;border-radius:17px}
@@ -64,9 +65,7 @@
   .admin-agent-panel{width:100%;height:min(82dvh,720px);border-radius:22px 22px 14px 14px}
   .admin-agent-header{padding:13px 14px}.admin-agent-context{padding-inline:12px}.admin-agent-messages{padding:14px}
   .admin-agent-message{max-width:92%}
-  .admin-agent-confirmation-backdrop{padding:10px;align-items:end}
-  .admin-agent-confirmation{width:100%;max-height:86dvh;padding:18px;border-radius:22px 22px 12px 12px}
-  .admin-agent-confirmation dl>div{grid-template-columns:1fr;gap:4px}
+  .admin-agent-inline-confirmation dl>div{grid-template-columns:minmax(74px,.55fr) minmax(0,1.45fr);gap:7px}
 }
-@media(max-width:390px){.admin-agent-launcher-label{display:none}.admin-agent-launcher{width:54px;padding:0}.admin-agent-context{align-items:flex-start;flex-direction:column;gap:6px}.admin-agent-page-chip{max-width:100%}}
+@media(max-width:390px){.admin-agent-launcher-label{display:none}.admin-agent-launcher{width:54px;padding:0}.admin-agent-context{align-items:flex-start;flex-direction:column;gap:6px}.admin-agent-page-chip{max-width:100%}.admin-agent-inline-confirmation-actions{justify-content:stretch}.admin-agent-inline-confirmation-actions button{flex:1}}
 @media(prefers-reduced-motion:reduce){.admin-agent-launcher,.admin-agent-status i,.admin-agent-mic-dot{transition:none;animation:none!important}.admin-agent-launcher:hover:not(:disabled){transform:none}}

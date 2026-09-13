@@ -79,7 +79,7 @@ describe('assistant interaction', () => {
     }));
   });
 
-  it('requires explicit confirmation before executing a write action', async () => {
+  it('shows write confirmation inside the chat before executing', async () => {
     const requestAgent = vi.fn()
       .mockResolvedValueOnce({
         kind: 'confirmation_required',
@@ -93,8 +93,11 @@ describe('assistant interaction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open AI admin assistant' }));
     fireEvent.change(screen.getByLabelText('Message AI admin assistant'), { target: { value: 'Create Alexandria Security FAQ and leave it pending' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    expect(await screen.findByRole('dialog', { name: 'Confirm admin action' })).toBeInTheDocument();
-    expect(screen.getByText('Alexandria Security FAQ')).toBeInTheDocument();
+
+    const pendingAction = await screen.findByRole('group', { name: 'Pending admin action' });
+    expect(pendingAction).toHaveTextContent('Alexandria Security FAQ');
+    expect(screen.queryByRole('dialog', { name: 'Confirm admin action' })).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByRole('button', { name: 'Confirm action' }));
     await waitFor(() => expect(requestAgent).toHaveBeenCalledTimes(2));
     expect(requestAgent.mock.calls[1][0]).toEqual(expect.objectContaining({
