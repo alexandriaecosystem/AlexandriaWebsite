@@ -1,41 +1,19 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import {
-  ALL_TOOLS as BASE_ALL_TOOLS,
-  NAVIGATION_PATHS,
-  WRITE_TOOLS as BASE_WRITE_TOOLS,
-  modelTools as baseModelTools,
-  normalizeToolArgs as normalizeBaseToolArgs,
-  previewFor as previewBase,
-} from "./tools.ts";
-import {
-  KNOWLEDGE_INTELLIGENCE_TOOLS,
-  KNOWLEDGE_INTELLIGENCE_WRITE_TOOLS,
-  executeKnowledgeIntelligenceTool,
-  executeSafeKnowledgeApproval,
-  knowledgeIntelligenceModelTools,
-  normalizeKnowledgeIntelligenceToolArgs,
-  previewKnowledgeIntelligenceTool,
-} from "./knowledge-intelligence-tools.ts";
-
-const ALL_TOOLS = new Set([...BASE_ALL_TOOLS, ...KNOWLEDGE_INTELLIGENCE_TOOLS]);
-const WRITE_TOOLS = new Set([...BASE_WRITE_TOOLS, ...KNOWLEDGE_INTELLIGENCE_WRITE_TOOLS]);
-const modelTools = [...baseModelTools, ...knowledgeIntelligenceModelTools];
-const normalizeToolArgs = (tool: string, args: unknown) => KNOWLEDGE_INTELLIGENCE_TOOLS.has(tool)
-  ? normalizeKnowledgeIntelligenceToolArgs(tool, args)
-  : normalizeBaseToolArgs(tool, args);
-const previewFor = (tool: string, args: Record<string, unknown>) => tool === "approve_document"
-  ? { action: "Request knowledge approval", safety: "Database processing, contradiction-scan and blocking-conflict gates remain enforced" }
-  : KNOWLEDGE_INTELLIGENCE_TOOLS.has(tool)
-    ? previewKnowledgeIntelligenceTool(tool, args)
-    : previewBase(tool, args);
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const MODEL_URL = Deno.env.get("ADMIN_AGENT_MODEL_URL") ?? "";
-const MODEL_API_KEY = Deno.env.get("ADMIN_AGENT_MODEL_API_KEY") ?? "";
-const MODEL = Deno.env.get("ADMIN_AGENT_MODEL") ?? "";
 const CONFIRMATION_SECRET = Deno.env.get("ADMIN_AGENT_CONFIRMATION_SECRET") ?? "";
+const N8N_BASE_URL = (
+  Deno.env.get("CRYPTO_N8N_WEBHOOK_BASE_URL")
+  ?? Deno.env.get("N8N_WEBHOOK_BASE_URL")
+  ?? Deno.env.get("N8N_BASE_URL")
+  ?? ""
+).replace(/\/$/, "");
+const INTERNAL_SECRET = Deno.env.get("CRYPTO_INTERNAL_WEBHOOK_SECRET") ?? "";
+const LEGACY_URL = `${SUPABASE_URL}/functions/v1/admin-agent-legacy`;
+const DIRECT_TOOL = "create_knowledge_record";
+const DIRECT_ROUTE = "n8n_dashboard_kb";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,28 +29,18 @@ const decoder = new TextDecoder();
 
 type Language = "en" | "ar";
 type PageContext = { pathname: string; page: string; pageLabel: string; language: Language };
-type ConfirmationPayload = {
-  v: 1;
-  uid: string;
-  tool: string;
-  args: Record<string, unknown>;
-  exp: number;
-  nonce: string;
-};
-type ModelToolCall = { function?: { name?: string; arguments?: string } };
+type ConfirmationPayload = { v: 1; uid: string; tool: string; args: Record<string, unknown>; exp: number; nonce: string };
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid_request");
   return value as Record<string, unknown>;
 }
-
 function requiredText(value: unknown, name: string, min = 1, max = 4000): string {
   if (typeof value !== "string") throw new Error(`invalid_${name}`);
   const normalized = value.trim();
   if (normalized.length < min || normalized.length > max) throw new Error(`invalid_${name}`);
   return normalized;
 }
-
 function parseContext(value: unknown): PageContext {
   const raw = asRecord(value);
   const pathname = requiredText(raw.pathname, "pathname", 1, 300);
@@ -84,483 +52,150 @@ function parseContext(value: unknown): PageContext {
     : language === "ar" ? "صفحة الإدارة" : "Admin page";
   return { pathname, page, pageLabel, language };
 }
-
+function localized(context: PageContext, en: string, ar: string): string { return context.language === "ar" ? ar : en; }
 function b64UrlEncode(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
-
 function b64UrlDecode(value: string): Uint8Array {
   const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
   const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
   return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
 }
-
 async function hmac(value: string): Promise<string> {
   if (CONFIRMATION_SECRET.length < 24) throw new Error("confirmation_secret_not_configured");
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(CONFIRMATION_SECRET),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
+  const key = await crypto.subtle.importKey("raw", encoder.encode(CONFIRMATION_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
   return b64UrlEncode(new Uint8Array(signature));
 }
-
 async function signConfirmation(payload: ConfirmationPayload): Promise<string> {
   const encoded = b64UrlEncode(encoder.encode(JSON.stringify(payload)));
   return `${encoded}.${await hmac(encoded)}`;
 }
-
 async function verifyConfirmation(token: string, userId: string, tool: string): Promise<ConfirmationPayload> {
   const [encoded, suppliedSignature, extra] = token.split(".");
   if (!encoded || !suppliedSignature || extra) throw new Error("invalid_confirmation_token");
   const expectedSignature = await hmac(encoded);
-  const supplied = encoder.encode(suppliedSignature);
-  const expected = encoder.encode(expectedSignature);
+  const supplied = encoder.encode(suppliedSignature), expected = encoder.encode(expectedSignature);
   if (supplied.length !== expected.length) throw new Error("invalid_confirmation_token");
   let mismatch = 0;
   for (let index = 0; index < supplied.length; index++) mismatch |= supplied[index] ^ expected[index];
   if (mismatch !== 0) throw new Error("invalid_confirmation_token");
-
   let payload: ConfirmationPayload;
-  try {
-    payload = JSON.parse(decoder.decode(b64UrlDecode(encoded))) as ConfirmationPayload;
-  } catch {
-    throw new Error("invalid_confirmation_token");
-  }
+  try { payload = JSON.parse(decoder.decode(b64UrlDecode(encoded))) as ConfirmationPayload; }
+  catch { throw new Error("invalid_confirmation_token"); }
   if (payload.v !== 1 || payload.uid !== userId || payload.tool !== tool) throw new Error("invalid_confirmation_token");
   if (!Number.isFinite(payload.exp) || Date.now() > payload.exp) throw new Error("confirmation_expired");
-  if (!/^[0-9a-f-]{36}$/i.test(payload.nonce) || !payload.args || typeof payload.args !== "object") {
-    throw new Error("invalid_confirmation_token");
-  }
+  if (!/^[0-9a-f-]{36}$/i.test(payload.nonce) || !payload.args || typeof payload.args !== "object") throw new Error("invalid_confirmation_token");
   return payload;
 }
-
 async function rpc(client: SupabaseClient, name: string, args?: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await client.rpc(name, args);
   if (error) throw new Error(`${name}_failed:${error.message}`);
   return data;
 }
-
-async function verifyAdmin(req: Request): Promise<{ client: SupabaseClient; userId: string }> {
+async function verifyAdmin(req: Request): Promise<{ client: SupabaseClient; userId: string; authorization: string }> {
   const authorization = req.headers.get("Authorization") ?? "";
   if (!/^Bearer\s+\S+/i.test(authorization)) throw new Error("unauthorized");
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("server_supabase_config_missing");
-
   const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-
   const aal = await client.auth.mfa.getAuthenticatorAssuranceLevel();
   if (aal.error) throw new Error("unauthorized");
   if (aal.data.currentLevel === "aal1" && aal.data.nextLevel === "aal2") throw new Error("mfa_required");
-
   const { data, error } = await client.rpc("admin_get_session");
   if (error || !data) throw new Error("forbidden");
   const session = (Array.isArray(data) ? data[0] : data) as Record<string, unknown>;
   if (session?.is_admin !== true || session?.is_active === false) throw new Error("forbidden");
-
-  if (typeof session.user_id === "string") return { client, userId: session.user_id };
+  if (typeof session.user_id === "string") return { client, userId: session.user_id, authorization };
   const user = await client.auth.getUser();
   if (user.error || !user.data.user?.id) throw new Error("unauthorized");
-  return { client, userId: user.data.user.id };
+  return { client, userId: user.data.user.id, authorization };
 }
-
-function localized(context: PageContext, en: string, ar: string): string {
-  return context.language === "ar" ? ar : en;
+function parseDirectKnowledgeAdd(instruction: string): string | null {
+  const patterns = [
+    /(?:^|[\s,])(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:add|save|put|insert)\s+([\s\S]+?)\s+(?:to|into|in)\s+(?:the\s+)?(?:alexandria\s+)?(?:knowledge\s*base|kb)\s*[?.!]*$/i,
+    /(?:^|[\s,])(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:add|save|put|insert)\s+(?:this\s+)?(?:to|into|in)\s+(?:the\s+)?(?:alexandria\s+)?(?:knowledge\s*base|kb)\s*[:\-–—]\s*([\s\S]+)$/i,
+    /(?:أضف|اضف|احفظ|سجّل|سجل)\s+([\s\S]+?)\s+(?:إلى|الى|في)\s+(?:قاعدة\s+المعرفة|قاعدة\s+معرفة)\s*[؟?!.]*$/u,
+    /(?:أضف|اضف|احفظ|سجّل|سجل)\s+(?:إلى|الى|في)\s+(?:قاعدة\s+المعرفة|قاعدة\s+معرفة)\s*[:\-–—]\s*([\s\S]+)$/u,
+  ];
+  for (const pattern of patterns) {
+    const match = instruction.match(pattern);
+    const content = match?.[1]?.trim();
+    if (content && content.length <= 20000) return content;
+  }
+  return null;
 }
-
-async function callModel(instruction: string, context: PageContext): Promise<{
-  content: string;
-  toolCall?: { name: string; args: unknown };
-}> {
-  if (!MODEL_URL || !MODEL_API_KEY || !MODEL) throw new Error("agent_model_not_configured");
-  const system = [
-    "You are Alexandria's controlled admin assistant.",
-    "Understand administrator instructions in any language and preserve the administrator's intended text exactly when editing content.",
-    "Use an allowlisted tool for any request that depends on current Alexandria data or changes admin data.",
-    "Never invent current database results. Never request or output SQL, API keys, service-role keys, bot tokens, webhook secrets, or arbitrary URLs.",
-    "Known platform users, approved users, and verified external-group members are different concepts. Never substitute one for another.",
-    "AI sleep mode means human takeover for one exact external channel/group id between explicit timestamps. Incoming messages remain logged, automated AI replies are skipped, and messages received while sleeping are never replayed automatically after wake.",
-    "Never schedule sleep from a display name alone; an exact external_channel_id is required.",
-    "For small edits to an existing knowledge document, use patch_knowledge_document_text. Never regenerate or invent the rest of a document just to add, insert, prepend or replace a few words.",
-    "Knowledge approval is fail-closed. Never say a document was approved unless the database returns is_approved=true and blocked is not true.",
-    "If knowledge approval is blocked, explain the contradiction or incomplete conflict scan naturally; never bypass or downplay the database gate.",
-    "Use Knowledge Intelligence read tools for official-source health, contradictions, source authority, pending candidates and recent source changes.",
-    "Official-source candidates are pending evidence only. Promotion never means approval; normal processing, contradiction scanning and admin approval still apply.",
-    "Write actions are proposals only; the server requires explicit human confirmation before execution.",
-    `Current admin page: ${context.pageLabel} (${context.pathname}). UI language: ${context.language}.`,
-    "Reply in the language used by the administrator unless they clearly ask for another language. Use the UI language only as a fallback when the instruction language is unclear or mixed.",
-  ].join("\n");
-
-  const response = await fetch(MODEL_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${MODEL_API_KEY}` },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature: 0.1,
-      messages: [{ role: "system", content: system }, { role: "user", content: instruction }],
-      tools: modelTools,
-      tool_choice: "auto",
-    }),
-  });
-  if (!response.ok) throw new Error(`agent_model_request_failed_${response.status}`);
-
-  const payload = await response.json() as Record<string, unknown>;
-  const choices = Array.isArray(payload.choices) ? payload.choices as Record<string, unknown>[] : [];
-  const message = choices[0]?.message as Record<string, unknown> | undefined;
-  if (!message) throw new Error("agent_model_invalid_response");
-  const content = typeof message.content === "string" ? message.content.trim() : "";
-  const calls = Array.isArray(message.tool_calls) ? message.tool_calls as ModelToolCall[] : [];
-  if (!calls.length) return { content: content || "I could not determine a safe admin action for that request." };
-  if (calls.length !== 1) throw new Error("multiple_tool_calls_not_allowed");
-
-  const name = String(calls[0].function?.name ?? "");
-  if (!ALL_TOOLS.has(name)) throw new Error("unknown_tool");
-  let args: unknown;
+function titleFor(content: string): string {
+  return content.split(/\n|[.!?؟]/u).map((part) => part.trim()).find(Boolean)?.slice(0, 120) || content.slice(0, 120) || "Dashboard knowledge";
+}
+function isDirectPayload(payload: ConfirmationPayload): boolean { return payload.tool === DIRECT_TOOL && payload.args?.route === DIRECT_ROUTE; }
+async function callDashboardKnowledgeAssistant(args: Record<string, unknown>, context: PageContext): Promise<Record<string, unknown>> {
+  if (!N8N_BASE_URL || !INTERNAL_SECRET) throw new Error("knowledge_backend_not_configured");
+  let response: Response;
   try {
-    args = JSON.parse(calls[0].function?.arguments ?? "{}");
-  } catch {
-    throw new Error("invalid_tool_arguments");
+    response = await fetch(`${N8N_BASE_URL}/webhook/crypto-dashboard-kb-assistant`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-crypto-internal-secret": INTERNAL_SECRET },
+      body: JSON.stringify({ text: String(args.content ?? ""), title: String(args.title ?? ""), confirmed: true, input_mode: "text", language: String(args.language ?? context.language), source: "admin-agent" }),
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch { throw new Error("knowledge_backend_unavailable"); }
+  let result: Record<string, unknown> = {};
+  try {
+    const parsed = await response.json();
+    result = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch { result = {}; }
+  if (!response.ok) throw new Error(`knowledge_backend_failed_${response.status}`);
+  const conflicts = Array.isArray(result.conflicts) ? result.conflicts.filter((item) => item && typeof item === "object") as Record<string, unknown>[] : [];
+  if (result.blocked === true || result.status === "conflict" || result.code === "KNOWLEDGE_CONFLICT") {
+    const conflict = conflicts[0];
+    const where = conflict?.where && typeof conflict.where === "object" ? conflict.where as Record<string, unknown> : {};
+    const sourceTitle = String(where.source_title ?? conflict?.source_title ?? "existing approved knowledge");
+    const proposed = String(conflict?.proposed_claim ?? args.content ?? "");
+    const existing = String(conflict?.existing_claim ?? "");
+    const explanation = String(conflict?.explanation ?? "");
+    const message = localized(context,
+      `I did not add this knowledge because it conflicts with “${sourceTitle}”. Proposed claim: “${proposed}”. Existing claim: “${existing}”.${explanation ? ` ${explanation}` : ""}`,
+      `لم أضف هذه المعرفة لأنها تتعارض مع «${sourceTitle}». الادعاء المقترح: «${proposed}». الادعاء الموجود: «${existing}».${explanation ? ` ${explanation}` : ""}`);
+    return { kind: "tool_result", tool: DIRECT_TOOL, blocked: true, result, message };
   }
-  return { content, toolCall: { name, args } };
-}
-
-function itemCount(value: unknown): number {
-  if (!value || typeof value !== "object") return 0;
-  const record = value as Record<string, unknown>;
-  if (Number.isFinite(Number(record.total))) return Number(record.total);
-  return Array.isArray(record.items) ? record.items.length : 0;
-}
-
-function normalizedDocumentKey(value: unknown): string {
-  return String(value ?? "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function nthIndexOf(value: string, search: string, occurrence: number): number {
-  let from = 0;
-  let index = -1;
-  for (let count = 0; count < occurrence; count++) {
-    index = value.indexOf(search, from);
-    if (index < 0) return -1;
-    from = index + search.length;
+  if (result.added === true || result.status === "added" || result.code === "KNOWLEDGE_ADDED") {
+    return { kind: "tool_result", tool: DIRECT_TOOL, blocked: false, result,
+      message: localized(context, "Knowledge passed the conflict checks and was added to the Alexandria knowledge base.", "اجتازت المعرفة فحوصات التعارض وتمت إضافتها إلى قاعدة معرفة Alexandria.") };
   }
-  return index;
+  throw new Error("knowledge_backend_invalid_response");
 }
-
-function escapeHtml(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+async function proxyLegacy(rawBody: string, authorization: string): Promise<Response> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("server_supabase_config_missing");
+  let response: Response;
+  try {
+    response = await fetch(LEGACY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: authorization, apikey: SUPABASE_ANON_KEY },
+      body: rawBody,
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch { throw new Error("legacy_agent_unavailable"); }
+  const body = await response.text();
+  return new Response(body, { status: response.status, headers: { ...corsHeaders, "Content-Type": response.headers.get("Content-Type") || "application/json" } });
 }
-
-function plainTextToHtml(value: string): string {
-  return value
-    .split(/\n{2,}/)
-    .filter((paragraph) => paragraph.length > 0)
-    .map((paragraph) => `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`)
-    .join("");
-}
-
-function applyKnowledgePatch(
-  content: string,
-  operation: string,
-  patchText: string,
-  anchor: string | null,
-  occurrence: number,
-): string {
-  if (operation === "APPEND") return `${content.replace(/\s+$/g, "")}\n\n${patchText}`;
-  if (operation === "PREPEND") return `${patchText}\n\n${content.replace(/^\s+/g, "")}`;
-  if (!anchor) throw new Error("invalid_anchor");
-
-  const index = nthIndexOf(content, anchor, occurrence);
-  if (index < 0) throw new Error("knowledge_patch_anchor_not_found");
-  const before = content.slice(0, index);
-  const afterAnchor = index + anchor.length;
-  const after = content.slice(afterAnchor);
-
-  if (operation === "REPLACE") return `${before}${patchText}${after}`;
-  if (operation === "INSERT_BEFORE") {
-    const separator = /\s$/.test(patchText) || /^\s/.test(anchor) ? "" : " ";
-    return `${before}${patchText}${separator}${anchor}${after}`;
-  }
-  if (operation === "INSERT_AFTER") {
-    const separator = /\s$/.test(anchor) || /^\s/.test(patchText) || /^[,.;:!?،؛؟]/u.test(patchText) ? "" : " ";
-    return `${before}${anchor}${separator}${patchText}${after}`;
-  }
-  throw new Error("invalid_patch_operation");
-}
-
-async function resolveKnowledgeDocumentForPatch(client: SupabaseClient, queryValue: unknown): Promise<{
-  id: string;
-  title: string;
-  version: number;
-  content: string;
-  editorHtml: string;
-}> {
-  const result = await rpc(client, "admin_list_knowledge_documents", { p_limit: 100, p_offset: 0, p_status: null });
-  const raw = result && typeof result === "object" ? result as Record<string, unknown> : {};
-  const items = Array.isArray(raw.items) ? raw.items as Record<string, unknown>[] : [];
-  const query = normalizedDocumentKey(queryValue);
-  if (!query) throw new Error("invalid_document_query");
-
-  const exact = items.filter((item) => normalizedDocumentKey(item.title) === query);
-  const candidates = exact.length ? exact : items.filter((item) => normalizedDocumentKey(item.title).includes(query));
-  if (!candidates.length) throw new Error("knowledge_document_not_found");
-  if (candidates.length !== 1) throw new Error("knowledge_document_ambiguous");
-
-  const id = String(candidates[0].id ?? "");
-  if (!id) throw new Error("knowledge_document_not_found");
-  const editorRaw = await rpc(client, "admin_get_knowledge_document_editor", { p_document_id: id });
-  const editor = asRecord(editorRaw);
-  const chunks = Array.isArray(editor.chunks) ? editor.chunks as Record<string, unknown>[] : [];
-  const storedContent = typeof editor.content === "string" ? editor.content.trim() : "";
-  const fallbackContent = [...chunks]
-    .sort((a, b) => Number(a.chunk_index ?? 0) - Number(b.chunk_index ?? 0))
-    .map((chunk) => String(chunk.content ?? "").trim())
-    .filter(Boolean)
-    .join("\n\n");
-  const content = storedContent || fallbackContent;
-  if (!content) throw new Error("knowledge_document_empty");
-
-  return {
-    id,
-    title: String(editor.title ?? candidates[0].title ?? "Knowledge document"),
-    version: Number.isFinite(Number(editor.version)) ? Number(editor.version) : 0,
-    content,
-    editorHtml: typeof editor.editor_content_html === "string" ? editor.editor_content_html : "",
-  };
-}
-
-async function executeTool(
-  client: SupabaseClient,
-  tool: string,
-  args: Record<string, unknown>,
-  context: PageContext,
-): Promise<Record<string, unknown>> {
-  if (tool === "approve_document") return await executeSafeKnowledgeApproval(client, args, context.language);
-  if (KNOWLEDGE_INTELLIGENCE_TOOLS.has(tool)) return await executeKnowledgeIntelligenceTool(client, tool, args, context.language);
-
-  switch (tool) {
-    case "navigate_to_page":
-      return {
-        kind: "navigate",
-        path: NAVIGATION_PATHS[String(args.page)],
-        message: localized(context, "Done. I opened that admin page.", "تم. فتحت صفحة الإدارة المطلوبة."),
-      };
-
-    case "search_users": {
-      const result = await rpc(client, "admin_list_users", {
-        p_limit: args.limit, p_offset: 0, p_search: args.query || null,
-      });
-      const count = itemCount(result);
-      return { kind: "tool_result", tool, result, message: localized(context, `I found ${count} matching user${count === 1 ? "" : "s"}.`, `وجدت ${count} مستخدم مطابق.`) };
-    }
-
-    case "get_user_details": {
-      const result = await rpc(client, "admin_get_user_conversation", {
-        p_user_id: args.user_id, p_limit: 100, p_before: null,
-      });
-      return { kind: "tool_result", tool, result, message: localized(context, "Loaded the requested user's admin details.", "تم تحميل تفاصيل الإدارة للمستخدم المطلوب.") };
-    }
-
-    case "search_knowledge_base": {
-      const result = await rpc(client, "admin_search_knowledge_documents", {
-        p_query: args.query || null,
-        p_status: args.status,
-        p_limit: args.limit,
-      });
-      const count = itemCount(result);
-      return { kind: "tool_result", tool, result, message: localized(context, `I found ${count} matching knowledge document${count === 1 ? "" : "s"}.`, `وجدت ${count} مستند معرفة مطابق.`) };
-    }
-
-    case "get_analytics": {
-      const [dashboard, ai] = await Promise.all([
-        rpc(client, "admin_get_dashboard_metrics"),
-        rpc(client, "admin_get_ai_usage_summary", { p_days: args.days }),
-      ]);
-      return { kind: "tool_result", tool, result: { dashboard, ai }, message: localized(context, `Loaded dashboard and AI analytics for the last ${args.days} days.`, `تم تحميل تحليلات لوحة التحكم والذكاء الاصطناعي لآخر ${args.days} يومًا.`) };
-    }
-
-    case "get_community_platform_stats": {
-      const result = await rpc(client, "admin_get_community_platform_stats");
-      const data = result && typeof result === "object" ? result as Record<string, unknown> : {};
-      const platforms = Array.isArray(data.platforms) ? data.platforms as Record<string, unknown>[] : [];
-      const telegram = platforms.find((item) => item.platform === "TELEGRAM");
-      const vip = Number(telegram?.vip_members ?? 0);
-      const connected = telegram?.verification_connected === true;
-      const message = connected
-        ? localized(context, `Telegram currently has ${vip} verified VIP membership${vip === 1 ? "" : "s"}.`, `يوجد حاليًا ${vip} عضوية VIP موثقة على Telegram.`)
-        : localized(context, "Community stats loaded. Telegram VIP verification is not connected yet, so approved users are not being counted as verified VIP members.", "تم تحميل إحصاءات المجتمع. التحقق من Telegram VIP غير متصل بعد، لذلك لا يتم احتساب المستخدمين المقبولين كأعضاء VIP موثقين.");
-      return { kind: "tool_result", tool, result, message };
-    }
-
-    case "list_community_members": {
-      const result = await rpc(client, "admin_list_community_members", {
-        p_platform: args.platform, p_tier: args.tier, p_search: args.search, p_limit: args.limit,
-      });
-      const count = itemCount(result);
-      return { kind: "tool_result", tool, result, message: localized(context, `I found ${count} verified group membership${count === 1 ? "" : "s"} matching those filters.`, `وجدت ${count} عضوية مجموعة موثقة تطابق عوامل التصفية.`) };
-    }
-
-    case "list_ai_sleep_windows": {
-      const result = await rpc(client, "admin_list_ai_sleep_windows", {
-        p_platform: args.platform,
-        p_status: args.status,
-        p_limit: args.limit,
-        p_offset: 0,
-      });
-      const count = itemCount(result);
-      return { kind: "tool_result", tool, result, message: localized(context, `I found ${count} AI sleep window${count === 1 ? "" : "s"} matching those filters.`, `وجدت ${count} فترة إيقاف للذكاء الاصطناعي تطابق عوامل التصفية.`) };
-    }
-
-    case "get_ai_sleep_status": {
-      const result = await rpc(client, "admin_get_ai_sleep_status", {
-        p_platform: args.platform,
-        p_external_channel_id: args.external_channel_id,
-      });
-      const sleeping = result && typeof result === "object" && (result as Record<string, unknown>).policy === "SLEEPING";
-      return {
-        kind: "tool_result",
-        tool,
-        result,
-        message: sleeping
-          ? localized(context, "AI replies are currently sleeping for that channel; human takeover is active.", "ردود الذكاء الاصطناعي متوقفة حاليًا لهذه القناة؛ التحكم البشري نشط.")
-          : localized(context, "AI replies are currently enabled for that channel.", "ردود الذكاء الاصطناعي مفعلة حاليًا لهذه القناة."),
-      };
-    }
-
-    case "schedule_ai_sleep": {
-      const result = await rpc(client, "admin_create_ai_sleep_window", {
-        p_platform: args.platform,
-        p_external_channel_id: args.external_channel_id,
-        p_external_channel_name: args.external_channel_name,
-        p_starts_at: args.starts_at,
-        p_ends_at: args.ends_at,
-        p_reason: args.reason,
-      });
-      return {
-        kind: "tool_result", tool, result,
-        message: localized(context, "AI sleep was scheduled for that exact channel. Incoming messages will still be logged; automated replies must be suppressed by the connected messaging workflow during the window.", "تمت جدولة إيقاف الذكاء الاصطناعي لهذه القناة المحددة. ستستمر الرسائل الواردة في التسجيل؛ ويجب على سير عمل المنصة المتصل منع الردود الآلية خلال الفترة."),
-      };
-    }
-
-    case "cancel_ai_sleep": {
-      const result = await rpc(client, "admin_cancel_ai_sleep_window", { p_window_id: args.window_id });
-      return {
-        kind: "tool_result", tool, result,
-        message: localized(context, "The sleep window was cancelled. AI is eligible again for new inbound messages; sleeping-period messages are not replayed automatically.", "تم إلغاء فترة الإيقاف. أصبح الذكاء الاصطناعي مؤهلاً مجددًا للرسائل الواردة الجديدة؛ ولا تتم إعادة تشغيل رسائل فترة الإيقاف تلقائيًا."),
-      };
-    }
-
-    case "create_knowledge_record": {
-      const result = await rpc(client, "admin_create_knowledge_text_record", {
-        p_title: args.title, p_category: args.category, p_language: args.language, p_content: args.content,
-      });
-      return { kind: "tool_result", tool, result, message: localized(context, `Created “${args.title}” as a pending, unapproved knowledge record.`, `تم إنشاء «${args.title}» كسجل معرفة معلّق وغير معتمد.`) };
-    }
-
-    case "update_knowledge_record": {
-      const result = await rpc(client, "admin_update_knowledge_document_content", {
-        p_document_id: args.document_id,
-        p_title: args.title,
-        p_content: args.content,
-        p_editor_content_html: args.editor_html,
-        p_expected_version: args.expected_version,
-      });
-      return { kind: "tool_result", tool, result, message: localized(context, "Updated the knowledge record. It is pending and unapproved again until reviewed.", "تم تحديث سجل المعرفة. أصبح معلّقًا وغير معتمد مجددًا حتى تتم مراجعته.") };
-    }
-
-    case "patch_knowledge_document_text": {
-      const document = await resolveKnowledgeDocumentForPatch(client, args.document_query);
-      const operation = String(args.operation);
-      const patchText = String(args.text);
-      const anchor = args.anchor == null ? null : String(args.anchor);
-      const occurrence = Number(args.occurrence ?? 1);
-      const nextContent = applyKnowledgePatch(document.content, operation, patchText, anchor, occurrence);
-      if (!nextContent.trim() || nextContent.length > 200000) throw new Error("invalid_patch_result");
-
-      const patchFragment = `<p>${escapeHtml(patchText).replaceAll("\n", "<br>")}</p>`;
-      const editorHtml = operation === "APPEND" && document.editorHtml
-        ? `${document.editorHtml}${patchFragment}`
-        : operation === "PREPEND" && document.editorHtml
-          ? `${patchFragment}${document.editorHtml}`
-          : plainTextToHtml(nextContent);
-
-      const update = await rpc(client, "admin_update_knowledge_document_content", {
-        p_document_id: document.id,
-        p_title: document.title,
-        p_content: nextContent,
-        p_editor_content_html: editorHtml,
-        p_expected_version: document.version,
-      });
-      const reprocessing = await rpc(client, "admin_request_knowledge_document_reprocessing", {
-        p_document_id: document.id,
-      });
-      return {
-        kind: "tool_result",
-        tool,
-        result: {
-          document_id: document.id,
-          title: document.title,
-          operation,
-          occurrence,
-          update,
-          reprocessing,
-          formatting_preserved: ["APPEND", "PREPEND"].includes(operation) && Boolean(document.editorHtml),
-        },
-        message: localized(
-          context,
-          `Updated “${document.title}” and queued it for reprocessing. It must be reviewed and approved again before the assistant uses the new text.`,
-          `تم تحديث «${document.title}» ووضعه في قائمة إعادة المعالجة. يجب مراجعته واعتماده من جديد قبل أن يستخدم المساعد النص الجديد.`,
-        ),
-      };
-    }
-
-    case "send_announcement": {
-      const created = await rpc(client, "admin_create_announcement", {
-        p_content: args.content,
-        p_destination_level: args.destination,
-        p_platforms: args.platforms,
-        p_translations: {},
-      });
-      const announcementId = typeof created === "string" ? created : String(created ?? "");
-      if (!announcementId) throw new Error("announcement_create_returned_no_id");
-      const approval = await rpc(client, "admin_approve_announcement", { p_announcement_id: announcementId });
-      return {
-        kind: "tool_result", tool,
-        result: { announcement_id: announcementId, approval },
-        message: localized(context, "The announcement was created, approved and queued for the selected platforms.", "تم إنشاء الإعلان واعتماده ووضعه في قائمة الإرسال للمنصات المحددة."),
-      };
-    }
-
-    default:
-      throw new Error("unknown_tool");
-  }
-}
-
 function publicError(error: unknown): { code: string; message: string; status: number } {
   const raw = error instanceof Error ? error.message : "unknown_error";
   if (raw === "unauthorized") return { code: raw, message: "Authentication required.", status: 401 };
   if (raw === "mfa_required") return { code: raw, message: "Multi-factor authentication is required for AI admin actions.", status: 403 };
   if (raw === "forbidden") return { code: raw, message: "Administrator access required.", status: 403 };
-  if (raw === "confirmation_expired" || raw.includes("CONFIRMATION_EXPIRED")) return { code: "confirmation_expired", message: "That confirmation expired. Please review the action again.", status: 409 };
+  if (raw === "confirmation_expired") return { code: raw, message: "That confirmation expired. Please review the action again.", status: 409 };
   if (raw === "invalid_confirmation_token") return { code: raw, message: "That confirmation is invalid. Please review the action again.", status: 409 };
   if (raw.includes("CONFIRMATION_ALREADY_USED")) return { code: "confirmation_already_used", message: "That confirmed action has already been used. Please review it again before another write.", status: 409 };
-  if (raw === "knowledge_document_not_found") return { code: raw, message: "I could not find that knowledge document.", status: 404 };
-  if (raw === "knowledge_document_ambiguous") return { code: raw, message: "More than one knowledge document matches that name. Use a more specific document title.", status: 409 };
-  if (raw === "knowledge_patch_anchor_not_found") return { code: raw, message: "The exact text anchor was not found in that document, so nothing was changed.", status: 409 };
-  if (raw === "knowledge_document_empty") return { code: raw, message: "That knowledge document has no editable text.", status: 409 };
-  if (raw === "agent_model_not_configured") return { code: raw, message: "The AI admin model is not configured on the secure backend.", status: 503 };
   if (raw === "confirmation_secret_not_configured") return { code: raw, message: "Secure write confirmation is not configured on the backend.", status: 503 };
-  if (raw.startsWith("agent_model_request_failed_")) return { code: "agent_model_unavailable", message: "The AI admin model is temporarily unavailable.", status: 502 };
-  if (raw.startsWith("invalid_") || raw.startsWith("unsupported_") || raw === "unknown_tool" || raw === "multiple_tool_calls_not_allowed" || raw === "sleep_window_too_long") {
-    return { code: raw, message: "The requested admin action has invalid or unsupported parameters.", status: 400 };
-  }
-  if (raw.includes("SLEEP_WINDOW_OVERLAP")) return { code: "sleep_window_overlap", message: "That channel already has an overlapping AI sleep window.", status: 409 };
+  if (raw === "knowledge_backend_not_configured") return { code: raw, message: "The dashboard knowledge workflow is not configured on the backend.", status: 503 };
+  if (raw === "knowledge_backend_unavailable" || raw.startsWith("knowledge_backend_failed_") || raw === "knowledge_backend_invalid_response") return { code: "knowledge_backend_unavailable", message: "The knowledge workflow is temporarily unavailable.", status: 502 };
+  if (raw === "legacy_agent_unavailable") return { code: raw, message: "The AI admin assistant is temporarily unavailable.", status: 502 };
+  if (raw.startsWith("invalid_")) return { code: raw, message: "The requested admin action has invalid parameters.", status: 400 };
   if (raw.includes("_failed:")) return { code: "tool_execution_failed", message: "The requested admin tool could not be completed.", status: 502 };
   return { code: "admin_agent_error", message: "The AI admin assistant could not complete that request.", status: 500 };
 }
@@ -568,58 +203,35 @@ function publicError(error: unknown): { code: string; message: string; status: n
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ kind: "error", code: "method_not_allowed", message: "Method not allowed." }, 405);
-
   try {
     const rawBody = await req.text();
     if (encoder.encode(rawBody).byteLength > 24_000) throw new Error("invalid_request_too_large");
     let body: Record<string, unknown>;
-    try {
-      body = JSON.parse(rawBody) as Record<string, unknown>;
-    } catch {
-      throw new Error("invalid_json");
-    }
-
-    const { client, userId } = await verifyAdmin(req);
+    try { body = JSON.parse(rawBody) as Record<string, unknown>; } catch { throw new Error("invalid_json"); }
+    const { client, userId, authorization } = await verifyAdmin(req);
     const instruction = requiredText(body.instruction, "instruction", 1, 4000);
     const context = parseContext(body.context);
-
     if (body.confirmation) {
       const confirmation = asRecord(body.confirmation);
       const tool = requiredText(confirmation.tool, "confirmation_tool", 2, 80);
-      if (!WRITE_TOOLS.has(tool)) throw new Error("invalid_confirmation_token");
       const token = requiredText(confirmation.token, "confirmation_token", 20, 10000);
-      const payload = await verifyConfirmation(token, userId, tool);
-      await rpc(client, "admin_consume_agent_confirmation", {
-        p_nonce: payload.nonce,
-        p_tool: tool,
-        p_expires_at: new Date(payload.exp).toISOString(),
-      });
-      return json(await executeTool(client, tool, payload.args, context));
+      if (tool === DIRECT_TOOL) {
+        const payload = await verifyConfirmation(token, userId, tool);
+        if (isDirectPayload(payload)) {
+          await rpc(client, "admin_consume_agent_confirmation", { p_nonce: payload.nonce, p_tool: tool, p_expires_at: new Date(payload.exp).toISOString() });
+          return json(await callDashboardKnowledgeAssistant(payload.args, context));
+        }
+      }
+      return await proxyLegacy(rawBody, authorization);
     }
-
-    const model = await callModel(instruction, context);
-    if (!model.toolCall) return json({ kind: "message", message: model.content });
-    const args = normalizeToolArgs(model.toolCall.name, model.toolCall.args);
-
-    if (WRITE_TOOLS.has(model.toolCall.name)) {
-      const confirmationToken = await signConfirmation({
-        v: 1,
-        uid: userId,
-        tool: model.toolCall.name,
-        args,
-        exp: Date.now() + 5 * 60 * 1000,
-        nonce: crypto.randomUUID(),
-      });
-      return json({
-        kind: "confirmation_required",
-        message: localized(context, "Review this change before I execute it.", "راجع هذا التغيير قبل تنفيذه."),
-        confirmationToken,
-        tool: model.toolCall.name,
-        preview: previewFor(model.toolCall.name, args),
-      });
+    const content = parseDirectKnowledgeAdd(instruction);
+    if (content) {
+      const args: Record<string, unknown> = { route: DIRECT_ROUTE, title: titleFor(content), content, language: context.language };
+      const confirmationToken = await signConfirmation({ v: 1, uid: userId, tool: DIRECT_TOOL, args, exp: Date.now() + 5 * 60 * 1000, nonce: crypto.randomUUID() });
+      return json({ kind: "confirmation_required", message: localized(context, "Review this knowledge addition before I execute it.", "راجع إضافة المعرفة هذه قبل تنفيذها."), confirmationToken, tool: DIRECT_TOOL,
+        preview: { title: args.title, content: args.content, action: "Conflict-check and add through Alexandria Dashboard Knowledge Assistant", approved: false, safety: "Conflicting knowledge is blocked and returned with the conflicting source and claims." } });
     }
-
-    return json(await executeTool(client, model.toolCall.name, args, context));
+    return await proxyLegacy(rawBody, authorization);
   } catch (error) {
     const mapped = publicError(error);
     return json({ kind: "error", code: mapped.code, message: mapped.message }, mapped.status);
