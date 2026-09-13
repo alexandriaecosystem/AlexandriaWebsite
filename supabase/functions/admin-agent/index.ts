@@ -69,10 +69,6 @@ async function hmac(value: string): Promise<string> {
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
   return b64UrlEncode(new Uint8Array(signature));
 }
-async function signConfirmation(payload: ConfirmationPayload): Promise<string> {
-  const encoded = b64UrlEncode(encoder.encode(JSON.stringify(payload)));
-  return `${encoded}.${await hmac(encoded)}`;
-}
 async function verifyConfirmation(token: string, userId: string, tool: string): Promise<ConfirmationPayload> {
   const [encoded, suppliedSignature, extra] = token.split(".");
   if (!encoded || !suppliedSignature || extra) throw new Error("invalid_confirmation_token");
@@ -228,9 +224,7 @@ Deno.serve(async (req) => {
     const content = parseDirectKnowledgeAdd(instruction);
     if (content) {
       const args: Record<string, unknown> = { route: DIRECT_ROUTE, title: titleFor(content), content, language: context.language };
-      const confirmationToken = await signConfirmation({ v: 1, uid: userId, tool: DIRECT_TOOL, args, exp: Date.now() + 5 * 60 * 1000, nonce: crypto.randomUUID() });
-      return json({ kind: "confirmation_required", message: localized(context, "Review this knowledge addition before I execute it.", "راجع إضافة المعرفة هذه قبل تنفيذها."), confirmationToken, tool: DIRECT_TOOL,
-        preview: { title: args.title, content: args.content, action: "Conflict-check and add through Alexandria Dashboard Knowledge Assistant", approved: false, safety: "Conflicting knowledge is blocked and returned with the conflicting source and claims." } });
+      return json(await callDashboardKnowledgeAssistant(args, context));
     }
     return await proxyLegacy(rawBody, authorization);
   } catch (error) {

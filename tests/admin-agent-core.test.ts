@@ -91,10 +91,20 @@ describe('dashboard knowledge request routing', () => {
     expect(parseDirectKnowledgeAddFromRouter('add Alexandria uses the TRON network to the knowledge base'))
       .toBe('Alexandria uses the TRON network');
   });
+
+  it('analyzes direct knowledge additions immediately without confirmation', () => {
+    const start = routerEdgeFunctionSource.indexOf('const content = parseDirectKnowledgeAdd(instruction);');
+    const end = routerEdgeFunctionSource.indexOf('return await proxyLegacy(rawBody, authorization);', start);
+    const directKnowledgeBranch = routerEdgeFunctionSource.slice(start, end);
+
+    expect(directKnowledgeBranch).toContain('callDashboardKnowledgeAssistant');
+    expect(directKnowledgeBranch).not.toContain('signConfirmation');
+    expect(directKnowledgeBranch).not.toContain('confirmation_required');
+  });
 });
 
 describe('secure write confirmation wiring', () => {
-  it('consumes direct knowledge confirmation before calling the n8n knowledge workflow', () => {
+  it('consumes legacy direct knowledge confirmations before calling the n8n knowledge workflow', () => {
     const start = routerEdgeFunctionSource.indexOf('if (body.confirmation)');
     const end = routerEdgeFunctionSource.indexOf('const content = parseDirectKnowledgeAdd', start);
     const confirmationBranch = routerEdgeFunctionSource.slice(start, end);
