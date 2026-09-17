@@ -57,6 +57,8 @@ export function KnowledgeBasePage() {
   const [testDoc, setTestDoc] = useState<KnowledgeDocumentSummary | null>(null);
   const [testConflicts, setTestConflicts] = useState<KnowledgeConflict[]>([]);
   const [testBusy, setTestBusy] = useState(false);
+  const [conflictViewDoc, setConflictViewDoc] = useState<KnowledgeDocumentSummary | null>(null);
+  const [conflictViewItems, setConflictViewItems] = useState<KnowledgeConflict[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadDetailsRef = useRef<HTMLDetailsElement>(null);
   const uploadPanelRef = useRef<HTMLFormElement>(null);
@@ -240,6 +242,28 @@ export function KnowledgeBasePage() {
     }
   }
 
+  async function showRecordedConflict(doc: KnowledgeDocumentSummary) {
+    try {
+      const result = await listKnowledgeConflicts(getSupabaseClient(), doc.id);
+      setConflictViewItems(result.items.filter((item) => ['OPEN', 'REVIEW_REQUIRED'].includes(item.status)));
+    } catch {
+      setConflictViewItems([]);
+    }
+    setConflictViewDoc(doc);
+  }
+
+  function conflictPairs(doc: KnowledgeDocumentSummary | null, items: KnowledgeConflict[]) {
+    return items.slice(0, 3).map((conflict) => {
+      const thisDocIsA = conflict.sourceADocumentId === doc?.id;
+      return {
+        id: conflict.id,
+        mine: thisDocIsA ? conflict.claimA : conflict.claimB,
+        other: thisDocIsA ? conflict.claimB : conflict.claimA,
+        otherTitle: (thisDocIsA ? conflict.sourceBTitle : conflict.sourceATitle) || tr('Other knowledge', 'معرفة أخرى'),
+      };
+    });
+  }
+
   function inactiveStatus(doc: KnowledgeDocumentSummary): { label: string; tone: string; hint?: string } {
     if (doc.processingStatus === 'FAILED') return { label: tr('Processing failed', 'فشلت المعالجة'), tone: 'negative', hint: tr('Retry, or delete and upload a corrected file.', 'أعد المحاولة أو احذفه وارفع ملفاً مصححاً.') };
     if (doc.processingStatus !== 'READY') return { label: tr('Processing…', 'قيد المعالجة…'), tone: 'neutral', hint: tr('The file is being read. This takes about a minute.', 'جارٍ قراءة الملف. يستغرق ذلك حوالي دقيقة.') };
@@ -287,6 +311,7 @@ export function KnowledgeBasePage() {
                     </div>
                     <div className="kb-doc-actions">
                       <span className={`status-pill ${conflicted || failed || empty ? 'negative' : 'healthy'}`}>{conflicted ? tr('Conflict recorded', 'تعارض مسجل') : failed || empty ? tr('Needs attention', 'يحتاج انتباه') : tr('In use', 'قيد الاستخدام')}</span>
+                      {conflicted && <button type="button" className="compact-button primary" disabled={Boolean(busyId)} onClick={() => void showRecordedConflict(doc)}>{tr('See conflict', 'عرض التعارض')}</button>}
                       <button type="button" className="compact-button" disabled={Boolean(busyId)} onClick={() => setEditingId(doc.id)}>{tr('Open', 'فتح')}</button>
                       <button type="button" className="compact-button danger" disabled={Boolean(busyId)} onClick={() => setConfirmAction({ kind: 'delete', id: doc.id, title: doc.title })}>{tr('Delete', 'حذف')}</button>
                     </div>
@@ -404,18 +429,12 @@ export function KnowledgeBasePage() {
           <div>
             <p>{tr(`“${testDoc?.title}” says the opposite of something in your Active knowledge:`, `“${testDoc?.title}” يقول عكس شيء موجود في معرفتك الفعّالة:`)}</p>
             <div className="kb-conflict-list">
-              {testConflicts.slice(0, 3).map((conflict) => {
-                const thisDocIsA = conflict.sourceADocumentId === testDoc?.id;
-                const mine = thisDocIsA ? conflict.claimA : conflict.claimB;
-                const active = thisDocIsA ? conflict.claimB : conflict.claimA;
-                const activeTitle = (thisDocIsA ? conflict.sourceBTitle : conflict.sourceATitle) || tr('Active knowledge', 'المعرفة الفعّالة');
-                return (
-                  <div className="kb-conflict-pair" key={conflict.id}>
-                    <p><span className="kb-conflict-side new">{tr('This document', 'هذا المستند')}</span> “{mine}”</p>
-                    <p><span className="kb-conflict-side active">{activeTitle}</span> “{active}”</p>
-                  </div>
-                );
-              })}
+              {conflictPairs(testDoc, testConflicts).map((pair) => (
+                <div className="kb-conflict-pair" key={pair.id}>
+                  <p><span className="kb-conflict-side new">{tr('This document', 'هذا المستند')}</span> “{pair.mine}”</p>
+                  <p><span className="kb-conflict-side active">{pair.otherTitle}</span> “{pair.other}”</p>
+                </div>
+              ))}
               {testConflicts.length > 3 && <p className="muted">{tr(`…and ${testConflicts.length - 3} more.`, `…و${testConflicts.length - 3} أخرى.`)}</p>}
               {!testConflicts.length && <p className="muted">{tr('Conflict details are listed in the advanced monitoring section.', 'تفاصيل التعارض مذكورة في قسم المراقبة المتقدمة.')}</p>}
             </div>
@@ -442,6 +461,32 @@ export function KnowledgeBasePage() {
         busy={testBusy}
         onCancel={() => void resolveTest(false, false)}
         onConfirm={() => void resolveTest(true, true)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(conflictViewDoc)}
+        title={tr('What this conflict is', 'ما هو هذا التعارض')}
+        message={
+          <div>
+            <p>{tr(`“${conflictViewDoc?.title}” is Active, but it says the opposite of other knowledge:`, `“${conflictViewDoc?.title}” فعّال، لكنه يقول عكس معرفة أخرى:`)}</p>
+            <div className="kb-conflict-list">
+              {conflictPairs(conflictViewDoc, conflictViewItems).map((pair) => (
+                <div className="kb-conflict-pair" key={pair.id}>
+                  <p><span className="kb-conflict-side new">{tr('This document', 'هذا المستند')}</span> “{pair.mine}”</p>
+                  <p><span className="kb-conflict-side active">{pair.otherTitle}</span> “{pair.other}”</p>
+                </div>
+              ))}
+              {conflictViewItems.length > 3 && <p className="muted">{tr(`…and ${conflictViewItems.length - 3} more.`, `…و${conflictViewItems.length - 3} أخرى.`)}</p>}
+              {!conflictViewItems.length && <p className="muted">{tr('The details are listed in the advanced monitoring section below.', 'التفاصيل مذكورة في قسم المراقبة المتقدمة بالأسفل.')}</p>}
+            </div>
+            <p className="muted">{tr('Correct whichever document is wrong. Saving an edit sends that document back to Inactive for a fresh test.', 'صحّح المستند الخاطئ أياً كان. حفظ التعديل يعيد ذلك المستند إلى غير الفعّال لفحص جديد.')}</p>
+          </div>
+        }
+        confirmLabel={tr('Fix this document', 'تصحيح هذا المستند')}
+        cancelLabel={tr('Close', 'إغلاق')}
+        tone="primary"
+        onCancel={() => { setConflictViewDoc(null); setConflictViewItems([]); }}
+        onConfirm={() => { const id = conflictViewDoc?.id; setConflictViewDoc(null); setConflictViewItems([]); if (id) setEditingId(id); }}
       />
     </>
   );

@@ -944,3 +944,17 @@ html[dir='rtl'] .info-tip::after {
 .kb-fix-button {
   margin-bottom: 10px;
 }
+
+/* Subscription price + renewal editing */
+.subscription-price-input {
+  width: 92px;
+}
+
+.subscription-date-input {
+  width: 152px;
+}
+
+.renewal-due {
+  color: #ff8f8f;
+  font-weight: 600;
+}

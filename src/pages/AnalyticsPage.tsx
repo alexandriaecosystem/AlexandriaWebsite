@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { EmptyState, LoadingState, RetryableErrorState } from '../components/AsyncState';
 import { getAiUsageSummary, getAiUsageTimeseries, getModelUsage, getPlatformStats } from '../services/admin';
-import { getAiBilling, listServiceSubscriptions, updateServiceSubscriptionCost, type AiBilling, type ServiceSubscription } from '../services/cost-transparency';
+import { getAiBilling, listServiceSubscriptions, refreshOpenRouterBalance, updateServiceSubscription, type AiBilling, type ServiceSubscription } from '../services/cost-transparency';
 import { getSupabaseClient } from '../services/supabase';
 import type { AiUsageSeriesPoint, AiUsageSummary, ModelUsageStat, PlatformStat } from '../types/contracts';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -111,7 +111,11 @@ export function AnalyticsPage() {
   const [subscriptions, setSubscriptions] = useState<ServiceSubscription[]>([]);
   const [editingCostKey, setEditingCostKey] = useState<string | null>(null);
   const [editingCostValue, setEditingCostValue] = useState('');
+  const [editingRenewsOn, setEditingRenewsOn] = useState('');
   const [costBusy, setCostBusy] = useState(false);
+  const [costError, setCostError] = useState('');
+  const [balanceBusy, setBalanceBusy] = useState(false);
+  const [balanceError, setBalanceError] = useState('');
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -119,20 +123,58 @@ export function AnalyticsPage() {
     void listServiceSubscriptions(client).then(setSubscriptions).catch(() => setSubscriptions([]));
   }, [reload]);
 
-  async function saveSubscriptionCost(serviceKey: string) {
+  function startEditing(item: ServiceSubscription) {
+    setCostError('');
+    setEditingCostKey(item.serviceKey);
+    setEditingCostValue(item.monthlyCostUsd == null ? '' : String(item.monthlyCostUsd));
+    setEditingRenewsOn(item.renewsOn ?? '');
+  }
+
+  async function saveSubscription(serviceKey: string) {
     const trimmed = editingCostValue.trim();
     const parsed = trimmed === '' ? null : Number(trimmed);
-    if (parsed != null && (!Number.isFinite(parsed) || parsed < 0)) return;
+    if (parsed != null && (!Number.isFinite(parsed) || parsed < 0)) {
+      setCostError(tr('Enter a number, for example 35', 'أدخل رقماً، مثال 35'));
+      return;
+    }
     setCostBusy(true);
+    setCostError('');
     try {
-      await updateServiceSubscriptionCost(getSupabaseClient(), serviceKey, parsed);
-      setSubscriptions((current) => current.map((item) => item.serviceKey === serviceKey ? { ...item, monthlyCostUsd: parsed } : item));
+      await updateServiceSubscription(getSupabaseClient(), serviceKey, { monthlyCostUsd: parsed, renewsOn: editingRenewsOn });
+      setSubscriptions((current) => current.map((item) => item.serviceKey === serviceKey
+        ? { ...item, monthlyCostUsd: parsed, renewsOn: editingRenewsOn || null }
+        : item));
       setEditingCostKey(null);
-    } catch {
-      // Keep the editor open so the admin can retry.
+    } catch (caught) {
+      setCostError(caught instanceof Error ? caught.message : tr('Could not save.', 'تعذر الحفظ.'));
     } finally {
       setCostBusy(false);
     }
+  }
+
+  async function refreshBalance() {
+    setBalanceBusy(true);
+    setBalanceError('');
+    try {
+      const fresh = await refreshOpenRouterBalance(getSupabaseClient());
+      setBilling((current) => ({ ...fresh, monthSpendUsd: current?.monthSpendUsd ?? 0 }));
+    } catch (caught) {
+      setBalanceError(caught instanceof Error ? caught.message : tr('Could not read the balance.', 'تعذرت قراءة الرصيد.'));
+    } finally {
+      setBalanceBusy(false);
+    }
+  }
+
+  function renewalNotice(item: ServiceSubscription) {
+    if (!item.renewsOn) return null;
+    const due = new Date(`${item.renewsOn}T00:00:00`);
+    if (Number.isNaN(due.getTime())) return null;
+    const days = Math.ceil((due.getTime() - Date.now()) / 86400000);
+    const dateLabel = due.toLocaleDateString(isArabic ? 'ar-LB' : undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    if (days < 0) return { tone: 'negative', text: tr(`Renewal was due ${dateLabel}`, `كان موعد التجديد ${dateLabel}`) };
+    if (days === 0) return { tone: 'negative', text: tr('Renews today', 'يتجدد اليوم') };
+    if (days <= 7) return { tone: 'negative', text: tr(`Renews in ${days} days (${dateLabel})`, `يتجدد خلال ${days} أيام (${dateLabel})`) };
+    return { tone: 'neutral', text: tr(`Renews ${dateLabel}`, `يتجدد في ${dateLabel}`) };
   }
 
   useEffect(() => {
@@ -213,15 +255,22 @@ export function AnalyticsPage() {
                 <>
                   <p className="muted">{tr('Remaining prepaid credit that powers every AI reply. Top up before it reaches zero or the assistant stops answering.', 'الرصيد المتبقي المدفوع مسبقاً الذي يشغّل كل ردود الذكاء الاصطناعي. أعد الشحن قبل وصوله إلى الصفر وإلا يتوقف المساعد عن الرد.')}</p>
                   <div className="metric-grid compact-metrics">
-                    <article className="metric-card"><span>{tr('Remaining', 'المتبقي')}</span><strong>{money(billing.creditsRemainingUsd)}</strong></article>
+                    <article className="metric-card"><span>{tr('Credits left', 'الرصيد المتبقي')}</span><strong>{money(billing.creditsRemainingUsd)}</strong></article>
                     <article className="metric-card"><span>{tr('Used so far', 'المستخدم حتى الآن')}</span><strong>{billing.creditsUsedUsd == null ? '—' : money(billing.creditsUsedUsd)}</strong></article>
                     <article className="metric-card"><span>{tr('Spent this month', 'إنفاق هذا الشهر')}</span><strong>{money(billing.monthSpendUsd)}</strong></article>
                   </div>
-                  <p className="muted"><small>{tr(`Balance refreshed ${billing.fetchedAt ? new Date(billing.fetchedAt).toLocaleString() : '—'} · top up at openrouter.ai → Credits.`, `تم تحديث الرصيد ${billing.fetchedAt ? new Date(billing.fetchedAt).toLocaleString('ar-LB') : '—'} · أعد الشحن من openrouter.ai ← Credits.`)}</small></p>
+                  <p className="muted"><small>{tr(`Last checked ${billing.fetchedAt ? new Date(billing.fetchedAt).toLocaleString() : '—'} · top up at openrouter.ai → Credits.`, `آخر فحص ${billing.fetchedAt ? new Date(billing.fetchedAt).toLocaleString('ar-LB') : '—'} · أعد الشحن من openrouter.ai ← Credits.`)}</small></p>
                 </>
               ) : (
-                <p className="muted">{tr('The credit balance syncs automatically once a day (23:50). It will appear here after the next sync.', 'يتم تحديث الرصيد تلقائياً مرة يومياً (23:50). سيظهر هنا بعد المزامنة القادمة.')}</p>
+                <p className="muted">{tr('Press “Check balance now” to read the live remaining credit from OpenRouter.', 'اضغط «افحص الرصيد الآن» لقراءة الرصيد المتبقي مباشرة من OpenRouter.')}</p>
               )}
+              <div className="chip-row">
+                <button type="button" className="compact-button primary" disabled={balanceBusy} onClick={() => void refreshBalance()}>
+                  {balanceBusy ? tr('Checking…', 'جارٍ الفحص…') : tr('Check balance now', 'افحص الرصيد الآن')}
+                </button>
+                <a className="compact-button" href="https://openrouter.ai/credits" target="_blank" rel="noreferrer">{tr('Top up', 'إعادة شحن')}</a>
+              </div>
+              {balanceError && <p className="form-error" role="alert">{balanceError}</p>}
             </article>
 
             <article className="panel">
@@ -241,38 +290,48 @@ export function AnalyticsPage() {
                   const description = isArabic ? item.descriptionAr : item.descriptionEn;
                   const isEditing = editingCostKey === item.serviceKey;
                   const kindLabel = item.billingKind === 'USAGE' ? tr('Pay-as-you-go', 'حسب الاستخدام') : item.billingKind === 'SUBSCRIPTION' ? tr('Monthly subscription', 'اشتراك شهري') : tr('Free', 'مجاني');
+                  const renewal = renewalNotice(item);
                   return (
                     <div key={item.serviceKey}>
                       <span>
                         <strong>{label}</strong>
                         <small>{description}{item.manageUrl && <> · <a href={item.manageUrl} target="_blank" rel="noreferrer">{tr('Manage', 'إدارة')}</a></>}</small>
+                        {renewal && !isEditing && <small className={renewal.tone === 'negative' ? 'renewal-due' : undefined}>{renewal.text}</small>}
+                        {isEditing && costError && <small className="renewal-due">{costError}</small>}
                       </span>
                       <span className="chip-row">
-                        <span className={`status-pill ${item.billingKind === 'FREE' ? 'healthy' : 'neutral'}`}>{kindLabel}</span>
+                        <span className={`status-pill ${item.billingKind === 'FREE' ? 'healthy' : renewal?.tone === 'negative' ? 'negative' : 'neutral'}`}>{kindLabel}</span>
                         {item.billingKind === 'USAGE' ? (
                           <b>{billing ? `${money(billing.monthSpendUsd)} ${tr('this month', 'هذا الشهر')}` : '—'}</b>
                         ) : isEditing ? (
                           <span className="chip-row">
                             <input
-                              className="compact-select"
-                              style={{ width: 90 }}
+                              className="compact-select subscription-price-input"
                               inputMode="decimal"
                               value={editingCostValue}
                               onChange={(event) => setEditingCostValue(event.target.value)}
                               placeholder="0.00"
                               aria-label={tr('Monthly cost in USD', 'التكلفة الشهرية بالدولار')}
                             />
-                            <button type="button" className="compact-button primary" disabled={costBusy} onClick={() => void saveSubscriptionCost(item.serviceKey)}>{tr('Save', 'حفظ')}</button>
-                            <button type="button" className="compact-button" disabled={costBusy} onClick={() => setEditingCostKey(null)}>{tr('Cancel', 'إلغاء')}</button>
+                            <input
+                              className="compact-select subscription-date-input"
+                              type="date"
+                              value={editingRenewsOn}
+                              onChange={(event) => setEditingRenewsOn(event.target.value)}
+                              aria-label={tr('Next renewal date', 'تاريخ التجديد القادم')}
+                              title={tr('Next renewal date', 'تاريخ التجديد القادم')}
+                            />
+                            <button type="button" className="compact-button primary" disabled={costBusy} onClick={() => void saveSubscription(item.serviceKey)}>{costBusy ? tr('Saving…', 'جارٍ الحفظ…') : tr('Save', 'حفظ')}</button>
+                            <button type="button" className="compact-button" disabled={costBusy} onClick={() => { setEditingCostKey(null); setCostError(''); }}>{tr('Cancel', 'إلغاء')}</button>
                           </span>
                         ) : (
                           <button
                             type="button"
                             className="compact-button"
                             disabled={item.billingKind === 'FREE'}
-                            onClick={() => { setEditingCostKey(item.serviceKey); setEditingCostValue(item.monthlyCostUsd == null ? '' : String(item.monthlyCostUsd)); }}
+                            onClick={() => startEditing(item)}
                           >
-                            {item.billingKind === 'FREE' ? tr('$0 / month', '0$ / شهر') : item.monthlyCostUsd == null ? tr('Set price', 'حدد السعر') : `${money(item.monthlyCostUsd)} / ${tr('month', 'شهر')}`}
+                            {item.billingKind === 'FREE' ? tr('$0 / month', '0$ / شهر') : item.monthlyCostUsd == null ? tr('Set price & date', 'حدد السعر والتاريخ') : `${money(item.monthlyCostUsd)} / ${tr('month', 'شهر')}`}
                           </button>
                         )}
                       </span>

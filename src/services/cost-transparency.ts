@@ -18,6 +18,7 @@ export type ServiceSubscription = {
   descriptionAr: string;
   billingKind: 'USAGE' | 'SUBSCRIPTION' | 'FREE';
   monthlyCostUsd: number | null;
+  renewsOn: string | null;
   manageUrl: string | null;
 };
 
@@ -72,17 +73,51 @@ export async function listServiceSubscriptions(client: SupabaseClient): Promise<
       descriptionAr: String(item.description_ar ?? ''),
       billingKind: kind === 'USAGE' || kind === 'SUBSCRIPTION' ? kind : 'FREE',
       monthlyCostUsd: nullableNumber(item.monthly_cost_usd),
+      renewsOn: item.renews_on ? String(item.renews_on) : null,
       manageUrl: item.manage_url ? String(item.manage_url) : null,
     };
   });
 }
 
-export async function updateServiceSubscriptionCost(client: SupabaseClient, serviceKey: string, monthlyCostUsd: number | null) {
+export async function updateServiceSubscription(
+  client: SupabaseClient,
+  serviceKey: string,
+  input: { monthlyCostUsd?: number | null; renewsOn?: string | null },
+) {
   const { error } = await client.rpc('admin_update_service_subscription', {
     p_service_key: serviceKey,
-    p_monthly_cost_usd: monthlyCostUsd,
+    p_monthly_cost_usd: input.monthlyCostUsd ?? null,
+    p_renews_on: input.renewsOn || null,
+    p_clear_renews_on: input.renewsOn === '',
   });
   if (error) throw new Error(error.message);
+}
+
+export async function refreshOpenRouterBalance(client: SupabaseClient): Promise<AiBilling> {
+  const { data, error } = await client.functions.invoke('openrouter-balance', { method: 'POST' });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      try {
+        const body = await context.json() as { error?: string };
+        if (body.error === 'OPENROUTER_API_KEY_NOT_CONFIGURED') {
+          throw new Error('Add OPENROUTER_API_KEY in Supabase → Edge Functions → Secrets to read the live balance.');
+        }
+        if (body.error) throw new Error(body.error);
+      } catch (parsed) {
+        if (parsed instanceof Error) throw parsed;
+      }
+    }
+    throw new Error(error.message || 'Could not read the OpenRouter balance.');
+  }
+  const value = asObject(data);
+  return {
+    creditsPurchasedUsd: nullableNumber(value.credits_purchased_usd),
+    creditsUsedUsd: nullableNumber(value.credits_used_usd),
+    creditsRemainingUsd: nullableNumber(value.credits_remaining_usd),
+    fetchedAt: value.fetched_at ? String(value.fetched_at) : null,
+    monthSpendUsd: 0,
+  };
 }
 
 export async function getAiBilling(client: SupabaseClient): Promise<AiBilling> {
