@@ -31,15 +31,19 @@ describe('document availability guidance', () => {
     render(<LanguageProvider><ToastProvider><KnowledgeBasePage /></ToastProvider></LanguageProvider>);
     await screen.findByRole('heading', { name: 'Published guide' });
     const card = (title: string) => within(screen.getByRole('heading', { name: title }).closest('article')!);
-    expect(card('Published guide').getByText('Ready for answers')).toBeInTheDocument();
+    const activeBox = within(screen.getByRole('region', { name: 'Active knowledge' }));
+    const inactiveBox = within(screen.getByRole('region', { name: 'Inactive knowledge' }));
+    // Approved documents live in the Active box; broken ones are flagged, not "in use".
+    expect(activeBox.getByRole('heading', { name: 'Published guide' })).toBeInTheDocument();
+    expect(card('Published guide').getByText('In use')).toBeInTheDocument();
     expect(card('Empty source').getByText('No indexed content')).toBeInTheDocument();
-    expect(card('Failed source').getByText('Processing failed')).toBeInTheDocument();
-    expect(card('Failed source').queryByText('Ready for answers')).not.toBeInTheDocument();
-    expect(card('Failed source').queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    // Unapproved documents live on the Inactive tab and activate via the content test.
-    screen.getByRole('button', { name: /Inactive/ }).click();
-    await screen.findByRole('heading', { name: 'Needs review' });
-    expect(card('Needs review').getByText('Needs approval')).toBeInTheDocument();
+    expect(card('Empty source').queryByText('In use')).not.toBeInTheDocument();
+    expect(card('Failed source').getAllByText('Processing failed').length).toBeGreaterThan(0);
+    expect(card('Failed source').queryByText('In use')).not.toBeInTheDocument();
+    // Unapproved documents live in the Inactive box and activate via the content test.
+    expect(inactiveBox.getByRole('heading', { name: 'Needs review' })).toBeInTheDocument();
+    expect(card('Needs review').getByText('Ready to activate')).toBeInTheDocument();
     expect(card('Needs review').getByRole('button', { name: 'Content test' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
   });
 });

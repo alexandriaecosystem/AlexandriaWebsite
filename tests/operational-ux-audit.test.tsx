@@ -82,14 +82,13 @@ describe('operational truth and navigation', () => {
     view(<KnowledgeBasePage />);
     await screen.findByRole('heading', { name: 'Conflicted source' });
     const published = within(screen.getByRole('heading', { name: 'Conflicted source' }).closest('article')!);
-    expect(published.queryByText('Ready for answers')).not.toBeInTheDocument();
-    expect(published.getByText('Conflict detected — approval blocked')).toBeInTheDocument();
-    // The unapproved draft lives on the Inactive tab; there is no blind Approve
+    expect(published.queryByText('In use')).not.toBeInTheDocument();
+    expect(published.getByText('Conflict recorded')).toBeInTheDocument();
+    // The unapproved draft lives in the Inactive box; there is no blind Approve
     // any more — activation must go through the content test dialog.
-    screen.getByRole('button', { name: /Inactive/ }).click();
-    await screen.findByRole('heading', { name: 'Blocked draft' });
     const draft = within(screen.getByRole('heading', { name: 'Blocked draft' }).closest('article')!);
     expect(draft.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(draft.getByText('Conflict found')).toBeInTheDocument();
     expect(draft.getByRole('button', { name: 'Content test' })).toBeEnabled();
   });
 });

@@ -143,12 +143,17 @@ export function KnowledgeIntelligencePanel({ refreshKey = 0 }: { refreshKey?: nu
       : tr('The candidate will remain recorded but will not be promoted into the knowledge base.', 'سيبقى المرشح مسجلاً لكنه لن يُرقّى إلى قاعدة المعرفة.');
 
   return (
+    <details className="knowledge-upload-disclosure kb-advanced-disclosure">
+      <summary>
+        {tr('Advanced: automatic website monitoring', 'متقدم: المراقبة التلقائية للموقع')}
+        <span>{tr('The system watches the official Alexandria website for changes and contradictions on its own. You normally never need to open this.', 'يراقب النظام موقع Alexandria الرسمي بحثاً عن تغييرات وتعارضات تلقائياً. عادة لا تحتاج إلى فتح هذا القسم.')}</span>
+      </summary>
     <section className="panel" aria-label={tr('Knowledge Intelligence', 'ذكاء المعرفة')}>
       <div className="toolbar-row">
         <div>
           <p className="eyebrow">{tr('Knowledge Intelligence', 'ذكاء المعرفة')}</p>
           <h2>{tr('Official sources & contradiction safety', 'المصادر الرسمية وسلامة التعارض')}</h2>
-          <p className="muted">{tr('A simple view of official-source health, conflicts, candidates and source changes.', 'عرض مبسط لصحة المصادر الرسمية والتعارضات والمرشحين وتغييرات المصادر.')}</p>
+          <p className="muted">{tr('A "conflict count" of 0 on a change means nothing contradicts your knowledge — it is a good sign, not a problem.', 'عندما يكون «عدد التعارضات» صفراً في أي تغيير فهذا يعني أنه لا يوجد ما يناقض معرفتك — إشارة جيدة وليست مشكلة.')}</p>
         </div>
         <button type="button" className="compact-button" disabled={busy || indexing} onClick={() => setLocalRefresh((value) => value + 1)}>{tr('Refresh', 'تحديث')}</button>
       </div>
@@ -265,5 +270,6 @@ export function KnowledgeIntelligencePanel({ refreshKey = 0 }: { refreshKey?: nu
         onConfirm={() => void performReviewAction()}
       />
     </section>
+    </details>
   );
 }
