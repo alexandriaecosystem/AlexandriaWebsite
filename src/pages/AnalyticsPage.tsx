@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { EmptyState, LoadingState, RetryableErrorState } from '../components/AsyncState';
 import { getAiUsageSummary, getAiUsageTimeseries, getModelUsage, getPlatformStats } from '../services/admin';
+import { getAiBilling, listServiceSubscriptions, updateServiceSubscriptionCost, type AiBilling, type ServiceSubscription } from '../services/cost-transparency';
 import { getSupabaseClient } from '../services/supabase';
 import type { AiUsageSeriesPoint, AiUsageSummary, ModelUsageStat, PlatformStat } from '../types/contracts';
 import { useLanguage } from '../i18n/LanguageContext';
+
+const LOW_BALANCE_THRESHOLD_USD = 5;
 
 const money = (value: number) => `$${value.toFixed(value < 1 ? 4 : 2)}`;
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`;
@@ -104,6 +107,33 @@ export function AnalyticsPage() {
   const [previousModels, setPreviousModels] = useState<ModelUsageStat[]>([]);
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
+  const [billing, setBilling] = useState<AiBilling | null>(null);
+  const [subscriptions, setSubscriptions] = useState<ServiceSubscription[]>([]);
+  const [editingCostKey, setEditingCostKey] = useState<string | null>(null);
+  const [editingCostValue, setEditingCostValue] = useState('');
+  const [costBusy, setCostBusy] = useState(false);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    void getAiBilling(client).then(setBilling).catch(() => setBilling(null));
+    void listServiceSubscriptions(client).then(setSubscriptions).catch(() => setSubscriptions([]));
+  }, [reload]);
+
+  async function saveSubscriptionCost(serviceKey: string) {
+    const trimmed = editingCostValue.trim();
+    const parsed = trimmed === '' ? null : Number(trimmed);
+    if (parsed != null && (!Number.isFinite(parsed) || parsed < 0)) return;
+    setCostBusy(true);
+    try {
+      await updateServiceSubscriptionCost(getSupabaseClient(), serviceKey, parsed);
+      setSubscriptions((current) => current.map((item) => item.serviceKey === serviceKey ? { ...item, monthlyCostUsd: parsed } : item));
+      setEditingCostKey(null);
+    } catch {
+      // Keep the editor open so the admin can retry.
+    } finally {
+      setCostBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -171,6 +201,88 @@ export function AnalyticsPage() {
       ) : (
         <>
           <div className="analytics-comparison-banner"><span className="status-pill neutral">{periodLabel}</span><span>{tr(`Compared with the ${previousPeriodLabel}.`, `مقارنة مع ${previousPeriodLabel}.`)}</span></div>
+
+          <section className="analytics-grid upgraded-analytics-grid billing-overview-grid" aria-label={tr('Billing and subscriptions', 'الفوترة والاشتراكات')}>
+            <article className="panel">
+              <div className="section-heading"><div><p className="eyebrow">{tr('AI credit balance', 'رصيد الذكاء الاصطناعي')}</p><h2>{tr('OpenRouter credits', 'رصيد OpenRouter')}</h2></div>
+                {billing?.creditsRemainingUsd != null && billing.creditsRemainingUsd < LOW_BALANCE_THRESHOLD_USD
+                  ? <span className="status-pill negative">{tr('Top up needed', 'الشحن مطلوب')}</span>
+                  : billing?.creditsRemainingUsd != null ? <span className="status-pill healthy">{tr('Balance OK', 'الرصيد جيد')}</span> : null}
+              </div>
+              {billing?.creditsRemainingUsd != null ? (
+                <>
+                  <p className="muted">{tr('Remaining prepaid credit that powers every AI reply. Top up before it reaches zero or the assistant stops answering.', 'الرصيد المتبقي المدفوع مسبقاً الذي يشغّل كل ردود الذكاء الاصطناعي. أعد الشحن قبل وصوله إلى الصفر وإلا يتوقف المساعد عن الرد.')}</p>
+                  <div className="metric-grid compact-metrics">
+                    <article className="metric-card"><span>{tr('Remaining', 'المتبقي')}</span><strong>{money(billing.creditsRemainingUsd)}</strong></article>
+                    <article className="metric-card"><span>{tr('Used so far', 'المستخدم حتى الآن')}</span><strong>{billing.creditsUsedUsd == null ? '—' : money(billing.creditsUsedUsd)}</strong></article>
+                    <article className="metric-card"><span>{tr('Spent this month', 'إنفاق هذا الشهر')}</span><strong>{money(billing.monthSpendUsd)}</strong></article>
+                  </div>
+                  <p className="muted"><small>{tr(`Balance refreshed ${billing.fetchedAt ? new Date(billing.fetchedAt).toLocaleString() : '—'} · top up at openrouter.ai → Credits.`, `تم تحديث الرصيد ${billing.fetchedAt ? new Date(billing.fetchedAt).toLocaleString('ar-LB') : '—'} · أعد الشحن من openrouter.ai ← Credits.`)}</small></p>
+                </>
+              ) : (
+                <p className="muted">{tr('The credit balance syncs automatically once a day (23:50). It will appear here after the next sync.', 'يتم تحديث الرصيد تلقائياً مرة يومياً (23:50). سيظهر هنا بعد المزامنة القادمة.')}</p>
+              )}
+            </article>
+
+            <article className="panel">
+              <div className="section-heading"><div><p className="eyebrow">{tr('How billing works', 'كيف تعمل الفوترة')}</p><h2>{tr('Where the money goes', 'أين تذهب التكلفة')}</h2></div></div>
+              <ul className="signal-list">
+                <li>{tr('AI answers are pay-as-you-go: every reply uses a small amount of prepaid OpenRouter credit (usually a fraction of a cent). The "Total cost" number on this page is exactly that usage.', 'إجابات الذكاء الاصطناعي بنظام الدفع حسب الاستخدام: كل رد يستهلك جزءاً صغيراً من رصيد OpenRouter المدفوع مسبقاً (عادة أجزاء من السنت). رقم «إجمالي التكلفة» في هذه الصفحة هو هذا الاستهلاك بالضبط.')}</li>
+                <li>{tr('WhatsApp needs a monthly Whapi subscription — a fixed price, independent of how much the bot talks.', 'واتساب يحتاج اشتراك Whapi شهري — سعر ثابت لا يتأثر بكمية رسائل البوت.')}</li>
+                <li>{tr('Everything else (server, database, dashboard, Telegram, Discord) currently runs on free plans, so the only recurring bills are OpenRouter top-ups and the Whapi subscription.', 'كل الباقي (الخادم وقاعدة البيانات ولوحة التحكم وتيليغرام وديسكورد) يعمل حالياً على خطط مجانية، لذا الفواتير المتكررة الوحيدة هي شحن OpenRouter واشتراك Whapi.')}</li>
+              </ul>
+            </article>
+
+            <article className="panel span-two">
+              <div className="section-heading"><div><p className="eyebrow">{tr('Subscriptions & services', 'الاشتراكات والخدمات')}</p><h2>{tr('Every service, labeled', 'كل خدمة باسمها')}</h2></div><small className="muted">{tr('Click a subscription price to set or correct it.', 'اضغط على سعر الاشتراك لتحديده أو تصحيحه.')}</small></div>
+              <div className="data-list">
+                {subscriptions.map((item) => {
+                  const label = isArabic ? item.labelAr : item.labelEn;
+                  const description = isArabic ? item.descriptionAr : item.descriptionEn;
+                  const isEditing = editingCostKey === item.serviceKey;
+                  const kindLabel = item.billingKind === 'USAGE' ? tr('Pay-as-you-go', 'حسب الاستخدام') : item.billingKind === 'SUBSCRIPTION' ? tr('Monthly subscription', 'اشتراك شهري') : tr('Free', 'مجاني');
+                  return (
+                    <div key={item.serviceKey}>
+                      <span>
+                        <strong>{label}</strong>
+                        <small>{description}{item.manageUrl && <> · <a href={item.manageUrl} target="_blank" rel="noreferrer">{tr('Manage', 'إدارة')}</a></>}</small>
+                      </span>
+                      <span className="chip-row">
+                        <span className={`status-pill ${item.billingKind === 'FREE' ? 'healthy' : 'neutral'}`}>{kindLabel}</span>
+                        {item.billingKind === 'USAGE' ? (
+                          <b>{billing ? `${money(billing.monthSpendUsd)} ${tr('this month', 'هذا الشهر')}` : '—'}</b>
+                        ) : isEditing ? (
+                          <span className="chip-row">
+                            <input
+                              className="compact-select"
+                              style={{ width: 90 }}
+                              inputMode="decimal"
+                              value={editingCostValue}
+                              onChange={(event) => setEditingCostValue(event.target.value)}
+                              placeholder="0.00"
+                              aria-label={tr('Monthly cost in USD', 'التكلفة الشهرية بالدولار')}
+                            />
+                            <button type="button" className="compact-button primary" disabled={costBusy} onClick={() => void saveSubscriptionCost(item.serviceKey)}>{tr('Save', 'حفظ')}</button>
+                            <button type="button" className="compact-button" disabled={costBusy} onClick={() => setEditingCostKey(null)}>{tr('Cancel', 'إلغاء')}</button>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="compact-button"
+                            disabled={item.billingKind === 'FREE'}
+                            onClick={() => { setEditingCostKey(item.serviceKey); setEditingCostValue(item.monthlyCostUsd == null ? '' : String(item.monthlyCostUsd)); }}
+                          >
+                            {item.billingKind === 'FREE' ? tr('$0 / month', '0$ / شهر') : item.monthlyCostUsd == null ? tr('Set price', 'حدد السعر') : `${money(item.monthlyCostUsd)} / ${tr('month', 'شهر')}`}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+                {!subscriptions.length && <p className="muted">{tr('Service list is loading…', 'جارٍ تحميل قائمة الخدمات…')}</p>}
+              </div>
+            </article>
+          </section>
 
           {noTelemetry && (
             <EmptyState

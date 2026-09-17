@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TakeoverManager } from '../components/TakeoverManager';
 import { listApprovedCommunity, type ApprovedCommunityItem } from '../services/admin-operations';
+import { listCommunityMemberStats, type CommunityMemberStat } from '../services/cost-transparency';
 import { getSupabaseClient } from '../services/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import '../admin-operations.css';
@@ -16,6 +17,11 @@ export function CommunitiesPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [memberStats, setMemberStats] = useState<CommunityMemberStat[]>([]);
+
+  useEffect(() => {
+    void listCommunityMemberStats(getSupabaseClient()).then(setMemberStats).catch(() => setMemberStats([]));
+  }, []);
 
   const accessLabel = (value: string) => ({
     GENERAL: tr('Public community only', 'المجتمع العام فقط'),
@@ -68,6 +74,27 @@ export function CommunitiesPage() {
       </div>
       <TakeoverManager />
     </section>
+
+    {memberStats.length > 0 && (
+      <section className="panel" aria-label={tr('Members per community', 'الأعضاء لكل مجتمع')}>
+        <div className="section-heading">
+          <div><p className="eyebrow">{tr('Community size', 'حجم المجتمعات')}</p><h2>{tr('Members per community', 'الأعضاء في كل مجتمع')}</h2><p className="muted">{tr('Live counts come from each platform and refresh hourly. Known members are people the system has identified individually.', 'الأعداد المباشرة تأتي من كل منصة وتتحدث كل ساعة. الأعضاء المعروفون هم من تعرّف عليهم النظام بشكل فردي.')}</p></div>
+        </div>
+        <div className="metric-grid compact-metrics">
+          {memberStats.map((stat) => (
+            <article className="metric-card" key={stat.communityId}>
+              <span><span className={`platform ${stat.platform}`}>{stat.platform}</span> {stat.communityLevel === 'APPROVED' ? tr('Private (VIP)', 'خاص (VIP)') : stat.name.replace(/^(WhatsApp|Telegram|Discord)\s*/i, '')}</span>
+              <strong>{stat.liveMemberCount != null ? stat.liveMemberCount.toLocaleString() : stat.trackedMembers.toLocaleString()}</strong>
+              <small>
+                {stat.liveMemberCount != null
+                  ? tr(`Live count · ${stat.trackedMembers.toLocaleString()} known members`, `عدد مباشر · ${stat.trackedMembers.toLocaleString()} عضو معروف`)
+                  : tr('Known members (live count pending)', 'أعضاء معروفون (العدد المباشر قيد التحديث)')}
+              </small>
+            </article>
+          ))}
+        </div>
+      </section>
+    )}
 
     <section className="metric-grid compact-metrics communities-metrics" aria-label={tr('Private access lifecycle summary', 'ملخص دورة حياة الوصول الخاص')}>
       <article className="metric-card"><span>{tr('Final approvals', 'الموافقات النهائية')}</span><strong>{counts.finalApproved}</strong></article>

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { extractText, getDocumentProxy } from "npm:unpdf@0.12.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -97,6 +98,11 @@ Deno.serve(async (req) => {
     let text = "";
     if (lowerPath.endsWith(".docx")) text = docxXmlToText(await extractZipEntryText(new Uint8Array(await fileBlob.arrayBuffer()), "word/document.xml"));
     else if (lowerPath.endsWith(".txt") || lowerPath.endsWith(".md")) text = (await fileBlob.text()).trim();
+    else if (lowerPath.endsWith(".pdf")) {
+      const pdf = await getDocumentProxy(new Uint8Array(await fileBlob.arrayBuffer()));
+      const extracted = await extractText(pdf, { mergePages: true });
+      text = String(extracted.text ?? "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    }
     else throw new Error(`unsupported_file_type: ${doc.storage_path}`);
     if (!text) throw new Error("extracted_text_empty");
 

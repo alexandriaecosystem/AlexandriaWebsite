@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { getSupabaseClient } from '../services/supabase';
 import { getAdminUserConversation, listAdminUsers, markAdminConversationRead, type AdminUserConversation, type AdminUserListItem } from '../services/users-admin';
@@ -78,6 +78,12 @@ export function UserConversationPage() {
     if (!data) return [];
     return platform === 'all' ? data.messages : data.messages.filter((message) => message.platform === platform);
   }, [data, platform]);
+
+  const streamRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const stream = streamRef.current;
+    if (stream) stream.scrollTop = stream.scrollHeight;
+  }, [visibleMessages, tab]);
 
   if (loading) return <p role="status" className="panel">{tr('Loading user…', 'جارٍ تحميل المستخدم…')}</p>;
   if (error || !data) return <p className="form-error" role="alert">{error || tr('User not found.', 'المستخدم غير موجود.')}</p>;
@@ -195,7 +201,7 @@ export function UserConversationPage() {
             <div><p className="eyebrow">{tr('Message history', 'سجل الرسائل')}</p><h2>{tr('Conversation', 'المحادثة')}</h2></div>
             <label className="conversation-filter"><span className="sr-only">{tr('Filter by platform', 'تصفية حسب المنصة')}</span><select value={platform} onChange={(event) => setPlatform(event.target.value)}><option value="all">{tr('All platforms', 'كل المنصات')}</option>{Array.from(new Set(data.platformAccounts.map((account) => account.platform))).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           </div>
-          <div className="conversation-stream">
+          <div className="conversation-stream" ref={streamRef}>
             {visibleMessages.map((message) => (
               <article className={`message-row ${message.direction === 'ASSISTANT' ? 'assistant' : 'user'}`} key={`${message.direction}-${message.id}`}>
                 <div className="message-meta"><span>{message.direction === 'ASSISTANT' ? tr('Alexandria assistant', 'مساعد Alexandria') : (data.user.name || tr('User', 'المستخدم'))}</span><span className={`platform ${message.platform}`}>{message.platform}</span><time>{formatDate(message.occurredAt)}</time></div>

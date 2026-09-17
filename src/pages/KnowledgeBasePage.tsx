@@ -3,9 +3,11 @@ import {
   approveKnowledgeDocument,
   createKnowledgeDocument,
   deleteKnowledgeDocument,
+  listKnowledgeConflicts,
   listKnowledgeDocuments,
   requestKnowledgeDocumentReprocessing,
 } from '../services/admin';
+import type { KnowledgeConflict } from '../types/contracts';
 import { getSupabaseClient } from '../services/supabase';
 import type { KnowledgeDocumentSummary } from '../types/contracts';
 import { EmptyState, LoadingState, RetryableErrorState } from '../components/AsyncState';
@@ -14,7 +16,7 @@ import { KnowledgeDocumentEditor } from '../components/KnowledgeDocumentEditor';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
-const SUPPORTED_EXTENSIONS = ['docx', 'txt', 'md'];
+const SUPPORTED_EXTENSIONS = ['docx', 'txt', 'md', 'pdf'];
 type ConfirmAction = { kind: 'delete'; id: string; title: string } | { kind: 'bulk-approve' } | { kind: 'bulk-reprocess' } | null;
 type LibraryFilter = 'ALL' | 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'APPROVED' | 'AVAILABLE';
 type UploadStage = 'idle' | 'uploading' | 'queued' | 'error';
@@ -47,6 +49,11 @@ export function KnowledgeBasePage() {
   const [allDocuments, setAllDocuments] = useState<KnowledgeDocumentSummary[]>();
   const [total, setTotal] = useState(0);
   const [filter, setFilter] = useState<LibraryFilter>('ALL');
+  const [viewTab, setViewTab] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
+  const [pendingTestId, setPendingTestId] = useState<string | null>(null);
+  const [testDoc, setTestDoc] = useState<KnowledgeDocumentSummary | null>(null);
+  const [testConflicts, setTestConflicts] = useState<KnowledgeConflict[]>([]);
+  const [testBusy, setTestBusy] = useState(false);
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -98,11 +105,79 @@ export function KnowledgeBasePage() {
 
   const documents = useMemo(() => {
     if (!allDocuments) return undefined;
-    if (filter === 'ALL') return allDocuments;
-    if (filter === 'APPROVED') return allDocuments.filter((item) => item.isApproved);
-    if (filter === 'AVAILABLE') return allDocuments.filter(isAvailable);
-    return allDocuments.filter((item) => item.processingStatus === filter);
-  }, [allDocuments, filter]);
+    const inTab = allDocuments.filter((item) => viewTab === 'ACTIVE' ? item.isApproved : !item.isApproved);
+    if (filter === 'ALL') return inTab;
+    if (filter === 'APPROVED') return inTab.filter((item) => item.isApproved);
+    if (filter === 'AVAILABLE') return inTab.filter(isAvailable);
+    return inTab.filter((item) => item.processingStatus === filter);
+  }, [allDocuments, filter, viewTab]);
+
+  const inactiveCount = useMemo(() => allDocuments?.filter((item) => !item.isApproved).length ?? 0, [allDocuments]);
+
+  // The owner's "Test" flow: make sure the conflict scan matches the current
+  // version, then present the result as a plain add / bypass / no decision.
+  async function testDocument(doc: KnowledgeDocumentSummary) {
+    if (doc.conflictScanStatus === 'READY' && doc.conflictScannedVersion === doc.version) {
+      await openTestResult(doc);
+      return;
+    }
+    try {
+      await requestKnowledgeDocumentReprocessing(getSupabaseClient(), doc.id);
+      setPendingTestId(doc.id);
+      notify({ tone: 'success', title: tr('Content test started', 'بدأ فحص المحتوى'), message: tr('Checking this content against the Active knowledge. The result opens automatically in about a minute.', 'جارٍ فحص هذا المحتوى مقابل المعرفة الفعّالة. ستظهر النتيجة تلقائياً خلال دقيقة تقريباً.') });
+    } catch (caught) {
+      notify({ tone: 'error', title: tr('Could not start the test', 'تعذر بدء الفحص'), message: caught instanceof Error ? caught.message : undefined });
+    }
+  }
+
+  async function openTestResult(doc: KnowledgeDocumentSummary) {
+    setPendingTestId(null);
+    if (doc.blockingConflictCount > 0) {
+      try {
+        const result = await listKnowledgeConflicts(getSupabaseClient(), doc.id);
+        setTestConflicts(result.items.filter((item) => ['OPEN', 'REVIEW_REQUIRED'].includes(item.status)));
+      } catch {
+        setTestConflicts([]);
+      }
+    } else {
+      setTestConflicts([]);
+    }
+    setTestDoc(doc);
+  }
+
+  useEffect(() => {
+    if (!pendingTestId || !allDocuments) return;
+    const doc = allDocuments.find((item) => item.id === pendingTestId);
+    if (doc && doc.conflictScanStatus === 'READY' && doc.conflictScannedVersion === doc.version) {
+      void openTestResult(doc);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allDocuments, pendingTestId]);
+
+  async function resolveTest(approveIt: boolean, bypass: boolean) {
+    if (!testDoc) return;
+    if (!approveIt) {
+      setTestDoc(null);
+      setTestConflicts([]);
+      return;
+    }
+    setTestBusy(true);
+    try {
+      await approveKnowledgeDocument(getSupabaseClient(), testDoc.id, { bypassConflicts: bypass });
+      notify({
+        tone: 'success',
+        title: bypass ? tr('Added with the conflict kept', 'تمت الإضافة مع إبقاء التعارض') : tr('Added to Active knowledge', 'تمت الإضافة إلى المعرفة الفعّالة'),
+        message: bypass ? tr('The document is now Active. The conflict stays recorded and is not auto-resolved.', 'المستند أصبح فعّالاً. يبقى التعارض مسجلاً ولا يُحل تلقائياً.') : undefined,
+      });
+      setTestDoc(null);
+      setTestConflicts([]);
+      setReload((n) => n + 1);
+    } catch (caught) {
+      notify({ tone: 'error', title: tr('Could not add the document', 'تعذرت إضافة المستند'), message: caught instanceof Error ? caught.message : undefined });
+    } finally {
+      setTestBusy(false);
+    }
+  }
 
   const readyCount = useMemo(() => allDocuments?.filter((item) => item.processingStatus === 'READY').length ?? 0, [allDocuments]);
   const approvedCount = useMemo(() => allDocuments?.filter((item) => item.isApproved).length ?? 0, [allDocuments]);
@@ -123,7 +198,7 @@ export function KnowledgeBasePage() {
 
     const extension = extensionOf(nextFile);
     if (!SUPPORTED_EXTENSIONS.includes(extension)) {
-      const text = tr('Unsupported file type. Choose DOCX, TXT or Markdown.', 'نوع الملف غير مدعوم. اختر DOCX أو TXT أو Markdown.');
+      const text = tr('Unsupported file type. Choose DOCX, PDF, TXT or Markdown.', 'نوع الملف غير مدعوم. اختر DOCX أو PDF أو TXT أو Markdown.');
       setFile(null);
       setMessage(text);
       setMessageIsError(true);
@@ -272,8 +347,16 @@ export function KnowledgeBasePage() {
           <h1>{tr('Knowledge base', 'قاعدة المعرفة')}</h1>
           <p className="muted page-subtitle">{tr('Manage the sources Alexandria uses to answer questions.', 'أدر المصادر التي يستخدمها Alexandria للإجابة عن الأسئلة.')}</p>
         </div>
-        <button type="button" className="primary" onClick={focusUpload}>{tr('Upload document', 'رفع مستند')}</button>
+        <button type="button" className="primary" onClick={() => { setViewTab('INACTIVE'); focusUpload(); }}>{tr('Add knowledge', 'إضافة معرفة')}</button>
       </header>
+
+      <nav className="user-detail-tabs" aria-label={tr('Knowledge state', 'حالة المعرفة')}>
+        <button type="button" className={viewTab === 'ACTIVE' ? 'active' : ''} onClick={() => setViewTab('ACTIVE')}>{tr('Active', 'فعّال')} ({error || !allDocuments ? '—' : approvedCount})</button>
+        <button type="button" className={viewTab === 'INACTIVE' ? 'active' : ''} onClick={() => setViewTab('INACTIVE')}>{tr('Inactive', 'غير فعّال')} ({error || !allDocuments ? '—' : inactiveCount})</button>
+      </nav>
+      <p className="muted">{viewTab === 'ACTIVE'
+        ? tr('Active knowledge is approved and used by the assistant to answer questions.', 'المعرفة الفعّالة معتمدة ويستخدمها المساعد للإجابة عن الأسئلة.')
+        : tr('Inactive is the waiting room: add new content here, run a content test against the Active knowledge, then decide whether to activate it.', 'غير الفعّال هو غرفة الانتظار: أضف المحتوى الجديد هنا، وشغّل فحص المحتوى مقابل المعرفة الفعّالة، ثم قرر التفعيل.')}</p>
       {message && <p className={messageIsError ? 'form-error' : 'form-success'} role={messageIsError ? 'alert' : 'status'}>{message}</p>}
 
       <section className="knowledge-state-grid" aria-label={tr('Knowledge publishing stages', 'مراحل نشر المعرفة')}>
@@ -284,8 +367,8 @@ export function KnowledgeBasePage() {
       </section>
 
       <section className="knowledge-layout">
-        <details ref={uploadDetailsRef} className="knowledge-upload-disclosure">
-          <summary>{tr('Add a source', 'إضافة مصدر')}<span>{tr('DOCX, TXT or Markdown · up to 20 MB', 'DOCX أو TXT أو Markdown · حتى 20 ميغابايت')}</span></summary>
+        <details ref={uploadDetailsRef} className="knowledge-upload-disclosure" hidden={viewTab === 'ACTIVE'}>
+          <summary>{tr('Add a source', 'إضافة مصدر')}<span>{tr('DOCX, PDF, TXT or Markdown · up to 20 MB', 'DOCX أو PDF أو TXT أو Markdown · حتى 20 ميغابايت')}</span></summary>
         <form ref={uploadPanelRef} id="knowledge-upload" className="panel upload-panel enhanced-upload-panel" onSubmit={uploadDocument}>
           <div className="upload-heading"><div><p className="eyebrow">{tr('Add source', 'إضافة مصدر')}</p><h2>{tr('Upload document', 'رفع مستند')}</h2></div><span className="status-pill neutral">{tr('Max 20 MB', 'الحد 20 م.ب')}</span></div>
           <p className="muted upload-intro">{tr('Upload a source, wait for processing, then review and approve it.', 'ارفع مصدراً وانتظر معالجته، ثم راجعه واعتمده.')}</p>
@@ -296,7 +379,7 @@ export function KnowledgeBasePage() {
             <label>{tr('Language', 'لغة المستند')}<input value={language} onChange={(event) => setLanguage(event.target.value)} required placeholder="en" maxLength={8} dir="ltr" /></label>
           </div>
 
-          <input ref={fileInputRef} className="drop-input" type="file" accept=".docx,.txt,.md" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} />
+          <input ref={fileInputRef} className="drop-input" type="file" accept=".docx,.txt,.md,.pdf" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} />
           <button
             type="button"
             className={`file-drop-zone ${dragActive ? 'drag-active' : ''} ${file ? 'has-file' : ''}`}
@@ -307,7 +390,7 @@ export function KnowledgeBasePage() {
             onDrop={dropFile}
           >
             <span className="drop-icon" aria-hidden="true">⇧</span>
-            <span><strong>{file ? tr('Choose a different file', 'اختر ملفاً آخر') : tr('Drop a file here or browse', 'اسحب ملفاً هنا أو اختر من الجهاز')}</strong><small>{tr('DOCX, TXT or Markdown · up to 20 MB', 'DOCX أو TXT أو Markdown · حتى 20 ميغابايت')}</small></span>
+            <span><strong>{file ? tr('Choose a different file', 'اختر ملفاً آخر') : tr('Drop a file here or browse', 'اسحب ملفاً هنا أو اختر من الجهاز')}</strong><small>{tr('DOCX, PDF, TXT or Markdown · up to 20 MB', 'DOCX أو PDF أو TXT أو Markdown · حتى 20 ميغابايت')}</small></span>
           </button>
 
           {file && (
@@ -387,7 +470,11 @@ export function KnowledgeBasePage() {
                 {doc.conflictScanStatus === 'FAILED' && <p className="form-error">{tr('Conflict scan failed. Reprocess this source before approval.', 'فشل فحص التعارض. أعد معالجة المصدر قبل الاعتماد.')}</p>}
                 <div className="document-primary-actions">
                   <button type="button" className="compact-button" disabled={busy || doc.processingStatus === 'PROCESSING'} onClick={() => setEditingId(doc.id)}>{tr('Open / Edit', 'فتح / تعديل')}</button>
-                  {processed && !doc.isApproved && <button type="button" className="compact-button primary" disabled={busy || !canApprove(doc)} onClick={() => void act(doc.id, 'approve')}>{tr('Approve', 'اعتماد')}</button>}
+                  {processed && !doc.isApproved && (
+                    <button type="button" className="compact-button primary" disabled={busy || pendingTestId === doc.id} onClick={() => void testDocument(doc)}>
+                      {pendingTestId === doc.id ? tr('Testing…', 'جارٍ الفحص…') : tr('Content test', 'فحص المحتوى')}
+                    </button>
+                  )}
                   {failed && <button type="button" className="compact-button" disabled={busy} onClick={() => void act(doc.id, 'reprocess')}>{tr('Retry processing', 'إعادة محاولة المعالجة')}</button>}
                 </div>
 
@@ -413,6 +500,44 @@ export function KnowledgeBasePage() {
       </section>
 
       {editingId && <KnowledgeDocumentEditor documentId={editingId} onClose={() => setEditingId(null)} onSaved={() => setReload((n) => n + 1)} />}
+
+      <ConfirmDialog
+        open={Boolean(testDoc) && testDoc!.blockingConflictCount === 0}
+        title={tr('No conflicts found', 'لم يتم العثور على تعارضات')}
+        message={<p>{tr(`“${testDoc?.title}” was checked against the Active knowledge and no conflicts were found. Add it to Active knowledge?`, `تم فحص “${testDoc?.title}” مقابل المعرفة الفعّالة ولم يُعثر على تعارضات. إضافته إلى المعرفة الفعّالة؟`)}</p>}
+        confirmLabel={tr('Yes, add to Active', 'نعم، أضِفه إلى الفعّال')}
+        cancelLabel={tr('No', 'لا')}
+        tone="primary"
+        busy={testBusy}
+        onCancel={() => void resolveTest(false, false)}
+        onConfirm={() => void resolveTest(true, false)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(testDoc) && (testDoc?.blockingConflictCount ?? 0) > 0}
+        title={tr('Conflict found', 'تم العثور على تعارض')}
+        message={
+          <div>
+            <p>{tr(`“${testDoc?.title}” contradicts the Active knowledge. Nothing is fixed automatically — choose what to do:`, `“${testDoc?.title}” يتعارض مع المعرفة الفعّالة. لا يتم إصلاح أي شيء تلقائياً — اختر ما تريد فعله:`)}</p>
+            <ul className="signal-list">
+              {testConflicts.slice(0, 3).map((conflict) => (
+                <li key={conflict.id}>
+                  <strong>{conflict.sourceATitle || tr('New content', 'المحتوى الجديد')}:</strong> “{conflict.claimA}” — <strong>{conflict.sourceBTitle || tr('Active knowledge', 'المعرفة الفعّالة')}:</strong> “{conflict.claimB}”
+                </li>
+              ))}
+              {testConflicts.length > 3 && <li>{tr(`…and ${testConflicts.length - 3} more conflicts.`, `…و${testConflicts.length - 3} تعارضات أخرى.`)}</li>}
+              {!testConflicts.length && <li>{tr('Conflict details are listed in the Knowledge Intelligence section.', 'تفاصيل التعارض مذكورة في قسم مراجعة المعرفة.')}</li>}
+            </ul>
+            <p className="muted">{tr('Bypass activates it anyway and keeps the conflict recorded. No leaves it Inactive so you can fix the source file and test again.', 'التجاوز يفعّله على أي حال مع إبقاء التعارض مسجلاً. «لا» يُبقيه غير فعّال لتصحيح الملف المصدر وإعادة الفحص.')}</p>
+          </div>
+        }
+        confirmLabel={tr('Bypass — add anyway', 'تجاوز — أضِفه على أي حال')}
+        cancelLabel={tr('No', 'لا')}
+        tone="danger"
+        busy={testBusy}
+        onCancel={() => void resolveTest(false, false)}
+        onConfirm={() => void resolveTest(true, true)}
+      />
 
       <ConfirmDialog
         open={Boolean(confirmAction)}

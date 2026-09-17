@@ -11,6 +11,7 @@ vi.mock('../src/services/supabase', () => ({ getSupabaseClient: () => ({}) }));
 vi.mock('../src/services/admin', () => ({
   getDashboardMetrics: mocks.metrics, listKnowledgeDocuments: mocks.documents,
   approveKnowledgeDocument: vi.fn(), createKnowledgeDocument: vi.fn(), deleteKnowledgeDocument: vi.fn(), requestKnowledgeDocumentReprocessing: vi.fn(),
+  listKnowledgeConflicts: vi.fn().mockResolvedValue({ items: [], total: 0 }),
 }));
 vi.mock('../src/services/admin-operations', () => ({ listKnowledgeGaps: mocks.gaps }));
 vi.mock('../src/services/dashboard-attention', () => ({ getDashboardAttention: mocks.attention }));
@@ -83,7 +84,12 @@ describe('operational truth and navigation', () => {
     const published = within(screen.getByRole('heading', { name: 'Conflicted source' }).closest('article')!);
     expect(published.queryByText('Ready for answers')).not.toBeInTheDocument();
     expect(published.getByText('Conflict detected — approval blocked')).toBeInTheDocument();
+    // The unapproved draft lives on the Inactive tab; there is no blind Approve
+    // any more — activation must go through the content test dialog.
+    screen.getByRole('button', { name: /Inactive/ }).click();
+    await screen.findByRole('heading', { name: 'Blocked draft' });
     const draft = within(screen.getByRole('heading', { name: 'Blocked draft' }).closest('article')!);
-    expect(draft.getByRole('button', { name: 'Approve' })).toBeDisabled();
+    expect(draft.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(draft.getByRole('button', { name: 'Content test' })).toBeEnabled();
   });
 });

@@ -440,6 +440,9 @@ html[dir='rtl'] .user-table-row:hover {
   gap: 14px;
   padding: 28px 30px 34px;
   background: linear-gradient(180deg, #111419, var(--panel-soft));
+  max-height: min(64vh, 720px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .message-row {

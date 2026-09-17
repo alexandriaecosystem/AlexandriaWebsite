@@ -13,6 +13,7 @@ vi.mock('../src/services/admin', () => ({
   createKnowledgeDocument: vi.fn(),
   deleteKnowledgeDocument: vi.fn(),
   requestKnowledgeDocumentReprocessing: vi.fn(),
+  listKnowledgeConflicts: vi.fn().mockResolvedValue({ items: [], total: 0 }),
 }));
 
 beforeEach(() => window.localStorage.removeItem('alexandria-admin-language'));
@@ -31,11 +32,14 @@ describe('document availability guidance', () => {
     await screen.findByRole('heading', { name: 'Published guide' });
     const card = (title: string) => within(screen.getByRole('heading', { name: title }).closest('article')!);
     expect(card('Published guide').getByText('Ready for answers')).toBeInTheDocument();
-    expect(card('Needs review').getByText('Needs approval')).toBeInTheDocument();
-    expect(card('Needs review').getByRole('button', { name: 'Approve' })).toBeEnabled();
     expect(card('Empty source').getByText('No indexed content')).toBeInTheDocument();
     expect(card('Failed source').getByText('Processing failed')).toBeInTheDocument();
     expect(card('Failed source').queryByText('Ready for answers')).not.toBeInTheDocument();
     expect(card('Failed source').queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    // Unapproved documents live on the Inactive tab and activate via the content test.
+    screen.getByRole('button', { name: /Inactive/ }).click();
+    await screen.findByRole('heading', { name: 'Needs review' });
+    expect(card('Needs review').getByText('Needs approval')).toBeInTheDocument();
+    expect(card('Needs review').getByRole('button', { name: 'Content test' })).toBeEnabled();
   });
 });

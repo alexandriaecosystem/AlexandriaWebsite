@@ -411,13 +411,13 @@ export async function getKnowledgeDocument(client: SupabaseClient, documentId: s
   };
 }
 
-const KNOWLEDGE_UPLOAD_EXTENSIONS = new Set(['docx', 'txt', 'md']);
+const KNOWLEDGE_UPLOAD_EXTENSIONS = new Set(['docx', 'txt', 'md', 'pdf']);
 const KNOWLEDGE_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 
 export async function createKnowledgeDocument(client: SupabaseClient, input: { title: string; category: string; language: string; file: File }) {
   const extension = input.file.name.includes('.') ? input.file.name.split('.').pop()!.toLowerCase() : 'txt';
   if (!KNOWLEDGE_UPLOAD_EXTENSIONS.has(extension)) {
-    throw new AdminApiError('Only .docx, .txt, or .md files can be added to the knowledge base.');
+    throw new AdminApiError('Only .docx, .pdf, .txt, or .md files can be added to the knowledge base.');
   }
   if (!input.file.size || input.file.size > KNOWLEDGE_UPLOAD_MAX_BYTES) {
     throw new AdminApiError('Knowledge files must be between 1 byte and 20 MB.');
@@ -437,8 +437,8 @@ export async function createKnowledgeDocument(client: SupabaseClient, input: { t
   return { id, storagePath, bucket };
 }
 
-export async function approveKnowledgeDocument(client: SupabaseClient, documentId: string): Promise<KnowledgeApprovalResult> {
-  const { data, error } = await client.rpc('admin_approve_knowledge_document', { p_document_id: documentId });
+export async function approveKnowledgeDocument(client: SupabaseClient, documentId: string, options?: { bypassConflicts?: boolean }): Promise<KnowledgeApprovalResult> {
+  const { data, error } = await client.rpc('admin_approve_knowledge_document', { p_document_id: documentId, p_bypass_conflicts: options?.bypassConflicts === true });
   const raw = assertRpc(data as unknown, error);
   const value = asObject(Array.isArray(raw) ? raw[0] : raw);
   const conflicts = Array.isArray(value.conflicts) ? value.conflicts.map((item) => mapKnowledgeConflict(asObject(item))) : [];
