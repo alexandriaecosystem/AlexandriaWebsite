@@ -281,7 +281,7 @@ export function KnowledgeBasePage() {
                     <div className="kb-doc-copy">
                       <h3>{doc.title}</h3>
                       <p className="muted">{categoryLabel(doc.category)} · <span dir="ltr">{doc.language.toUpperCase()}</span></p>
-                      {conflicted && <p className="form-error">{tr('This document has a recorded conflict with other knowledge.', 'لهذا المستند تعارض مسجل مع معرفة أخرى.')}</p>}
+                      {conflicted && <p className="form-error">{tr('This document contradicts other knowledge. Press Open to correct the text — it returns to Inactive for a new test after you save.', 'يتعارض هذا المستند مع معرفة أخرى. اضغط «فتح» لتصحيح النص — سيعود إلى غير الفعّال لفحص جديد بعد الحفظ.')}</p>}
                       {failed && <p className="form-error">{tr('Processing failed', 'فشلت المعالجة')}</p>}
                       {empty && !failed && <p className="form-error">{tr('No indexed content', 'لا يوجد محتوى مفهرس')}</p>}
                     </div>
@@ -402,17 +402,38 @@ export function KnowledgeBasePage() {
         title={tr('Conflict found', 'تم العثور على تعارض')}
         message={
           <div>
-            <p>{tr(`“${testDoc?.title}” contradicts the Active knowledge. Nothing is fixed automatically — choose what to do:`, `“${testDoc?.title}” يتعارض مع المعرفة الفعّالة. لا يتم إصلاح أي شيء تلقائياً — اختر ما تريد فعله:`)}</p>
+            <p>{tr(`“${testDoc?.title}” says the opposite of something in your Active knowledge:`, `“${testDoc?.title}” يقول عكس شيء موجود في معرفتك الفعّالة:`)}</p>
+            <div className="kb-conflict-list">
+              {testConflicts.slice(0, 3).map((conflict) => {
+                const thisDocIsA = conflict.sourceADocumentId === testDoc?.id;
+                const mine = thisDocIsA ? conflict.claimA : conflict.claimB;
+                const active = thisDocIsA ? conflict.claimB : conflict.claimA;
+                const activeTitle = (thisDocIsA ? conflict.sourceBTitle : conflict.sourceATitle) || tr('Active knowledge', 'المعرفة الفعّالة');
+                return (
+                  <div className="kb-conflict-pair" key={conflict.id}>
+                    <p><span className="kb-conflict-side new">{tr('This document', 'هذا المستند')}</span> “{mine}”</p>
+                    <p><span className="kb-conflict-side active">{activeTitle}</span> “{active}”</p>
+                  </div>
+                );
+              })}
+              {testConflicts.length > 3 && <p className="muted">{tr(`…and ${testConflicts.length - 3} more.`, `…و${testConflicts.length - 3} أخرى.`)}</p>}
+              {!testConflicts.length && <p className="muted">{tr('Conflict details are listed in the advanced monitoring section.', 'تفاصيل التعارض مذكورة في قسم المراقبة المتقدمة.')}</p>}
+            </div>
+            <p>{tr('You have three options:', 'لديك ثلاثة خيارات:')}</p>
             <ul className="signal-list">
-              {testConflicts.slice(0, 3).map((conflict) => (
-                <li key={conflict.id}>
-                  <strong>{conflict.sourceATitle || tr('New content', 'المحتوى الجديد')}:</strong> “{conflict.claimA}” — <strong>{conflict.sourceBTitle || tr('Active knowledge', 'المعرفة الفعّالة')}:</strong> “{conflict.claimB}”
-                </li>
-              ))}
-              {testConflicts.length > 3 && <li>{tr(`…and ${testConflicts.length - 3} more conflicts.`, `…و${testConflicts.length - 3} تعارضات أخرى.`)}</li>}
-              {!testConflicts.length && <li>{tr('Conflict details are listed in the advanced monitoring section.', 'تفاصيل التعارض مذكورة في قسم المراقبة المتقدمة.')}</li>}
+              <li><strong>{tr('Fix the text', 'تصحيح النص')}</strong> — {tr('edit this document here, then run the test again.', 'عدّل هذا المستند هنا ثم أعد الفحص.')}</li>
+              <li><strong>{tr('Bypass', 'تجاوز')}</strong> — {tr('activate it as it is; the conflict stays recorded and is never auto-resolved.', 'فعّله كما هو؛ يبقى التعارض مسجلاً ولا يُحل تلقائياً أبداً.')}</li>
+              <li><strong>{tr('No', 'لا')}</strong> — {tr('leave it Inactive and decide later.', 'اتركه غير فعّال وقرر لاحقاً.')}</li>
             </ul>
-            <p className="muted">{tr('Bypass activates it anyway and keeps the conflict recorded. No leaves it Inactive so you can fix the source file and test again.', 'التجاوز يفعّله على أي حال مع إبقاء التعارض مسجلاً. «لا» يُبقيه غير فعّال لتصحيح الملف المصدر وإعادة الفحص.')}</p>
+            <button
+              type="button"
+              className="compact-button primary kb-fix-button"
+              disabled={testBusy}
+              onClick={() => { const id = testDoc?.id; setTestDoc(null); setTestConflicts([]); if (id) setEditingId(id); }}
+            >
+              {tr('Fix the text now', 'صحّح النص الآن')}
+            </button>
+            <p className="muted"><small>{tr('If the Active document is the wrong one instead, close this, open that document in the Active box and correct it there.', 'إذا كان المستند الفعّال هو الخاطئ، أغلق هذه النافذة وافتح ذلك المستند في صندوق الفعّال وصححه هناك.')}</small></p>
           </div>
         }
         confirmLabel={tr('Bypass — add anyway', 'تجاوز — أضِفه على أي حال')}

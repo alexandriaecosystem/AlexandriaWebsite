@@ -903,3 +903,44 @@ html[dir='rtl'] .info-tip::after {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* Conflict explanation inside the content-test dialog */
+.kb-conflict-list {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 14px;
+}
+
+.kb-conflict-pair {
+  border-inline-start: 3px solid var(--border-strong, #3a3f47);
+  padding-inline-start: 12px;
+}
+
+.kb-conflict-pair p {
+  margin: 0 0 4px;
+}
+
+.kb-conflict-side {
+  display: inline-block;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-inline-end: 6px;
+}
+
+.kb-conflict-side.new {
+  background: rgba(212, 168, 63, .18);
+  color: #e3bf6a;
+}
+
+.kb-conflict-side.active {
+  background: rgba(88, 199, 137, .16);
+  color: #6fd39c;
+}
+
+.kb-fix-button {
+  margin-bottom: 10px;
+}
