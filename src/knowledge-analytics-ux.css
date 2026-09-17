@@ -958,3 +958,16 @@ html[dir='rtl'] .info-tip::after {
   color: #ff8f8f;
   font-weight: 600;
 }
+
+.service-edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.service-name-input {
+  width: 190px;
+}

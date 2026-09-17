@@ -19,6 +19,7 @@ export type ServiceSubscription = {
   billingKind: 'USAGE' | 'SUBSCRIPTION' | 'FREE';
   monthlyCostUsd: number | null;
   renewsOn: string | null;
+  renewalCycle: 'MONTHLY' | 'YEARLY' | 'DAILY' | 'NONE';
   manageUrl: string | null;
 };
 
@@ -74,23 +75,58 @@ export async function listServiceSubscriptions(client: SupabaseClient): Promise<
       billingKind: kind === 'USAGE' || kind === 'SUBSCRIPTION' ? kind : 'FREE',
       monthlyCostUsd: nullableNumber(item.monthly_cost_usd),
       renewsOn: item.renews_on ? String(item.renews_on) : null,
+      renewalCycle: (['MONTHLY', 'YEARLY', 'DAILY', 'NONE'] as const).find((cycle) => cycle === item.renewal_cycle) ?? 'MONTHLY',
       manageUrl: item.manage_url ? String(item.manage_url) : null,
     };
   });
 }
 
-export async function updateServiceSubscription(
-  client: SupabaseClient,
-  serviceKey: string,
-  input: { monthlyCostUsd?: number | null; renewsOn?: string | null },
-) {
+export type ServiceEdit = {
+  monthlyCostUsd?: number | null;
+  renewsOn?: string | null;
+  renewalCycle?: ServiceSubscription['renewalCycle'];
+  label?: string | null;
+};
+
+export async function updateServiceSubscription(client: SupabaseClient, serviceKey: string, input: ServiceEdit) {
   const { error } = await client.rpc('admin_update_service_subscription', {
     p_service_key: serviceKey,
     p_monthly_cost_usd: input.monthlyCostUsd ?? null,
     p_renews_on: input.renewsOn || null,
-    p_clear_renews_on: input.renewsOn === '',
+    p_clear_renews_on: !input.renewsOn,
+    p_renewal_cycle: input.renewalCycle ?? null,
+    p_label: input.label ?? null,
   });
   if (error) throw new Error(error.message);
+}
+
+export async function addServiceSubscription(
+  client: SupabaseClient,
+  input: { label: string; monthlyCostUsd: number | null; renewsOn: string | null; renewalCycle: ServiceSubscription['renewalCycle']; manageUrl?: string | null },
+) {
+  const { error } = await client.rpc('admin_add_service_subscription', {
+    p_label: input.label,
+    p_monthly_cost_usd: input.monthlyCostUsd,
+    p_renews_on: input.renewsOn || null,
+    p_renewal_cycle: input.renewalCycle,
+    p_manage_url: input.manageUrl || null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function removeServiceSubscription(client: SupabaseClient, serviceKey: string) {
+  const { error } = await client.rpc('admin_remove_service_subscription', { p_service_key: serviceKey });
+  if (error) throw new Error(error.message);
+}
+
+// A daily or yearly price is converted so every service can be compared and
+// summed on the same monthly scale.
+export function monthlyEquivalent(item: ServiceSubscription): number {
+  const cost = item.monthlyCostUsd ?? 0;
+  if (!cost) return 0;
+  if (item.renewalCycle === 'DAILY') return cost * 30.4;
+  if (item.renewalCycle === 'YEARLY') return cost / 12;
+  return cost;
 }
 
 export async function refreshOpenRouterBalance(client: SupabaseClient): Promise<AiBilling> {

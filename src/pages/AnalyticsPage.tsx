@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { EmptyState, LoadingState, RetryableErrorState } from '../components/AsyncState';
 import { getAiUsageSummary, getAiUsageTimeseries, getModelUsage, getPlatformStats } from '../services/admin';
-import { getAiBilling, listServiceSubscriptions, refreshOpenRouterBalance, updateServiceSubscription, type AiBilling, type ServiceSubscription } from '../services/cost-transparency';
+import { addServiceSubscription, getAiBilling, listServiceSubscriptions, monthlyEquivalent, refreshOpenRouterBalance, removeServiceSubscription, updateServiceSubscription, type AiBilling, type ServiceSubscription } from '../services/cost-transparency';
 import { getSupabaseClient } from '../services/supabase';
 import type { AiUsageSeriesPoint, AiUsageSummary, ModelUsageStat, PlatformStat } from '../types/contracts';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -112,6 +112,9 @@ export function AnalyticsPage() {
   const [editingCostKey, setEditingCostKey] = useState<string | null>(null);
   const [editingCostValue, setEditingCostValue] = useState('');
   const [editingRenewsOn, setEditingRenewsOn] = useState('');
+  const [editingCycle, setEditingCycle] = useState<ServiceSubscription['renewalCycle']>('MONTHLY');
+  const [addingService, setAddingService] = useState(false);
+  const [newServiceLabel, setNewServiceLabel] = useState('');
   const [costBusy, setCostBusy] = useState(false);
   const [costError, setCostError] = useState('');
   const [balanceBusy, setBalanceBusy] = useState(false);
@@ -125,24 +128,33 @@ export function AnalyticsPage() {
 
   function startEditing(item: ServiceSubscription) {
     setCostError('');
+    setAddingService(false);
     setEditingCostKey(item.serviceKey);
     setEditingCostValue(item.monthlyCostUsd == null ? '' : String(item.monthlyCostUsd));
     setEditingRenewsOn(item.renewsOn ?? '');
+    setEditingCycle(item.renewalCycle);
+  }
+
+  function parsedCost(): number | null | undefined {
+    const trimmed = editingCostValue.trim();
+    if (trimmed === '') return null;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) return undefined;
+    return parsed;
   }
 
   async function saveSubscription(serviceKey: string) {
-    const trimmed = editingCostValue.trim();
-    const parsed = trimmed === '' ? null : Number(trimmed);
-    if (parsed != null && (!Number.isFinite(parsed) || parsed < 0)) {
+    const cost = parsedCost();
+    if (cost === undefined) {
       setCostError(tr('Enter a number, for example 35', 'أدخل رقماً، مثال 35'));
       return;
     }
     setCostBusy(true);
     setCostError('');
     try {
-      await updateServiceSubscription(getSupabaseClient(), serviceKey, { monthlyCostUsd: parsed, renewsOn: editingRenewsOn });
+      await updateServiceSubscription(getSupabaseClient(), serviceKey, { monthlyCostUsd: cost, renewsOn: editingRenewsOn, renewalCycle: editingCycle });
       setSubscriptions((current) => current.map((item) => item.serviceKey === serviceKey
-        ? { ...item, monthlyCostUsd: parsed, renewsOn: editingRenewsOn || null }
+        ? { ...item, monthlyCostUsd: cost, renewsOn: editingRenewsOn || null, renewalCycle: editingCycle, billingKind: item.billingKind === 'USAGE' ? 'USAGE' : (cost ?? 0) > 0 ? 'SUBSCRIPTION' : 'FREE' }
         : item));
       setEditingCostKey(null);
     } catch (caught) {
@@ -151,6 +163,55 @@ export function AnalyticsPage() {
       setCostBusy(false);
     }
   }
+
+  async function saveNewService() {
+    const cost = parsedCost();
+    if (!newServiceLabel.trim()) {
+      setCostError(tr('Give the tool a name.', 'أعطِ الأداة اسماً.'));
+      return;
+    }
+    if (cost === undefined) {
+      setCostError(tr('Enter a number, for example 35', 'أدخل رقماً، مثال 35'));
+      return;
+    }
+    setCostBusy(true);
+    setCostError('');
+    try {
+      await addServiceSubscription(getSupabaseClient(), { label: newServiceLabel.trim(), monthlyCostUsd: cost, renewsOn: editingRenewsOn || null, renewalCycle: editingCycle });
+      setSubscriptions(await listServiceSubscriptions(getSupabaseClient()));
+      setAddingService(false);
+      setNewServiceLabel('');
+      setEditingCostValue('');
+      setEditingRenewsOn('');
+    } catch (caught) {
+      setCostError(caught instanceof Error ? caught.message : tr('Could not add the tool.', 'تعذرت إضافة الأداة.'));
+    } finally {
+      setCostBusy(false);
+    }
+  }
+
+  async function removeService(item: ServiceSubscription) {
+    if (!window.confirm(tr(`Remove “${item.labelEn}” from this list?`, `إزالة «${item.labelAr}» من هذه القائمة؟`))) return;
+    setCostBusy(true);
+    try {
+      await removeServiceSubscription(getSupabaseClient(), item.serviceKey);
+      setSubscriptions((current) => current.filter((row) => row.serviceKey !== item.serviceKey));
+      setEditingCostKey(null);
+    } catch (caught) {
+      setCostError(caught instanceof Error ? caught.message : tr('Could not remove it.', 'تعذرت الإزالة.'));
+    } finally {
+      setCostBusy(false);
+    }
+  }
+
+  const cycleLabel = (cycle: ServiceSubscription['renewalCycle']) => ({
+    DAILY: tr('per day', 'يومياً'),
+    MONTHLY: tr('per month', 'شهرياً'),
+    YEARLY: tr('per year', 'سنوياً'),
+    NONE: tr('one-off', 'مرة واحدة'),
+  }[cycle]);
+
+  const fixedMonthlyTotal = useMemo(() => subscriptions.reduce((total, item) => total + monthlyEquivalent(item), 0), [subscriptions]);
 
   async function refreshBalance() {
     setBalanceBusy(true);
@@ -283,7 +344,31 @@ export function AnalyticsPage() {
             </article>
 
             <article className="panel span-two">
-              <div className="section-heading"><div><p className="eyebrow">{tr('Subscriptions & services', 'الاشتراكات والخدمات')}</p><h2>{tr('Every service, labeled', 'كل خدمة باسمها')}</h2></div><small className="muted">{tr('Click a subscription price to set or correct it.', 'اضغط على سعر الاشتراك لتحديده أو تصحيحه.')}</small></div>
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">{tr('Subscriptions & services', 'الاشتراكات والخدمات')}</p>
+                  <h2>{tr('Every service, labeled', 'كل خدمة باسمها')}</h2>
+                  <p className="muted">{tr(`Fixed costs: ${money(fixedMonthlyTotal)} per month, plus AI usage.`, `التكاليف الثابتة: ${money(fixedMonthlyTotal)} شهرياً، إضافة إلى استهلاك الذكاء الاصطناعي.`)}</p>
+                </div>
+                <button type="button" className="compact-button primary" onClick={() => { setAddingService(true); setEditingCostKey(null); setCostError(''); setNewServiceLabel(''); setEditingCostValue(''); setEditingRenewsOn(''); setEditingCycle('MONTHLY'); }}>{tr('+ Add tool', '+ إضافة أداة')}</button>
+              </div>
+
+              {addingService && (
+                <div className="service-edit-row" role="group" aria-label={tr('New tool', 'أداة جديدة')}>
+                  <input className="compact-select service-name-input" value={newServiceLabel} onChange={(event) => setNewServiceLabel(event.target.value)} placeholder={tr('Tool name, e.g. Domain', 'اسم الأداة، مثال: النطاق')} aria-label={tr('Tool name', 'اسم الأداة')} />
+                  <input className="compact-select subscription-price-input" inputMode="decimal" value={editingCostValue} onChange={(event) => setEditingCostValue(event.target.value)} placeholder="0.00" aria-label={tr('Price in USD', 'السعر بالدولار')} />
+                  <select className="compact-select" value={editingCycle} onChange={(event) => setEditingCycle(event.target.value as ServiceSubscription['renewalCycle'])} aria-label={tr('Billing cycle', 'دورة الفوترة')}>
+                    <option value="DAILY">{tr('per day', 'يومياً')}</option>
+                    <option value="MONTHLY">{tr('per month', 'شهرياً')}</option>
+                    <option value="YEARLY">{tr('per year', 'سنوياً')}</option>
+                    <option value="NONE">{tr('one-off', 'مرة واحدة')}</option>
+                  </select>
+                  <input className="compact-select subscription-date-input" type="date" value={editingRenewsOn} onChange={(event) => setEditingRenewsOn(event.target.value)} aria-label={tr('Next renewal date', 'تاريخ التجديد القادم')} />
+                  <button type="button" className="compact-button primary" disabled={costBusy} onClick={() => void saveNewService()}>{costBusy ? tr('Saving…', 'جارٍ الحفظ…') : tr('Add', 'إضافة')}</button>
+                  <button type="button" className="compact-button" disabled={costBusy} onClick={() => { setAddingService(false); setCostError(''); }}>{tr('Cancel', 'إلغاء')}</button>
+                  {costError && <span className="renewal-due">{costError}</span>}
+                </div>
+              )}
               <div className="data-list">
                 {subscriptions.map((item) => {
                   const label = isArabic ? item.labelAr : item.labelEn;
@@ -301,9 +386,8 @@ export function AnalyticsPage() {
                       </span>
                       <span className="chip-row">
                         <span className={`status-pill ${item.billingKind === 'FREE' ? 'healthy' : renewal?.tone === 'negative' ? 'negative' : 'neutral'}`}>{kindLabel}</span>
-                        {item.billingKind === 'USAGE' ? (
-                          <b>{billing ? `${money(billing.monthSpendUsd)} ${tr('this month', 'هذا الشهر')}` : '—'}</b>
-                        ) : isEditing ? (
+                        {item.billingKind === 'USAGE' && <b>{billing ? `${money(billing.monthSpendUsd)} ${tr('this month', 'هذا الشهر')}` : '—'}</b>}
+                        {isEditing ? (
                           <span className="chip-row">
                             <input
                               className="compact-select subscription-price-input"
@@ -311,8 +395,14 @@ export function AnalyticsPage() {
                               value={editingCostValue}
                               onChange={(event) => setEditingCostValue(event.target.value)}
                               placeholder="0.00"
-                              aria-label={tr('Monthly cost in USD', 'التكلفة الشهرية بالدولار')}
+                              aria-label={tr('Price in USD', 'السعر بالدولار')}
                             />
+                            <select className="compact-select" value={editingCycle} onChange={(event) => setEditingCycle(event.target.value as ServiceSubscription['renewalCycle'])} aria-label={tr('Billing cycle', 'دورة الفوترة')}>
+                              <option value="DAILY">{tr('per day', 'يومياً')}</option>
+                              <option value="MONTHLY">{tr('per month', 'شهرياً')}</option>
+                              <option value="YEARLY">{tr('per year', 'سنوياً')}</option>
+                              <option value="NONE">{tr('one-off', 'مرة واحدة')}</option>
+                            </select>
                             <input
                               className="compact-select subscription-date-input"
                               type="date"
@@ -323,15 +413,13 @@ export function AnalyticsPage() {
                             />
                             <button type="button" className="compact-button primary" disabled={costBusy} onClick={() => void saveSubscription(item.serviceKey)}>{costBusy ? tr('Saving…', 'جارٍ الحفظ…') : tr('Save', 'حفظ')}</button>
                             <button type="button" className="compact-button" disabled={costBusy} onClick={() => { setEditingCostKey(null); setCostError(''); }}>{tr('Cancel', 'إلغاء')}</button>
+                            <button type="button" className="compact-button danger" disabled={costBusy} onClick={() => void removeService(item)}>{tr('Remove', 'إزالة')}</button>
                           </span>
                         ) : (
-                          <button
-                            type="button"
-                            className="compact-button"
-                            disabled={item.billingKind === 'FREE'}
-                            onClick={() => startEditing(item)}
-                          >
-                            {item.billingKind === 'FREE' ? tr('$0 / month', '0$ / شهر') : item.monthlyCostUsd == null ? tr('Set price & date', 'حدد السعر والتاريخ') : `${money(item.monthlyCostUsd)} / ${tr('month', 'شهر')}`}
+                          <button type="button" className="compact-button" onClick={() => startEditing(item)}>
+                            {item.monthlyCostUsd == null
+                              ? tr('Set price & date', 'حدد السعر والتاريخ')
+                              : `${money(item.monthlyCostUsd)} ${cycleLabel(item.renewalCycle)}`}
                           </button>
                         )}
                       </span>
